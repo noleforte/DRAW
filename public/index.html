@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agar.io Clone - Multiplayer Coin Collector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        .speech-bubble {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            max-width: 150px;
+            word-wrap: break-word;
+            z-index: 1000;
+            animation: fadeInOut 4s ease-in-out;
+        }
+        
+        .speech-bubble:after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid rgba(0, 0, 0, 0.8);
+        }
+        
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(10px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+        
+        .joystick {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            position: relative;
+            touch-action: none;
+        }
+        
+        .joystick-knob {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.8);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s ease;
+        }
+        
+        .coin-shine {
+            animation: shine 2s ease-in-out infinite;
+        }
+        
+        @keyframes shine {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        #gameCanvas {
+            cursor: none;
+        }
+        
+        #chatContent {
+            transition: height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white overflow-hidden">
+    <!-- Name Input Modal -->
+    <div id="nameModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-lg max-w-md w-full mx-4">
+            <h2 class="text-2xl font-bold mb-4 text-center">Welcome to Coin Collector!</h2>
+            <p class="text-gray-300 mb-6 text-center">Enter your details to start playing</p>
+            
+            <!-- Player Name -->
+            <input 
+                type="text" 
+                id="playerNameInput" 
+                placeholder="Your name" 
+                class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                maxlength="20"
+            >
+            
+            <!-- Wallet Address -->
+            <input 
+                type="text" 
+                id="playerWalletInput" 
+                placeholder="Wallet address (optional)" 
+                class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                maxlength="50"
+            >
+            
+            <!-- Color Picker -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-300 mb-2">Choose your ball color:</label>
+                <div class="flex flex-wrap gap-2 justify-center">
+                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #ff6b6b" data-color="0"></div>
+                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #4ecdc4" data-color="120"></div>
+                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #45b7d1" data-color="200"></div>
+                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #96ceb4" data-color="150"></div>
+                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #feca57" data-color="45"></div>
+                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #ff9ff3" data-color="300"></div>
+                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #54a0ff" data-color="220"></div>
+                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #5f27cd" data-color="270"></div>
+                </div>
+            </div>
+            
+            <button 
+                id="startGameBtn" 
+                class="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-semibold transition-colors"
+            >
+                Start Game
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Container -->
+    <div id="gameContainer" class="relative w-full h-screen">
+        <!-- Game Canvas -->
+        <canvas id="gameCanvas" class="absolute inset-0 bg-gray-900"></canvas>
+        
+        <!-- Leaderboard -->
+        <div id="leaderboard" class="absolute top-4 right-4 bg-black bg-opacity-70 rounded-lg p-4 min-w-48 z-10">
+            <h3 class="text-lg font-bold mb-2 text-yellow-400">🏆 Leaderboard</h3>
+            <div id="leaderboardList" class="space-y-1">
+                <!-- Leaderboard entries will be populated here -->
+            </div>
+        </div>
+        
+        <!-- Chat Panel (Desktop) -->
+        <div id="chatPanel" class="absolute right-4 bottom-4 w-80 bg-black bg-opacity-70 rounded-lg p-4 hidden lg:flex flex-col z-10 transition-all duration-300">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-lg font-bold text-blue-400">💬 Chat</h3>
+                <button id="chatToggleBtn" class="text-white hover:text-gray-300 text-xl">−</button>
+            </div>
+            <div id="chatContent" class="flex flex-col transition-all duration-300">
+                <div id="chatMessages" class="h-64 overflow-y-auto space-y-2 mb-4 text-sm">
+                    <!-- Chat messages will be populated here -->
+                </div>
+                <div class="flex">
+                    <input 
+                        type="text" 
+                        id="chatInput" 
+                        placeholder="Type a message..." 
+                        class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        maxlength="100"
+                    >
+                    <button 
+                        id="sendChatBtn" 
+                        class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-r-lg transition-colors"
+                    >
+                        Send
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile Chat Toggle -->
+        <button 
+            id="mobileChatToggle" 
+            class="lg:hidden fixed bottom-4 right-4 bg-blue-600 hover:bg-blue-700 p-3 rounded-full shadow-lg z-20"
+        >
+            💬
+        </button>
+        
+        <!-- Mobile Chat Modal -->
+        <div id="mobileChatModal" class="lg:hidden fixed inset-0 bg-black bg-opacity-90 z-30 hidden">
+            <div class="flex flex-col h-full p-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-blue-400">💬 Chat</h3>
+                    <button id="closeMobileChatBtn" class="text-white text-xl">✕</button>
+                </div>
+                <div id="mobileChatMessages" class="flex-1 overflow-y-auto space-y-2 mb-4 text-sm">
+                    <!-- Mobile chat messages will be populated here -->
+                </div>
+                <div class="flex">
+                    <input 
+                        type="text" 
+                        id="mobileChatInput" 
+                        placeholder="Type a message..." 
+                        class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        maxlength="100"
+                    >
+                    <button 
+                        id="sendMobileChatBtn" 
+                        class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-r-lg transition-colors"
+                    >
+                        Send
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile Joystick -->
+        <div id="mobileJoystick" class="lg:hidden fixed bottom-4 left-4 z-20">
+            <div class="joystick" id="joystick">
+                <div class="joystick-knob" id="joystickKnob"></div>
+            </div>
+        </div>
+        
+        <!-- Game Instructions -->
+        <div id="gameInstructions" class="absolute bottom-4 left-4 bg-black bg-opacity-70 rounded-lg p-4 text-sm max-w-64 z-10 lg:block hidden">
+            <h4 class="font-bold mb-2">🎮 Controls</h4>
+            <p class="mb-1">🖱️ Move: WASD or Arrow Keys</p>
+            <p class="mb-1">🪙 Collect coins to increase score</p>
+            <p>💬 Chat with other players</p>
+        </div>
+        
+        <!-- Speed Indicator -->
+        <div id="speedIndicator" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 rounded-lg px-4 py-2 text-sm z-10">
+            Speed: <span id="speedValue">0</span>
+        </div>
+        
+        <!-- Match Timer -->
+        <div id="matchTimer" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-900 bg-opacity-80 rounded-lg px-6 py-3 text-center z-10">
+            <div class="text-white font-bold text-lg">⏰ Match Time</div>
+            <div id="timerDisplay" class="text-yellow-400 font-mono text-2xl">2:00</div>
+        </div>
+        
+        <!-- Game Over Modal -->
+        <div id="gameOverModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden">
+            <div class="bg-gray-800 p-8 rounded-lg max-w-md w-full mx-4 text-center">
+                <h2 class="text-3xl font-bold mb-4 text-yellow-400">🏁 Match Finished!</h2>
+                <div id="finalResults" class="mb-6">
+                    <h3 class="text-xl font-semibold mb-4 text-white">Final Leaderboard</h3>
+                    <div id="finalLeaderboard" class="space-y-2 text-left">
+                        <!-- Final results will be populated here -->
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <button 
+                        id="playAgainBtn" 
+                        class="w-full bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg font-semibold transition-colors"
+                    >
+                        🔄 Play Again
+                    </button>
+                    <button 
+                        id="changeSettingsBtn" 
+                        class="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-semibold transition-colors"
+                    >
+                        ⚙️ Change Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html> 

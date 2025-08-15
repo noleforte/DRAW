@@ -1,0 +1,21 @@
+{
+  "name": "agar-io-clone",
+  "version": "1.0.0",
+  "description": "Multiplayer web game inspired by Agar.io with larger world map",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["multiplayer", "game", "websocket", "agar.io"],
+  "author": "Developer",
+  "license": "MIT"
+} 
