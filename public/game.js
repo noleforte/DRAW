@@ -43,7 +43,13 @@ function init() {
     window.addEventListener('resize', resizeCanvas);
     
     // Setup socket connection
-    socket = io();
+    const isProduction = window.location.hostname !== 'localhost';
+    const socketUrl = isProduction ? window.location.origin : 'http://localhost:3001';
+    
+    socket = io(socketUrl, {
+        path: isProduction ? '/api/socket' : '/socket.io',
+        transports: ['websocket', 'polling']
+    });
     setupSocketListeners();
     
     // Setup input handlers
