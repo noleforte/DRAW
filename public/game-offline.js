@@ -19,7 +19,7 @@ let ctx = null;
 let keys = {};
 let speechBubbles = new Map();
 let chatMessages = [];
-let isMobile = window.innerWidth < 1024;
+let isMobile = window.innerWidth < 1024 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 let selectedColor = 0;
 let chatCollapsed = false;
 let matchTimeLeft = 120;
@@ -178,7 +178,7 @@ function updateTimerDisplay(timeLeft = matchTimeLeft) {
 }
 
 function setupInputHandlers() {
-    // Same input handling as before...
+    // Keyboard input
     document.addEventListener('keydown', (e) => {
         keys[e.code] = true;
         if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
@@ -189,6 +189,60 @@ function setupInputHandlers() {
     document.addEventListener('keyup', (e) => {
         keys[e.code] = false;
     });
+    
+    // Mobile joystick setup
+    setupMobileJoystick();
+}
+
+function setupMobileJoystick() {
+    const joystick = document.getElementById('joystick');
+    const joystickKnob = document.getElementById('joystickKnob');
+    
+    if (!joystick || !joystickKnob) return;
+    
+    joystick.addEventListener('touchstart', handleJoystickStart, { passive: false });
+    joystick.addEventListener('touchmove', handleJoystickMove, { passive: false });
+    joystick.addEventListener('touchend', handleJoystickEnd, { passive: false });
+    
+    function handleJoystickStart(e) {
+        e.preventDefault();
+        joystickActive = true;
+        const rect = joystick.getBoundingClientRect();
+        joystickCenter.x = rect.left + rect.width / 2;
+        joystickCenter.y = rect.top + rect.height / 2;
+    }
+    
+    function handleJoystickMove(e) {
+        if (!joystickActive) return;
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        const dx = touch.clientX - joystickCenter.x;
+        const dy = touch.clientY - joystickCenter.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const maxDistance = 30;
+        
+        if (distance > maxDistance) {
+            const angle = Math.atan2(dy, dx);
+            movement.x = Math.cos(angle);
+            movement.y = Math.sin(angle);
+            
+            joystickKnob.style.transform = `translate(-50%, -50%) translate(${Math.cos(angle) * maxDistance}px, ${Math.sin(angle) * maxDistance}px)`;
+        } else {
+            movement.x = dx / maxDistance;
+            movement.y = dy / maxDistance;
+            
+            joystickKnob.style.transform = `translate(-50%, -50%) translate(${dx}px, ${dy}px)`;
+        }
+    }
+    
+    function handleJoystickEnd(e) {
+        e.preventDefault();
+        joystickActive = false;
+        movement.x = 0;
+        movement.y = 0;
+        joystickKnob.style.transform = 'translate(-50%, -50%)';
+    }
 }
 
 function setupUIHandlers() {
@@ -308,23 +362,101 @@ function setupUIHandlers() {
             }
         });
     }
+    
+    // Mobile chat handlers
+    setupMobileChat();
+}
+
+function setupMobileChat() {
+    // Mobile chat toggle
+    const mobileChatToggle = document.getElementById('mobileChatToggle');
+    const mobileChatModal = document.getElementById('mobileChatModal');
+    const closeMobileChatBtn = document.getElementById('closeMobileChatBtn');
+    const mobileChatInput = document.getElementById('mobileChatInput');
+    const sendMobileChatBtn = document.getElementById('sendMobileChatBtn');
+    
+    if (mobileChatToggle && mobileChatModal) {
+        mobileChatToggle.addEventListener('click', () => {
+            mobileChatModal.classList.remove('hidden');
+            syncMobileChatMessages();
+        });
+    }
+    
+    if (closeMobileChatBtn && mobileChatModal) {
+        closeMobileChatBtn.addEventListener('click', () => {
+            mobileChatModal.classList.add('hidden');
+        });
+    }
+    
+    if (mobileChatInput && sendMobileChatBtn) {
+        const sendMobileMessage = () => {
+            const message = mobileChatInput.value.trim();
+            if (message && localPlayer) {
+                // Add message to chat (visual only in offline mode)
+                addChatMessage({
+                    playerName: localPlayer.name,
+                    message: message,
+                    timestamp: Date.now()
+                });
+                mobileChatInput.value = '';
+                // Also sync to mobile chat
+                syncMobileChatMessages();
+            }
+        };
+        
+        sendMobileChatBtn.addEventListener('click', sendMobileMessage);
+        mobileChatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMobileMessage();
+            }
+        });
+    }
+}
+
+function syncMobileChatMessages() {
+    const mobileChatMessagesDiv = document.getElementById('mobileChatMessages');
+    if (!mobileChatMessagesDiv) return;
+    
+    mobileChatMessagesDiv.innerHTML = '';
+    
+    chatMessages.forEach(messageData => {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'bg-gray-800 rounded px-2 py-1';
+        
+        const timeStr = new Date(messageData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        messageDiv.innerHTML = `
+            <span class="text-gray-400 text-xs">${timeStr}</span>
+            <span class="font-semibold text-blue-300">${messageData.playerName}:</span>
+            <span class="text-white">${messageData.message}</span>
+        `;
+        
+        mobileChatMessagesDiv.appendChild(messageDiv);
+    });
+    
+    mobileChatMessagesDiv.scrollTop = mobileChatMessagesDiv.scrollHeight;
 }
 
 function updateMovement() {
     if (!localPlayer || gameEnded) return;
     
-    movement.x = 0;
-    movement.y = 0;
-    
-    if (keys['KeyA'] || keys['ArrowLeft']) movement.x -= 1;
-    if (keys['KeyD'] || keys['ArrowRight']) movement.x += 1;
-    if (keys['KeyW'] || keys['ArrowUp']) movement.y -= 1;
-    if (keys['KeyS'] || keys['ArrowDown']) movement.y += 1;
-    
-    if (movement.x !== 0 && movement.y !== 0) {
-        const length = Math.sqrt(movement.x * movement.x + movement.y * movement.y);
-        movement.x /= length;
-        movement.y /= length;
+    // If joystick is active (mobile), use joystick input
+    if (isMobile && joystickActive) {
+        // movement.x and movement.y are already set by joystick handlers
+    } else {
+        // Use keyboard input
+        movement.x = 0;
+        movement.y = 0;
+        
+        if (keys['KeyA'] || keys['ArrowLeft']) movement.x -= 1;
+        if (keys['KeyD'] || keys['ArrowRight']) movement.x += 1;
+        if (keys['KeyW'] || keys['ArrowUp']) movement.y -= 1;
+        if (keys['KeyS'] || keys['ArrowDown']) movement.y += 1;
+        
+        if (movement.x !== 0 && movement.y !== 0) {
+            const length = Math.sqrt(movement.x * movement.x + movement.y * movement.y);
+            movement.x /= length;
+            movement.y /= length;
+        }
     }
     
     // Update player position
