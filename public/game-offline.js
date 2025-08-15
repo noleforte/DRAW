@@ -120,38 +120,7 @@ function startMatch() {
     startClientTimer();
 }
 
-function restartGame() {
-    // Reset game state
-    gameEnded = false;
-    matchTimeLeft = 120;
-    matchStartTime = Date.now();
-    
-    // Reset player score if exists
-    if (localPlayer) {
-        localPlayer.score = 0;
-        localPlayer.x = 0;
-        localPlayer.y = 0;
-        localPlayer.vx = 0;
-        localPlayer.vy = 0;
-        camera.x = 0;
-        camera.y = 0;
-    }
-    
-    // Reset all bot scores and positions
-    gameState.bots.forEach(bot => {
-        bot.score = 0;
-        bot.x = (Math.random() - 0.5) * gameState.worldSize;
-        bot.y = (Math.random() - 0.5) * gameState.worldSize;
-        bot.vx = 0;
-        bot.vy = 0;
-    });
-    
-    // Regenerate coins
-    generateCoins(200);
-    
-    // Restart timer
-    startClientTimer();
-}
+
 
 function startClientTimer() {
     stopClientTimer();
@@ -283,24 +252,13 @@ function setupUIHandlers() {
     
     if (playAgainBtn) {
         playAgainBtn.addEventListener('click', () => {
-            gameOverModal.classList.add('hidden');
-            restartGame();
+            window.location.reload();
         });
     }
     
     if (changeSettingsBtn) {
         changeSettingsBtn.addEventListener('click', () => {
-            gameOverModal.classList.add('hidden');
-            nameModal.style.display = 'block';
-            // Reset form values
-            nameInput.value = '';
-            walletInput.value = '';
-            // Reset color selection
-            colorOptions.forEach(opt => opt.classList.remove('border-white'));
-            if (colorOptions.length > 0) {
-                colorOptions[0].classList.add('border-white');
-                selectedColor = 0;
-            }
+            window.location.reload();
         });
     }
     
