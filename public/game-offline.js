@@ -120,6 +120,39 @@ function startMatch() {
     startClientTimer();
 }
 
+function restartGame() {
+    // Reset game state
+    gameEnded = false;
+    matchTimeLeft = 120;
+    matchStartTime = Date.now();
+    
+    // Reset player score if exists
+    if (localPlayer) {
+        localPlayer.score = 0;
+        localPlayer.x = 0;
+        localPlayer.y = 0;
+        localPlayer.vx = 0;
+        localPlayer.vy = 0;
+        camera.x = 0;
+        camera.y = 0;
+    }
+    
+    // Reset all bot scores and positions
+    gameState.bots.forEach(bot => {
+        bot.score = 0;
+        bot.x = (Math.random() - 0.5) * gameState.worldSize;
+        bot.y = (Math.random() - 0.5) * gameState.worldSize;
+        bot.vx = 0;
+        bot.vy = 0;
+    });
+    
+    // Regenerate coins
+    generateCoins(200);
+    
+    // Restart timer
+    startClientTimer();
+}
+
 function startClientTimer() {
     stopClientTimer();
     
@@ -147,7 +180,7 @@ function endMatch() {
     gameEnded = true;
     stopClientTimer();
     
-    const allPlayers = [...gameState.players, ...gameState.bots];
+    const allPlayers = [...gameState.bots];
     if (localPlayer) allPlayers.push(localPlayer);
     
     showGameOverModal(allPlayers);
@@ -243,6 +276,34 @@ function setupUIHandlers() {
         if (e.key === 'Enter') startGame();
     });
     
+    // Game over modal handlers
+    const playAgainBtn = document.getElementById('playAgainBtn');
+    const changeSettingsBtn = document.getElementById('changeSettingsBtn');
+    const gameOverModal = document.getElementById('gameOverModal');
+    
+    if (playAgainBtn) {
+        playAgainBtn.addEventListener('click', () => {
+            gameOverModal.classList.add('hidden');
+            restartGame();
+        });
+    }
+    
+    if (changeSettingsBtn) {
+        changeSettingsBtn.addEventListener('click', () => {
+            gameOverModal.classList.add('hidden');
+            nameModal.style.display = 'block';
+            // Reset form values
+            nameInput.value = '';
+            walletInput.value = '';
+            // Reset color selection
+            colorOptions.forEach(opt => opt.classList.remove('border-white'));
+            if (colorOptions.length > 0) {
+                colorOptions[0].classList.add('border-white');
+                selectedColor = 0;
+            }
+        });
+    }
+    
     // Chat toggle
     const chatToggleBtn = document.getElementById('chatToggleBtn');
     const chatContent = document.getElementById('chatContent');
@@ -260,6 +321,32 @@ function setupUIHandlers() {
                 chatContent.style.overflow = 'visible';
                 chatContent.style.opacity = '1';
                 chatToggleBtn.textContent = '−';
+            }
+        });
+    }
+    
+    // Chat input handlers (for offline mode, just visual feedback)
+    const chatInput = document.getElementById('chatInput');
+    const sendChatBtn = document.getElementById('sendChatBtn');
+    
+    if (chatInput && sendChatBtn) {
+        const sendMessage = () => {
+            const message = chatInput.value.trim();
+            if (message && localPlayer) {
+                // Add message to chat (visual only in offline mode)
+                addChatMessage({
+                    playerName: localPlayer.name,
+                    message: message,
+                    timestamp: Date.now()
+                });
+                chatInput.value = '';
+            }
+        };
+        
+        sendChatBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
             }
         });
     }
@@ -377,6 +464,37 @@ function updateCamera() {
     const speedElement = document.getElementById('speedValue');
     if (speedElement) {
         speedElement.textContent = Math.round(speed * 10) / 10;
+    }
+}
+
+function addChatMessage(messageData) {
+    chatMessages.push(messageData);
+    
+    // Keep only last 50 messages
+    if (chatMessages.length > 50) {
+        chatMessages.shift();
+    }
+    
+    // Add to chat display
+    const chatMessagesDiv = document.getElementById('chatMessages');
+    if (chatMessagesDiv) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'bg-gray-800 rounded px-2 py-1';
+        
+        const timeStr = new Date(messageData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        messageDiv.innerHTML = `
+            <span class="text-gray-400 text-xs">${timeStr}</span>
+            <span class="font-semibold text-blue-300">${messageData.playerName}:</span>
+            <span class="text-white">${messageData.message}</span>
+        `;
+        
+        chatMessagesDiv.appendChild(messageDiv);
+        chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+        
+        // Remove old messages from DOM
+        while (chatMessagesDiv.children.length > 50) {
+            chatMessagesDiv.removeChild(chatMessagesDiv.firstChild);
+        }
     }
 }
 
