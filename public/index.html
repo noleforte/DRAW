@@ -287,20 +287,20 @@
         
         /* Player info panel responsive */
         @media (max-width: 1024px) {
-            #nameModal .flex {
-                flex-direction: column;
-                max-width: 500px;
-                height: auto;
-            }
-            #nameModal .w-80 {
+            #nameModal .fixed.left-8 {
+                position: relative;
+                left: auto;
+                top: auto;
+                transform: none;
                 width: 100%;
-                border-radius: 0.5rem 0.5rem 0 0;
+                max-width: 300px;
+                margin: 0 auto 20px auto;
             }
-            #nameModal .player-info-panel {
-                max-height: 200px;
-            }
-            #nameModal .flex-1 {
-                border-radius: 0 0 0.5rem 0.5rem;
+        }
+        
+        @media (max-width: 640px) {
+            #nameModal .fixed.left-8 {
+                display: none;
             }
         }
         
@@ -325,13 +325,24 @@
         }
         
         /* Smooth panel animations */
-        #nameModal > div {
-            transform: scale(0.8);
+        #nameModal .fixed.left-8 {
+            transform: translateX(-100%) translateY(-50%);
             opacity: 0;
-            transition: all 0.3s ease-in-out;
+            transition: all 0.4s ease-out;
         }
         
-        #nameModal.show > div {
+        #nameModal.show .fixed.left-8 {
+            transform: translateX(0) translateY(-50%);
+            opacity: 1;
+        }
+        
+        #nameModal .bg-gray-800 {
+            transform: scale(0.9);
+            opacity: 0;
+            transition: all 0.3s ease-out 0.1s;
+        }
+        
+        #nameModal.show .bg-gray-800 {
             transform: scale(1);
             opacity: 1;
         }
@@ -350,125 +361,56 @@
 <body class="bg-gray-900 text-white overflow-hidden">
     <!-- Name Input Modal -->
     <div id="nameModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <!-- Main Modal with Player Info -->
-        <div class="bg-gray-800 rounded-lg max-w-4xl w-full mx-4 max-h-screen overflow-hidden flex" style="height: 600px;">
-            
-            <!-- Player Info Panel (Left Side) -->
-            <div class="w-80 bg-white rounded-l-lg overflow-hidden player-info-panel">
-                <!-- Header -->
-                <div class="bg-gradient-to-r from-green-400 to-blue-500 p-4 text-white">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 id="playerInfoName" class="font-bold text-lg">Guest</h3>
-                            <p class="text-sm opacity-90">Not signed in</p>
-                        </div>
+        <!-- Player Info Panel (Left Side) -->
+        <div class="fixed left-8 top-1/2 transform -translate-y-1/2 w-64 bg-white rounded-xl shadow-2xl overflow-hidden z-60">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                        </svg>
                     </div>
-                </div>
-                
-                <!-- Stats Section -->
-                <div class="p-4 space-y-3 overflow-y-auto" style="height: calc(600px - 88px);">
-                    <!-- Experience/Score -->
-                    <div class="bg-gray-50 rounded-xl p-3 stat-card">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-medium text-gray-600">Total XP</span>
-                            <div class="flex items-center space-x-1">
-                                <span id="totalXP" class="font-bold text-green-600">0</span>
-                                <span class="text-green-600">⭐</span>
-                            </div>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div id="xpProgress" class="bg-green-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                        </div>
-                        <div class="text-xs text-gray-500 mt-1">
-                            <span id="currentXP">0</span>/60 XP
-                        </div>
-                    </div>
-                    
-                    <!-- Coins -->
-                    <div class="bg-yellow-50 rounded-xl p-3 stat-card">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-2">
-                                <span class="text-xl">🪙</span>
-                                <span class="font-medium text-gray-700 text-sm">Coins</span>
-                            </div>
-                            <div class="flex items-center space-x-1">
-                                <span id="totalCoins" class="font-bold text-yellow-600">20</span>
-                                <button class="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold hover:bg-green-600 transition-colors">+</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Gems -->
-                    <div class="bg-purple-50 rounded-xl p-3 stat-card">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-2">
-                                <span class="text-xl">💎</span>
-                                <span class="font-medium text-gray-700 text-sm">Gems</span>
-                            </div>
-                            <div class="flex items-center space-x-1">
-                                <span id="totalGems" class="font-bold text-purple-600">100</span>
-                                <button class="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold hover:bg-green-600 transition-colors">+</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Game Stats -->
-                    <div class="bg-blue-50 rounded-xl p-3 stat-card">
-                        <h4 class="font-medium text-gray-700 mb-2 flex items-center text-sm">
-                            <span class="text-lg mr-2">📊</span>
-                            Statistics
-                        </h4>
-                        <div class="space-y-1 text-xs">
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Matches:</span>
-                                <span id="matchesPlayed" class="font-semibold">0</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Best Score:</span>
-                                <span id="bestScore" class="font-semibold">0</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Win Rate:</span>
-                                <span id="winRate" class="font-semibold">0%</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Daily Missions -->
-                    <div class="bg-indigo-50 rounded-xl p-3 stat-card">
-                        <h4 class="font-medium text-gray-700 mb-2 flex items-center text-sm">
-                            <span class="text-lg mr-2">🎯</span>
-                            Daily Goals
-                        </h4>
-                        <div class="space-y-1 text-xs">
-                            <div class="flex items-center justify-between">
-                                <span class="text-gray-600">Collect 50 coins</span>
-                                <div class="flex items-center space-x-1">
-                                    <span class="font-semibold">0/50</span>
-                                    <span class="text-yellow-500">🪙</span>
-                                </div>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-gray-600">Win 3 matches</span>
-                                <div class="flex items-center space-x-1">
-                                    <span class="font-semibold">0/3</span>
-                                    <span class="text-green-500">🏆</span>
-                                </div>
-                            </div>
-                        </div>
+                    <div>
+                        <h3 id="playerInfoName" class="font-bold text-base">Guest</h3>
+                        <p id="playerInfoStatus" class="text-xs opacity-90">Not signed in</p>
                     </div>
                 </div>
             </div>
             
-            <!-- Main Menu Panel (Right Side) -->
-            <div class="flex-1 p-6 text-white">
-                <h2 class="text-2xl font-bold mb-3 text-center">Welcome to Royale Ball!</h2>
-                <p class="text-gray-300 mb-6 text-center">Sign in to save your progress, or play as guest</p>
+            <!-- Compact Stats -->
+            <div class="p-4 space-y-3">
+                <!-- Coins -->
+                <div class="bg-yellow-50 rounded-lg p-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">🪙</span>
+                            <span class="font-medium text-gray-700 text-sm">Coins</span>
+                        </div>
+                        <span id="totalCoins" class="font-bold text-yellow-600">20</span>
+                    </div>
+                </div>
+                
+                <!-- Quick Stats -->
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="space-y-2 text-xs">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Matches:</span>
+                            <span id="matchesPlayed" class="font-semibold">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Best Score:</span>
+                            <span id="bestScore" class="font-semibold">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Menu Panel (Center) -->
+        <div class="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4 text-white">
+            <h2 class="text-2xl font-bold mb-3 text-center">Welcome to Royale Ball!</h2>
+            <p class="text-gray-300 mb-4 text-center">Sign in to save your progress, or play as guest</p>
             
             <!-- Google Sign In Button (Primary) -->
             
@@ -537,14 +479,13 @@
                 </div>
             </div>
             
-                <button 
-                    id="startGameBtn" 
-                    class="w-full max-w-sm mx-auto bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-bold transition-colors text-lg flex items-center justify-center shadow-md"
-                >
-                    <span class="mr-2">🎮</span>
-                    <span>Start Game</span>
-                </button>
-            </div>
+            <button 
+                id="startGameBtn" 
+                class="w-full max-w-sm mx-auto bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-bold transition-colors text-lg flex items-center justify-center shadow-md"
+            >
+                <span class="mr-2">🎮</span>
+                <span>Start Game</span>
+            </button>
         </div>
     </div>
 

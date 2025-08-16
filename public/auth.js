@@ -310,12 +310,10 @@ class AuthSystem {
     // Update player info panel with current user data
     updatePlayerInfoPanel() {
         const playerInfoName = document.getElementById('playerInfoName');
-        const totalXP = document.getElementById('totalXP');
-        const currentXP = document.getElementById('currentXP');
-        const xpProgress = document.getElementById('xpProgress');
+        const playerInfoStatus = document.getElementById('playerInfoStatus');
+        const totalCoins = document.getElementById('totalCoins');
         const matchesPlayed = document.getElementById('matchesPlayed');
         const bestScore = document.getElementById('bestScore');
-        const winRate = document.getElementById('winRate');
         
         if (this.currentUser) {
             // Update name
@@ -325,23 +323,28 @@ class AuthSystem {
                 playerInfoName.textContent = displayName;
             }
             
-            // Update stats from Firebase
-            if (this.playerStats) {
-                if (totalXP) totalXP.textContent = this.playerStats.totalScore || 0;
-                if (currentXP) currentXP.textContent = (this.playerStats.totalScore || 0) % 60;
-                if (xpProgress) {
-                    const progress = ((this.playerStats.totalScore || 0) % 60) / 60 * 100;
-                    xpProgress.style.width = `${progress}%`;
-                }
-                if (matchesPlayed) matchesPlayed.textContent = this.playerStats.gamesPlayed || 0;
-                if (bestScore) bestScore.textContent = this.playerStats.bestScore || 0;
-                if (winRate) {
-                    const wins = this.playerStats.wins || 0;
-                    const games = this.playerStats.gamesPlayed || 0;
-                    const rate = games > 0 ? Math.round((wins / games) * 100) : 0;
-                    winRate.textContent = `${rate}%`;
+            // Update status
+            if (playerInfoStatus) {
+                if (this.currentUser.isAnonymous) {
+                    playerInfoStatus.textContent = 'Not signed in';
+                } else {
+                    playerInfoStatus.textContent = 'Signed in';
                 }
             }
+            
+            // Update stats from Firebase
+            if (this.playerStats) {
+                if (totalCoins) totalCoins.textContent = this.playerStats.totalScore || 20;
+                if (matchesPlayed) matchesPlayed.textContent = this.playerStats.gamesPlayed || 0;
+                if (bestScore) bestScore.textContent = this.playerStats.bestScore || 0;
+            }
+        } else {
+            // Not logged in
+            if (playerInfoName) playerInfoName.textContent = 'Guest';
+            if (playerInfoStatus) playerInfoStatus.textContent = 'Not signed in';
+            if (totalCoins) totalCoins.textContent = '20';
+            if (matchesPlayed) matchesPlayed.textContent = '0';
+            if (bestScore) bestScore.textContent = '0';
         }
     }
 
