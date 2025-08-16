@@ -517,24 +517,7 @@ function setupUIHandlers() {
             }
         });
     }
-    
-    // More Sign-In Options Button
-    const moreSignInBtn = document.getElementById('moreSignInBtn');
-    if (moreSignInBtn) {
-        moreSignInBtn.addEventListener('click', () => {
-            console.log('🔍 More Sign-In Options clicked!'); // Debug log
-            document.getElementById('nameModal').style.display = 'none';
-            const authModal = document.getElementById('authModal');
-            if (authModal) {
-                console.log('🔍 Removing hidden class from authModal'); // Debug log
-                authModal.classList.remove('hidden');
-            } else {
-                console.log('❌ authModal not found!'); // Debug log
-            }
-        });
-    } else {
-        console.log('❌ moreSignInBtn not found!'); // Debug log
-    }
+
     
     // Continue as Guest Button
     const mainGuestPlayBtn = document.getElementById('mainGuestPlayBtn');
@@ -550,13 +533,21 @@ function setupUIHandlers() {
             if (window.authSystem) {
                 window.authSystem.signInWithGoogle();
             }
-        } else if (e.target.id === 'moreSignInBtn' || e.target.closest('#moreSignInBtn')) {
-            console.log('🔍 More Sign-In Options clicked via delegation!'); // Debug log
+        } else if (e.target.id === 'signInMainBtn' || e.target.closest('#signInMainBtn')) {
+            console.log('🔑 Sign In clicked via delegation!'); // Debug log
             document.getElementById('nameModal').style.display = 'none';
             const authModal = document.getElementById('authModal');
             if (authModal) {
-                console.log('🔍 Removing hidden class from authModal via delegation'); // Debug log
+                console.log('🔑 Opening auth modal via delegation'); // Debug log
                 authModal.classList.remove('hidden');
+            }
+        } else if (e.target.id === 'moreSignInBtn' || e.target.closest('#moreSignInBtn')) {
+            console.log('📧 Sign Up clicked via delegation!'); // Debug log
+            document.getElementById('nameModal').style.display = 'none';
+            const registrationModal = document.getElementById('registrationModal');
+            if (registrationModal) {
+                console.log('📧 Opening registration modal via delegation'); // Debug log
+                registrationModal.classList.remove('hidden');
             }
         } else if (e.target.id === 'mainGuestPlayBtn' || e.target.closest('#mainGuestPlayBtn')) {
             startGame(e);
@@ -908,6 +899,42 @@ function setupUIHandlers() {
                 alert('Logged out successfully!');
             }
         });
+    }
+
+    // Sign In Button (opens auth modal)
+    const signInMainBtn = document.getElementById('signInMainBtn');
+    if (signInMainBtn) {
+        signInMainBtn.addEventListener('click', () => {
+            console.log('🔑 Sign In clicked!'); // Debug log
+            document.getElementById('nameModal').style.display = 'none';
+            const authModal = document.getElementById('authModal');
+            if (authModal) {
+                console.log('🔑 Opening auth modal for sign in'); // Debug log
+                authModal.classList.remove('hidden');
+            } else {
+                console.log('❌ authModal not found!'); // Debug log
+            }
+        });
+    } else {
+        console.log('❌ signInMainBtn not found!'); // Debug log
+    }
+    
+    // Sign Up Button (opens registration modal)
+    const moreSignInBtn = document.getElementById('moreSignInBtn');
+    if (moreSignInBtn) {
+        moreSignInBtn.addEventListener('click', () => {
+            console.log('📧 Sign Up clicked!'); // Debug log
+            document.getElementById('nameModal').style.display = 'none';
+            const registrationModal = document.getElementById('registrationModal');
+            if (registrationModal) {
+                console.log('📧 Opening registration modal for sign up'); // Debug log
+                registrationModal.classList.remove('hidden');
+            } else {
+                console.log('❌ registrationModal not found!'); // Debug log
+            }
+        });
+    } else {
+        console.log('❌ moreSignInBtn not found!'); // Debug log
     }
 }
 
