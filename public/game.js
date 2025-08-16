@@ -474,14 +474,134 @@ function setupUIHandlers() {
     const mobileChatModal = document.getElementById('mobileChatModal');
     const closeMobileChatBtn = document.getElementById('closeMobileChatBtn');
     
-    mobileChatToggle.addEventListener('click', () => {
-        mobileChatModal.classList.remove('hidden');
-        syncChatMessages();
-    });
+    if (mobileChatToggle) {
+        mobileChatToggle.addEventListener('click', () => {
+            mobileChatModal.classList.remove('hidden');
+            syncChatMessages();
+        });
+    }
     
-    closeMobileChatBtn.addEventListener('click', () => {
-        mobileChatModal.classList.add('hidden');
-    });
+    if (closeMobileChatBtn) {
+        closeMobileChatBtn.addEventListener('click', () => {
+            mobileChatModal.classList.add('hidden');
+        });
+    }
+    
+    // Auth Modal handlers
+    const closeAuthModalBtn = document.getElementById('closeAuthModalBtn');
+    const googleSignInBtn = document.getElementById('googleSignInBtn');
+    const guestPlayBtn = document.getElementById('guestPlayBtn'); // Fixed: was guestSignInBtn
+    const emailSignInBtn = document.getElementById('emailSignInBtn');
+    const emailCreateAccountBtn = document.getElementById('emailCreateAccountBtn');
+    const authEmailInput = document.getElementById('authEmailInput');
+    const authPasswordInput = document.getElementById('authPasswordInput');
+    
+    if (closeAuthModalBtn) {
+        closeAuthModalBtn.addEventListener('click', () => {
+            document.getElementById('authModal').style.display = 'none';
+            document.getElementById('nameModal').style.display = 'flex';
+        });
+    }
+    
+    if (googleSignInBtn) {
+        googleSignInBtn.addEventListener('click', async () => {
+            if (window.authSystem) {
+                try {
+                    await window.authSystem.signInWithGoogle();
+                    // Close auth modal on success
+                    document.getElementById('authModal').style.display = 'none';
+                    document.getElementById('nameModal').style.display = 'flex';
+                } catch (error) {
+                    // Handle error silently or show user-friendly message
+                    alert('Sign in failed. Please try again.');
+                }
+            }
+        });
+    }
+    
+    if (emailSignInBtn) {
+        emailSignInBtn.addEventListener('click', async () => {
+            const email = authEmailInput.value.trim();
+            const password = authPasswordInput.value;
+            
+            if (!email || !password) {
+                alert('Please enter both email and password.');
+                return;
+            }
+            
+            if (window.authSystem) {
+                try {
+                    await window.authSystem.signInWithEmailAndPassword(email, password);
+                    // Close auth modal on success
+                    document.getElementById('authModal').style.display = 'none';
+                    document.getElementById('nameModal').style.display = 'flex';
+                } catch (error) {
+                    alert('Sign in failed: ' + error.message);
+                }
+            }
+        });
+    }
+    
+    if (emailCreateAccountBtn) {
+        emailCreateAccountBtn.addEventListener('click', async () => {
+            const email = authEmailInput.value.trim();
+            const password = authPasswordInput.value;
+            
+            if (!email || !password) {
+                alert('Please enter both email and password.');
+                return;
+            }
+            
+            if (password.length < 6) {
+                alert('Password must be at least 6 characters long.');
+                return;
+            }
+            
+            if (window.authSystem) {
+                try {
+                    await window.authSystem.createUserWithEmailAndPassword(email, password);
+                    // Close auth modal on success
+                    document.getElementById('authModal').style.display = 'none';
+                    document.getElementById('nameModal').style.display = 'flex';
+                } catch (error) {
+                    alert('Account creation failed: ' + error.message);
+                }
+            }
+        });
+    }
+    
+    // Add Enter key support for email form
+    if (authEmailInput) {
+        authEmailInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                authPasswordInput.focus();
+            }
+        });
+    }
+    
+    if (authPasswordInput) {
+        authPasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                emailSignInBtn.click();
+            }
+        });
+    }
+    
+    if (guestPlayBtn) {
+        guestPlayBtn.addEventListener('click', async () => {
+            if (window.authSystem) {
+                try {
+                    await window.authSystem.signInAnonymously();
+                    // Close auth modal on success
+                    document.getElementById('authModal').style.display = 'none';
+                    document.getElementById('nameModal').style.display = 'flex';
+                } catch (error) {
+                    // Handle error silently or show user-friendly message
+                    alert('Guest sign in failed. Please try again.');
+                }
+            }
+        });
+    }
 }
 
 // Separate handler functions
