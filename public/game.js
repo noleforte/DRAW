@@ -122,20 +122,27 @@ function setupSocketListeners() {
     // Note: connect_error handler is now in setupSocketListeners
     
     socket.on('gameState', (data) => {
+        console.log('🎮 Initial gameState received:', data);
         gameState = data;
         localPlayer = gameState.players.find(p => p.id === data.playerId);
+        console.log(`👤 LocalPlayer found: ${localPlayer ? localPlayer.name : 'null'}`);
         if (localPlayer) {
             camera.x = localPlayer.x;
             camera.y = localPlayer.y;
+            console.log(`📹 Camera positioned at (${camera.x}, ${camera.y})`);
         }
     });
     
     socket.on('gameUpdate', (data) => {
+        console.log(`🔄 Game update: ${data.players.length} players, ${data.bots.length} bots, ${data.coins.length} coins`);
         gameState.players = data.players;
         gameState.bots = data.bots;
         gameState.coins = data.coins;
         
         localPlayer = gameState.players.find(p => p.id === gameState.playerId);
+        if (!localPlayer) {
+            console.warn(`⚠️ LocalPlayer not found in update. PlayerId: ${gameState.playerId}`);
+        }
         updateLeaderboard();
     });
     
@@ -733,8 +740,19 @@ function render() {
     });
     
     // Draw players and bots
-    [...gameState.players, ...gameState.bots].forEach(entity => {
-        drawEntity(entity);
+    const allEntities = [...gameState.players, ...gameState.bots];
+    
+    // Debug: log entities being drawn
+    if (allEntities.length === 0) {
+        console.log('⚠️ No entities to draw');
+    } else {
+        console.log(`🎨 Drawing ${allEntities.length} entities (${gameState.players.length} players, ${gameState.bots.length} bots)`);
+    }
+    
+    allEntities.forEach(entity => {
+        if (entity) {
+            drawEntity(entity);
+        }
     });
     
     // Restore context
@@ -881,8 +899,18 @@ function drawCoin(coin) {
 }
 
 function drawEntity(entity) {
+    if (!entity) {
+        console.warn('⚠️ Attempted to draw null entity');
+        return;
+    }
+    
     const screenPos = worldToScreen(entity.x, entity.y);
     const radius = entity.size * camera.zoom;
+    
+    // Debug: log first few draws
+    if (Math.random() < 0.01) { // 1% chance to avoid spam
+        console.log(`🎯 Drawing entity "${entity.name}" at (${entity.x}, ${entity.y}) screen: (${screenPos.x}, ${screenPos.y}) radius: ${radius}`);
+    }
     
     // Skip if off-screen
     if (screenPos.x < -radius || screenPos.x > canvas.width + radius ||
@@ -1262,10 +1290,18 @@ function showGameOverModal(finalResults) {
     gameOverModal.classList.remove('hidden');
 }
 
+let gameLoopCounter = 0;
+
 function gameLoop() {
     if (gameEnded) {
         requestAnimationFrame(gameLoop);
         return;
+    }
+    
+    // Log every 60 frames (once per second at 60fps)
+    gameLoopCounter++;
+    if (gameLoopCounter % 60 === 0) {
+        console.log(`🔄 GameLoop #${gameLoopCounter} - Players: ${gameState.players.length}, Bots: ${gameState.bots.length}`);
     }
     
     updateMovement();
