@@ -56,6 +56,9 @@ function init() {
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d');
     
+    // Load background image
+    loadBackgroundImage();
+    
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
     
@@ -66,6 +69,19 @@ function init() {
     initializeOfflineGame();
     
     gameLoop();
+}
+
+function loadBackgroundImage() {
+    backgroundImage = new Image();
+    backgroundImage.onload = function() {
+        backgroundLoaded = true;
+        console.log('✅ Background image loaded successfully (offline)');
+    };
+    backgroundImage.onerror = function() {
+        console.error('❌ Failed to load background image (offline)');
+        backgroundLoaded = false;
+    };
+    backgroundImage.src = 'world_bg_4000x4000.png';
 }
 
 function resizeCanvas() {
@@ -633,7 +649,10 @@ function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
     
-    // Draw grid
+    // Draw background image
+    drawBackground();
+    
+    // Draw grid over the image
     drawGrid();
     
     // Draw coins
@@ -652,6 +671,52 @@ function render() {
     ctx.restore();
 }
 
+function drawBackground() {
+    if (!backgroundLoaded || !backgroundImage) {
+        // Fallback to solid color if image not loaded
+        ctx.fillStyle = '#111827';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        return;
+    }
+    
+    // Calculate the visible area in world coordinates
+    const worldLeft = camera.x - (canvas.width / 2) / camera.zoom;
+    const worldTop = camera.y - (canvas.height / 2) / camera.zoom;
+    const worldRight = camera.x + (canvas.width / 2) / camera.zoom;
+    const worldBottom = camera.y + (canvas.height / 2) / camera.zoom;
+    
+    // World bounds
+    const worldSize = gameState.worldSize;
+    const worldHalf = worldSize / 2;
+    
+    // Calculate which part of the background image to draw
+    const bgLeft = Math.max(-worldHalf, worldLeft);
+    const bgTop = Math.max(-worldHalf, worldTop);
+    const bgRight = Math.min(worldHalf, worldRight);
+    const bgBottom = Math.min(worldHalf, worldBottom);
+    
+    // Convert world coordinates to image coordinates (0 to 4000)
+    const imgLeft = (bgLeft + worldHalf) / worldSize * backgroundImage.width;
+    const imgTop = (bgTop + worldHalf) / worldSize * backgroundImage.height;
+    const imgWidth = ((bgRight - bgLeft) / worldSize) * backgroundImage.width;
+    const imgHeight = ((bgBottom - bgTop) / worldSize) * backgroundImage.height;
+    
+    // Convert world coordinates to screen coordinates
+    const screenLeft = (bgLeft - camera.x) * camera.zoom + canvas.width / 2;
+    const screenTop = (bgTop - camera.y) * camera.zoom + canvas.height / 2;
+    const screenWidth = (bgRight - bgLeft) * camera.zoom;
+    const screenHeight = (bgBottom - bgTop) * camera.zoom;
+    
+    // Draw the visible portion of the background
+    if (imgWidth > 0 && imgHeight > 0 && screenWidth > 0 && screenHeight > 0) {
+        ctx.drawImage(
+            backgroundImage,
+            imgLeft, imgTop, imgWidth, imgHeight,
+            screenLeft, screenTop, screenWidth, screenHeight
+        );
+    }
+}
+
 function drawGrid() {
     const gridSize = 100;
     const startX = Math.floor((camera.x - canvas.width / 2 / camera.zoom) / gridSize) * gridSize;
@@ -659,7 +724,7 @@ function drawGrid() {
     const endX = camera.x + canvas.width / 2 / camera.zoom;
     const endY = camera.y + canvas.height / 2 / camera.zoom;
     
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.lineWidth = 1;
     ctx.setLineDash([5, 5]);
     

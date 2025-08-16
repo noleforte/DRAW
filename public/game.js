@@ -665,8 +665,8 @@ function render() {
     // Draw background image
     drawBackground();
     
-    // Draw grid background (optional, over the image)
-    // drawGrid();
+    // Draw grid background over the image
+    drawGrid();
     
     // Draw coins
     gameState.coins.forEach(coin => {
@@ -735,7 +735,7 @@ function drawGrid() {
     const endX = camera.x + canvas.width / 2 / camera.zoom;
     const endY = camera.y + canvas.height / 2 / camera.zoom;
     
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.lineWidth = 1;
     ctx.setLineDash([5, 5]);
     
