@@ -3,10 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agar.io Clone - Multiplayer Coin Collector</title>
+    <title>Royale Ball</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪙</text></svg>"
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="auth.js"></script>
+    <script src="leaderboard.js"></script>
+    
     <style>
         /* Fallback styles in case Tailwind doesn't load */
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -286,6 +296,13 @@
                 maxlength="50"
             >
             
+            <!-- Auth Status -->
+            <div id="authStatus" class="mb-4 text-sm text-gray-400">
+                <span id="authStatusText">Connecting to Firebase...</span>
+                <button id="signInBtn" class="ml-2 text-blue-400 hover:text-blue-300 hidden">Sign In</button>
+                <button id="signOutBtn" class="ml-2 text-red-400 hover:text-red-300 hidden">Sign Out</button>
+            </div>
+            
             <!-- Color Picker -->
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-300 mb-2">Choose your ball color:</label>
@@ -325,7 +342,12 @@
         
         <!-- Leaderboard -->
         <div id="leaderboard" class="absolute top-4 right-4 bg-black bg-opacity-70 rounded-lg p-4 min-w-48 z-10">
-            <h3 class="text-lg font-bold mb-2 text-yellow-400">🏆 Leaderboard</h3>
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-lg font-bold text-yellow-400">🏆 Leaderboard</h3>
+                <button id="toggleLeaderboardType" class="text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600">
+                    Match
+                </button>
+            </div>
             <div id="leaderboardList" class="space-y-1">
                 <!-- Leaderboard entries will be populated here -->
             </div>

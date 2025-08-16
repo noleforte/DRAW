@@ -113,9 +113,23 @@ function setupSocketListeners() {
         matchStartTime = Date.now();
     });
     
-    socket.on('gameEnded', (finalResults) => {
+    socket.on('gameEnded', async (finalResults) => {
         gameEnded = true;
         stopClientTimer();
+        
+        // Save game result to Firebase
+        if (window.authSystem && localPlayer) {
+            try {
+                await window.authSystem.saveGameResult(localPlayer.score, {
+                    finalPosition: finalResults.findIndex(p => p.id === localPlayer.id) + 1,
+                    totalPlayers: finalResults.filter(p => !p.isBot).length,
+                    matchDuration: 120 - matchTimeLeft
+                });
+            } catch (error) {
+                console.error('Failed to save game result:', error);
+            }
+        }
+        
         showGameOverModal(finalResults);
     });
 }
@@ -228,10 +242,38 @@ function setupUIHandlers() {
         }
     });
     
-    function startGame() {
+    async function startGame() {
         const playerName = nameInput.value.trim() || `Player${Math.floor(Math.random() * 1000)}`;
         const wallet = walletInput.value.trim();
-        socket.emit('joinGame', { name: playerName, wallet: wallet, color: selectedColor });
+        
+        // Sign in anonymously if not already authenticated
+        if (window.authSystem && !window.authSystem.currentUser) {
+            try {
+                await window.authSystem.signInAnonymously();
+            } catch (error) {
+                console.error('Failed to sign in:', error);
+            }
+        }
+        
+        // Update player profile if authenticated
+        if (window.authSystem && window.authSystem.currentUser) {
+            try {
+                await window.authSystem.updateProfile({
+                    playerName: playerName,
+                    walletAddress: wallet
+                });
+            } catch (error) {
+                console.error('Failed to update profile:', error);
+            }
+        }
+        
+        const playerId = window.authSystem ? window.authSystem.getCurrentUserId() : `guest_${Date.now()}_${Math.random()}`;
+        socket.emit('joinGame', { 
+            name: playerName, 
+            wallet: wallet, 
+            color: selectedColor,
+            playerId: playerId 
+        });
         nameModal.style.display = 'none';
     }
     
@@ -310,6 +352,34 @@ function setupUIHandlers() {
         gameEnded = false;
         matchTimeLeft = 120;
     });
+    
+    // Firebase auth handlers
+    const signInBtn = document.getElementById('signInBtn');
+    const signOutBtn = document.getElementById('signOutBtn');
+    
+    if (signInBtn) {
+        signInBtn.addEventListener('click', async () => {
+            if (window.authSystem) {
+                try {
+                    await window.authSystem.signInAnonymously();
+                } catch (error) {
+                    console.error('Sign in failed:', error);
+                }
+            }
+        });
+    }
+    
+    if (signOutBtn) {
+        signOutBtn.addEventListener('click', async () => {
+            if (window.authSystem) {
+                try {
+                    await window.authSystem.signOut();
+                } catch (error) {
+                    console.error('Sign out failed:', error);
+                }
+            }
+        });
+    }
 }
 
 function updateMovement() {
@@ -642,23 +712,31 @@ function updateLeaderboard() {
     const allEntities = [...gameState.players, ...gameState.bots];
     allEntities.sort((a, b) => b.score - a.score);
     
-    const leaderboardList = document.getElementById('leaderboardList');
-    leaderboardList.innerHTML = '';
-    
-    allEntities.slice(0, 10).forEach((entity, index) => {
-        const entryDiv = document.createElement('div');
-        entryDiv.className = `flex justify-between items-center text-sm ${entity.id === gameState.playerId ? 'bg-blue-800 bg-opacity-50 rounded px-2 py-1' : ''}`;
-        
-        const rankEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-        const botIndicator = entity.isBot ? ' 🤖' : '';
-        
-        entryDiv.innerHTML = `
-            <span class="flex-1 truncate">${rankEmoji} ${entity.name}${botIndicator}</span>
-            <span class="text-yellow-400 font-bold">${entity.score}</span>
-        `;
-        
-        leaderboardList.appendChild(entryDiv);
-    });
+    // Update match leaderboard in leaderboard manager
+    if (window.leaderboardManager) {
+        window.leaderboardManager.setMatchLeaderboard(allEntities.slice(0, 10));
+    } else {
+        // Fallback to old system if leaderboard manager not available
+        const leaderboardList = document.getElementById('leaderboardList');
+        if (leaderboardList) {
+            leaderboardList.innerHTML = '';
+            
+            allEntities.slice(0, 10).forEach((entity, index) => {
+                const entryDiv = document.createElement('div');
+                entryDiv.className = `flex justify-between items-center text-sm ${entity.id === gameState.playerId ? 'bg-blue-800 bg-opacity-50 rounded px-2 py-1' : ''}`;
+                
+                const rankEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+                const botIndicator = entity.isBot ? ' 🤖' : '';
+                
+                entryDiv.innerHTML = `
+                    <span class="flex-1 truncate">${rankEmoji} ${entity.name}${botIndicator}</span>
+                    <span class="text-yellow-400 font-bold">${entity.score}</span>
+                `;
+                
+                leaderboardList.appendChild(entryDiv);
+            });
+        }
+    }
 }
 
 function startClientTimer() {

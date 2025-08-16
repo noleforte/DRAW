@@ -3,6 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const { GameDataService } = require('./firebase-admin');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,7 +15,36 @@ const io = socketIo(server, {
 });
 
 app.use(cors());
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// API endpoint for global leaderboard
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const leaderboard = await GameDataService.getGlobalLeaderboard(limit);
+    res.json(leaderboard);
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error);
+    res.status(500).json({ error: 'Failed to fetch leaderboard' });
+  }
+});
+
+// API endpoint for player stats
+app.get('/api/player/:playerId', async (req, res) => {
+  try {
+    const playerId = req.params.playerId;
+    const stats = await GameDataService.getPlayerStats(playerId);
+    if (stats) {
+      res.json(stats);
+    } else {
+      res.status(404).json({ error: 'Player not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching player stats:', error);
+    res.status(500).json({ error: 'Failed to fetch player stats' });
+  }
+});
 
 // Game state
 const gameState = {
@@ -198,7 +228,7 @@ function startNewMatch() {
 }
 
 // End current match
-function endMatch() {
+async function endMatch() {
   console.log('Match ended!');
   gameState.gameEnded = true;
   gameState.gameStarted = false;
@@ -211,6 +241,34 @@ function endMatch() {
     score: player.score,
     isBot: player.isBot || false
   }));
+  
+  // Save player statistics to Firebase
+  for (const player of gameState.players.values()) {
+    try {
+      // Use Firebase ID if available, otherwise use socket ID
+      const playerId = player.firebaseId || player.id;
+      await GameDataService.savePlayerStats(playerId, {
+        playerName: player.name,
+        score: player.score,
+        walletAddress: player.wallet || ''
+      });
+    } catch (error) {
+      console.error('Error saving player stats:', error);
+    }
+  }
+  
+  // Save match result to Firebase
+  try {
+    await GameDataService.saveMatchResult({
+      players: finalResults.filter(p => !p.isBot),
+      winner: finalResults[0],
+      playersCount: gameState.players.size,
+      botsCount: gameState.bots.size,
+      matchDuration: 120 - gameState.matchTimeLeft
+    });
+  } catch (error) {
+    console.error('Error saving match result:', error);
+  }
   
   // Notify all clients
   io.emit('gameEnded', finalResults);
@@ -251,9 +309,11 @@ io.on('connection', (socket) => {
     const name = typeof playerData === 'string' ? playerData : playerData.name;
     const wallet = typeof playerData === 'object' ? playerData.wallet : '';
     const colorHue = typeof playerData === 'object' ? playerData.color : Math.random() * 360;
+    const playerId = typeof playerData === 'object' && playerData.playerId ? playerData.playerId : socket.id;
     
     const player = {
       id: socket.id,
+      firebaseId: playerId, // Store Firebase user ID separately from socket ID
       name: name || `Player${Math.floor(Math.random() * 1000)}`,
       wallet: wallet,
       ...getRandomPosition(),
