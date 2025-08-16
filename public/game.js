@@ -1928,75 +1928,56 @@ async function updatePlayerInfoPanelWithStats(user) {
     const totalCoinsElement = document.getElementById('totalCoins');
     const matchesPlayedElement = document.getElementById('matchesPlayed');
     const bestScoreElement = document.getElementById('bestScore');
-    const currentScoreElement = document.getElementById('currentScore');
-    const currentSizeElement = document.getElementById('currentSize');
+    
+    console.log('📊 Loading user stats:', user.stats);
     
     if (user.stats) {
         // Show accumulated total coins from all games
         if (totalCoinsElement) {
             totalCoinsElement.textContent = user.stats.totalScore || 0;
+            console.log('💰 Total coins loaded:', user.stats.totalScore);
         }
         
         // Show matches played
         if (matchesPlayedElement) {
             matchesPlayedElement.textContent = user.stats.gamesPlayed || 0;
+            console.log('🎮 Matches played loaded:', user.stats.gamesPlayed);
         }
         
         // Show best score
         if (bestScoreElement) {
             bestScoreElement.textContent = user.stats.bestScore || 0;
+            console.log('🏆 Best score loaded:', user.stats.bestScore);
         }
-    }
-    
-    // Reset current game stats
-    if (currentScoreElement) {
-        currentScoreElement.textContent = '0';
-    }
-    
-    if (currentSizeElement) {
-        currentSizeElement.textContent = '20';
+    } else {
+        console.log('⚠️ No user stats found, using defaults');
+        // Set default values
+        if (totalCoinsElement) totalCoinsElement.textContent = '0';
+        if (matchesPlayedElement) matchesPlayedElement.textContent = '0';
+        if (bestScoreElement) bestScoreElement.textContent = '0';
     }
 }
 
 async function updatePlayerInfoPanelStats(player) {
-    // Update current game stats (real-time)
-    const currentScore = document.getElementById('currentScore');
-    const currentSize = document.getElementById('currentSize');
-    const totalCoinsElement = document.getElementById('totalCoins');
-    
-    if (currentScore) {
-        currentScore.textContent = player.score || 0;
-    }
-    
-    if (currentSize) {
-        currentSize.textContent = Math.round(player.size || 20);
-    }
-    
-    // Show accumulated coins + current game score
+    // Only update total accumulated stats, not current game
     const currentUser = nicknameAuth.getCurrentUser();
-    if (totalCoinsElement && currentUser && player.name === currentUser.nickname) {
-        const accumulatedCoins = currentUser.stats.totalScore || 0;
-        const currentGameScore = player.score || 0;
-        totalCoinsElement.textContent = accumulatedCoins + currentGameScore;
-    } else if (totalCoinsElement) {
-        // For non-authenticated users, just show current game
-        totalCoinsElement.textContent = player.score || 0;
+    if (!currentUser || player.name !== currentUser.nickname) {
+        return; // Only update for authenticated current user
     }
     
     // Update best score if current score is higher
-    if (currentUser && player.name === currentUser.nickname) {
-        const bestScoreElement = document.getElementById('bestScore');
-        if (bestScoreElement) {
-            const currentBest = parseInt(bestScoreElement.textContent) || 0;
-            const currentGameScore = player.score || 0;
+    const bestScoreElement = document.getElementById('bestScore');
+    if (bestScoreElement) {
+        const currentBest = parseInt(bestScoreElement.textContent) || 0;
+        const currentGameScore = player.score || 0;
+        
+        if (currentGameScore > currentBest) {
+            bestScoreElement.textContent = currentGameScore;
             
-            if (currentGameScore > currentBest) {
-                bestScoreElement.textContent = currentGameScore;
-                
-                // Update in localStorage
-                currentUser.stats.bestScore = currentGameScore;
-                await nicknameAuth.updateUserStats(currentUser.nickname, currentUser.stats);
-            }
+            // Update in Firestore/localStorage
+            currentUser.stats.bestScore = currentGameScore;
+            await nicknameAuth.updateUserStats(currentUser.nickname, currentUser.stats);
+            console.log('🏆 New best score recorded:', currentGameScore);
         }
     }
 }
@@ -2004,43 +1985,31 @@ async function updatePlayerInfoPanelStats(player) {
 function loadSavedPlayerData() {
     // Check if user is authenticated
     const currentUser = nicknameAuth.getCurrentUser();
-    
     if (currentUser) {
-        // Auto-fill main name input
-        const mainNameInput = document.getElementById('playerNameInput');
-        if (mainNameInput) {
-            mainNameInput.value = currentUser.nickname;
-        }
+        console.log('🔄 Loading saved player data for:', currentUser.nickname);
         
-        // Auto-fill wallet input
-        const mainWalletInput = document.getElementById('playerWalletInput');
-        if (mainWalletInput && currentUser.wallet) {
-            mainWalletInput.value = currentUser.wallet;
-        }
-        
-        // Update player info panel
+        // Load latest user data from Firestore/localStorage
         updatePlayerInfoPanelWithStats(currentUser);
         
-    } else {
-        // Try to load old saved data (for backwards compatibility)
-        const savedNickname = localStorage.getItem('playerNickname');
-        const savedWallet = localStorage.getItem('playerWallet');
-        
-        if (savedNickname) {
-            // Auto-fill main name input
-            const mainNameInput = document.getElementById('playerNameInput');
-            if (mainNameInput) {
-                mainNameInput.value = savedNickname;
-            }
-            
-            // Auto-fill wallet input
-            const mainWalletInput = document.getElementById('playerWalletInput');
-            if (mainWalletInput && savedWallet) {
-                mainWalletInput.value = savedWallet;
-            }
-            
-            // Update player info panel
-            updatePlayerInfoPanel(savedNickname, 'Saved locally');
+        // Try to sync with Firestore to get latest data
+        if (nicknameAuth.isOnline && window.firebaseDb) {
+            setTimeout(async () => {
+                try {
+                    console.log('🔄 Syncing with Firestore for latest data...');
+                    await nicknameAuth.syncWithFirestore();
+                    
+                    // Reload user data after sync
+                    const updatedUser = nicknameAuth.getCurrentUser();
+                    if (updatedUser) {
+                        updatePlayerInfoPanelWithStats(updatedUser);
+                        console.log('✅ Player data updated from Firestore');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Failed to sync with Firestore:', error.message);
+                }
+            }, 2000); // Wait 2 seconds for Firebase to initialize
         }
+    } else {
+        console.log('ℹ️ No saved user data found');
     }
 } 
