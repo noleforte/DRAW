@@ -304,6 +304,12 @@
                 transform: none;
                 width: 240px;
                 max-height: 300px;
+                z-index: 40;
+            }
+            
+            /* Remove left margin on tablet */
+            #nameModal .ml-80 {
+                margin-left: 1rem;
             }
         }
         
@@ -315,6 +321,12 @@
                 transform: none;
                 width: 200px;
                 max-height: 250px;
+                z-index: 40;
+            }
+            
+            /* Remove left margin on mobile */
+            #nameModal .ml-80 {
+                margin-left: 1rem;
             }
         }
         
@@ -389,7 +401,7 @@
     <!-- Name Input Modal -->
     <div id="nameModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <!-- Player Info Panel (Left Side) -->
-        <div class="absolute left-8 top-1/2 transform -translate-y-1/2 bg-gray-800 p-6 rounded-lg w-64 max-h-screen overflow-y-auto player-info-panel">
+        <div class="absolute left-8 top-1/2 transform -translate-y-1/2 bg-gray-800 p-6 rounded-lg w-64 max-h-screen overflow-y-auto player-info-panel z-40">
             <!-- Header -->
             <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white rounded-lg mb-4">
                 <div class="flex items-center space-x-3">
@@ -435,7 +447,7 @@
         </div>
         
         <!-- Main Menu Modal (Center) -->
-        <div class="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4 max-h-screen overflow-y-auto" style="padding: 28px;">
+        <div class="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4 ml-80 max-h-screen overflow-y-auto z-50" style="padding: 28px;">
             <h2 class="text-2xl font-bold mb-3 text-center">Welcome to Royale Ball!</h2>
             <p class="text-gray-300 mb-4 text-center">Sign in to save your progress, or play as guest</p>
             
