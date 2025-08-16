@@ -344,6 +344,16 @@ function startBotSimulation() {
     console.log('🎬 Starting bot simulation events...');
     scheduleNextBotEvent();
   }, firstEventDelay);
+  
+  // Fallback: force bot action after 2 minutes if nothing happened
+  setTimeout(() => {
+    console.log('⚠️ Fallback: Forcing bot simulation check...');
+    if (gameState.bots.size < 15) {
+      const newBot = createBot(gameState.nextBotId++);
+      gameState.bots.set(newBot.id, newBot);
+      console.log(`🚨 Fallback bot "${newBot.name}" joined the game (${gameState.bots.size} bots online)`);
+    }
+  }, 120000); // 2 minutes
 }
 
 function initializeGame() {
@@ -729,6 +739,15 @@ if (process.env.NODE_ENV === 'production') {
     console.log('🏓 Ping to keep server awake');
   }, 14 * 60 * 1000); // 14 minutes
 }
+
+// Debug bot status every 30 seconds
+setInterval(() => {
+  console.log(`🤖 Bot Status: ${gameState.bots.size} bots online, ${gameState.players.size} players`);
+  if (gameState.bots.size > 0) {
+    const botNames = Array.from(gameState.bots.values()).map(bot => bot.name).join(', ');
+    console.log(`🎯 Current bots: ${botNames}`);
+  }
+}, 30000);
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
