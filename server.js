@@ -64,9 +64,9 @@ const gameState = {
   worldSize: 4000, // Large world size
   nextCoinId: 0,
   nextBotId: 0,
-  matchTimeLeft: 120, // 2 minutes in seconds
+  matchTimeLeft: 86400, // 24 hours in seconds (24 * 60 * 60)
   matchStartTime: null, // When the current match started
-  matchDuration: 120, // Total match duration in seconds
+  matchDuration: 86400, // Total match duration in seconds (24 hours)
   gameStarted: false,
   gameEnded: false
 };
@@ -213,8 +213,8 @@ function initializeGame() {
 
 // Start new match
 function startNewMatch() {
-  console.log('Starting new match...');
-  gameState.matchTimeLeft = 120;
+  console.log('Starting new 24-hour match...');
+  gameState.matchTimeLeft = 86400; // 24 hours
   gameState.matchStartTime = Date.now(); // Record exact start time
   gameState.gameStarted = true;
   gameState.gameEnded = false;
@@ -279,7 +279,7 @@ async function endMatch() {
       winner: finalResults[0],
       playersCount: gameState.players.size,
       botsCount: gameState.bots.size,
-      matchDuration: 120 - gameState.matchTimeLeft
+              matchDuration: 86400 - gameState.matchTimeLeft
     });
   } catch (error) {
     console.error('Error saving match result:', error);

@@ -23,8 +23,8 @@ let chatMessages = [];
 let isMobile = window.innerWidth < 1024;
 let selectedColor = 0; // Default color
 let chatCollapsed = false;
-let matchTimeLeft = 120; // 2 minutes in seconds
-let matchDuration = 120; // Total match duration in seconds
+let matchTimeLeft = 86400; // 24 hours in seconds
+let matchDuration = 86400; // Total match duration in seconds (24 hours)
 let gameEnded = false;
 let matchStartTime = null;
 let clientTimerInterval = null;
@@ -156,7 +156,7 @@ function setupSocketListeners() {
                 await window.authSystem.saveGameResult(localPlayer.score, {
                     finalPosition: finalResults.findIndex(p => p.id === localPlayer.id) + 1,
                     totalPlayers: finalResults.filter(p => !p.isBot).length,
-                    matchDuration: 120 - matchTimeLeft
+                    matchDuration: 86400 - matchTimeLeft
                 });
             } catch (error) {
                 console.error('Failed to save game result:', error);
@@ -382,7 +382,7 @@ function setupUIHandlers() {
     playAgainBtn.addEventListener('click', () => {
         gameOverModal.classList.add('hidden');
         gameEnded = false;
-        matchTimeLeft = 120;
+        matchTimeLeft = 86400;
         socket.emit('requestNewGame');
     });
     
@@ -390,7 +390,7 @@ function setupUIHandlers() {
         gameOverModal.classList.add('hidden');
         nameModal.style.display = 'block';
         gameEnded = false;
-        matchTimeLeft = 120;
+        matchTimeLeft = 86400;
     });
     
     // Firebase auth handlers
@@ -966,18 +966,28 @@ function stopClientTimer() {
 }
 
 function updateTimerDisplay(timeLeft = matchTimeLeft) {
-    const minutes = Math.floor(timeLeft / 60);
+    const hours = Math.floor(timeLeft / 3600);
+    const minutes = Math.floor((timeLeft % 3600) / 60);
     const seconds = timeLeft % 60;
     const timerDisplay = document.getElementById('timerDisplay');
     
-    timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    // Format time as HH:MM:SS
+    const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    timerDisplay.textContent = timeString;
+    
+    // Show current GMT time as well
+    const gmtTime = new Date().toUTCString().split(' ')[4]; // Extract HH:MM:SS from GMT string
+    const gmtDisplay = document.getElementById('gmtDisplay');
+    if (gmtDisplay) {
+        gmtDisplay.textContent = `GMT: ${gmtTime}`;
+    }
     
     // Change color based on time left
     const matchTimer = document.getElementById('matchTimer');
-    if (timeLeft <= 30) {
+    if (timeLeft <= 3600) { // Less than 1 hour
         matchTimer.className = 'absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-600 bg-opacity-80 rounded-lg px-6 py-3 text-center z-10';
         timerDisplay.className = 'text-white font-mono text-2xl animate-pulse';
-    } else if (timeLeft <= 60) {
+    } else if (timeLeft <= 7200) { // Less than 2 hours
         matchTimer.className = 'absolute top-4 left-1/2 transform -translate-x-1/2 bg-orange-600 bg-opacity-80 rounded-lg px-6 py-3 text-center z-10';
         timerDisplay.className = 'text-yellow-400 font-mono text-2xl';
     } else {
