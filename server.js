@@ -727,6 +727,7 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Open your browser and go to: http://localhost:${PORT}`);
+  console.log(`🤖 Current bots in game: ${gameState.bots.size}`);
 });
 
 // Graceful shutdown
