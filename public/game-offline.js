@@ -101,6 +101,7 @@ function initializeOfflineGame() {
     }
     
     // Start bot simulation
+    console.log('🔄 Starting offline bot simulation system...');
     startBotSimulation();
     
     // Start match
@@ -140,7 +141,7 @@ function startBotSimulation() {
             
             const action = Math.random();
             
-            if (action < 0.5 && currentBotCount < maxBots) {
+            if (action <= 0.5 && currentBotCount < maxBots) {
                 // 50% chance to add a new bot (player joins)
                 const newBot = createBot(gameState.bots.length);
                 gameState.bots.push(newBot);

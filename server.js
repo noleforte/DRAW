@@ -215,8 +215,12 @@ function startBotSimulation() {
   // Make existing bots also leave randomly (after 1-5 minutes)
   function scheduleExistingBotLeave() {
     const existingBots = Array.from(gameState.bots.values());
+    console.log(`📋 Scheduling ${existingBots.length} existing bots to potentially leave`);
     existingBots.forEach(bot => {
       const leaveDelay = 60000 + Math.random() * 240000; // 1-5 minutes
+      const minutes = Math.floor(leaveDelay / 60000);
+      const seconds = Math.floor((leaveDelay % 60000) / 1000);
+      console.log(`⏰ Bot "${bot.name}" may leave in ${minutes}m ${seconds}s`);
       setTimeout(() => {
         // Check if bot still exists and there are enough bots
         if (gameState.bots.has(bot.id) && gameState.bots.size > 5) {
@@ -261,8 +265,9 @@ function startBotSimulation() {
       
       // Random chance to add or remove a bot
       const action = Math.random();
+      console.log(`🎲 Bot simulation roll: ${action.toFixed(3)} (bots: ${currentBotCount}/${maxBots})`);
       
-      if (action < 0.5 && currentBotCount < maxBots) {
+      if (action <= 0.5 && currentBotCount < maxBots) {
         // 50% chance to add a bot (player joins)
         const newBot = createBot(gameState.nextBotId++);
         gameState.bots.set(newBot.id, newBot);
@@ -289,6 +294,7 @@ function startBotSimulation() {
         
       } else if (action > 0.5 && currentBotCount > minBots) {
         // 50% chance to remove a bot (player leaves)
+        console.log(`📤 Attempting to remove a bot (${currentBotCount} > ${minBots})`);
         const botIds = Array.from(gameState.bots.keys());
         const randomBotId = botIds[Math.floor(Math.random() * botIds.length)];
         const leavingBot = gameState.bots.get(randomBotId);
@@ -315,11 +321,13 @@ function startBotSimulation() {
               isSystem: true
             });
           }
+                  }
+        } else {
+          console.log(`😴 No bot action taken (roll: ${action.toFixed(3)}, conditions not met)`);
         }
-      }
-      
-      // Schedule next event
-      scheduleNextBotEvent();
+        
+        // Schedule next event
+        scheduleNextBotEvent();
     }, delay);
   }
   
@@ -327,9 +335,15 @@ function startBotSimulation() {
   scheduleExistingBotLeave();
   
   // Start the simulation with a quick first event (5-30 seconds)
+  const firstEventDelay = 5000 + Math.random() * 25000;
+  const firstMinutes = Math.floor(firstEventDelay / 60000);
+  const firstSeconds = Math.floor((firstEventDelay % 60000) / 1000);
+  console.log(`🚀 First bot simulation event will happen in ${firstMinutes}m ${firstSeconds}s`);
+  
   setTimeout(() => {
+    console.log('🎬 Starting bot simulation events...');
     scheduleNextBotEvent();
-  }, 5000 + Math.random() * 25000);
+  }, firstEventDelay);
 }
 
 function initializeGame() {
@@ -339,9 +353,13 @@ function initializeGame() {
   for (let i = 0; i < 8; i++) {
     const bot = createBot(gameState.nextBotId++);
     gameState.bots.set(bot.id, bot);
+    console.log(`🤖 Created initial bot "${bot.name}" (ID: ${bot.id})`);
   }
   
+  console.log(`🎮 Game initialized with ${gameState.bots.size} bots`);
+  
   // Start bot simulation (players joining/leaving)
+  console.log('🔄 Starting bot simulation system...');
   startBotSimulation();
 }
 
