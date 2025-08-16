@@ -23,7 +23,7 @@ let chatMessages = [];
 let isMobile = window.innerWidth < 1024;
 let selectedColor = 0; // Default color
 let chatCollapsed = false;
-let matchTimeLeft = 86400; // 24 hours in seconds
+let matchTimeLeft = null; // Will be calculated based on GMT day end
 let matchDuration = 86400; // Total match duration in seconds (24 hours)
 let gameEnded = false;
 let matchStartTime = null;
@@ -78,6 +78,18 @@ function init() {
     
     // Start game loop
     gameLoop();
+    
+    // Calculate initial time until end of GMT day
+    const now = new Date();
+    const endOfDay = new Date(now);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+    matchTimeLeft = Math.max(0, Math.floor((endOfDay.getTime() - now.getTime()) / 1000));
+    
+    // Initialize timer display immediately
+    updateTimerDisplay();
+    
+    // Start client timer for real-time updates
+    startClientTimer();
 }
 
 function loadBackgroundImage() {
@@ -1036,6 +1048,8 @@ function updateLeaderboard() {
 function startClientTimer() {
     stopClientTimer(); // Clear any existing timer
     
+    console.log('🕐 Starting client timer');
+    
     clientTimerInterval = setInterval(() => {
         // Calculate time remaining until end of GMT day
         const now = new Date();
@@ -1043,12 +1057,14 @@ function startClientTimer() {
         endOfDay.setUTCHours(23, 59, 59, 999); // End at 23:59:59.999 GMT
         
         const currentTimeLeft = Math.max(0, Math.floor((endOfDay.getTime() - now.getTime()) / 1000));
+        matchTimeLeft = currentTimeLeft; // Update global variable
         updateTimerDisplay(currentTimeLeft);
         
         if (currentTimeLeft <= 0) {
+            console.log('⏰ Day ended, stopping timer');
             stopClientTimer();
         }
-    }, 100); // Update every 100ms for smooth countdown
+    }, 1000); // Update every second is sufficient for day countdown
 }
 
 function stopClientTimer() {
@@ -1090,20 +1106,33 @@ function showConnectionError(message) {
 }
 
 function updateTimerDisplay(timeLeft = matchTimeLeft) {
+    const timerDisplay = document.getElementById('timerDisplay');
+    const gmtDisplay = document.getElementById('gmtDisplay');
+    
+    // Always show current GMT time
+    const gmtTime = new Date().toUTCString().split(' ')[4]; // Extract HH:MM:SS from GMT string
+    if (gmtDisplay) {
+        gmtDisplay.textContent = `GMT: ${gmtTime}`;
+    }
+    
+    // If no timeLeft provided, calculate it manually
+    if (timeLeft === undefined || timeLeft === null || isNaN(timeLeft)) {
+        // Calculate time until end of GMT day
+        const now = new Date();
+        const endOfDay = new Date(now);
+        endOfDay.setUTCHours(23, 59, 59, 999);
+        timeLeft = Math.max(0, Math.floor((endOfDay.getTime() - now.getTime()) / 1000));
+        console.log('📅 Calculated timeLeft manually:', timeLeft);
+    }
+    
     const hours = Math.floor(timeLeft / 3600);
     const minutes = Math.floor((timeLeft % 3600) / 60);
     const seconds = timeLeft % 60;
-    const timerDisplay = document.getElementById('timerDisplay');
     
     // Format time as HH:MM:SS
     const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    timerDisplay.textContent = timeString;
-    
-    // Show current GMT time as well
-    const gmtTime = new Date().toUTCString().split(' ')[4]; // Extract HH:MM:SS from GMT string
-    const gmtDisplay = document.getElementById('gmtDisplay');
-    if (gmtDisplay) {
-        gmtDisplay.textContent = `GMT: ${gmtTime}`;
+    if (timerDisplay) {
+        timerDisplay.textContent = timeString;
     }
     
     // Change color based on time left
