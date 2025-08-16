@@ -140,7 +140,7 @@ function setupSocketListeners() {
         showSpeechBubble(data);
     });
     
-        socket.on('matchStarted', (data) => {
+    socket.on('matchStarted', (data) => {
         console.log('🏁 Daily match started until GMT day end!');
         matchTimeLeft = data.timeLeft;
         gameEnded = false;
@@ -316,7 +316,7 @@ function setupUIHandlers() {
     
     // Set default color selection
     if (colorOptions.length > 0) {
-        colorOptions[0].classList.add('border-white');
+    colorOptions[0].classList.add('border-white');
         console.log('🎨 Default color set');
     }
     
@@ -994,11 +994,11 @@ function addChatMessage(messageData) {
     } else {
         // Regular player messages
         messageDiv.className = 'bg-gray-800 rounded px-2 py-1';
-        messageDiv.innerHTML = `
-            <span class="text-gray-400 text-xs">${timeStr}</span>
-            <span class="font-semibold text-blue-300">${messageData.playerName}:</span>
-            <span class="text-white">${messageData.message}</span>
-        `;
+    messageDiv.innerHTML = `
+        <span class="text-gray-400 text-xs">${timeStr}</span>
+        <span class="font-semibold text-blue-300">${messageData.playerName}:</span>
+        <span class="text-white">${messageData.message}</span>
+    `;
     }
     
     chatMessagesDiv.appendChild(messageDiv);
@@ -1030,11 +1030,11 @@ function syncChatMessages() {
         } else {
             // Regular messages for mobile
             messageDiv.className = 'bg-gray-800 rounded px-2 py-1';
-            messageDiv.innerHTML = `
-                <span class="text-gray-400 text-xs">${timeStr}</span>
-                <span class="font-semibold text-blue-300">${messageData.playerName}:</span>
-                <span class="text-white">${messageData.message}</span>
-            `;
+        messageDiv.innerHTML = `
+            <span class="text-gray-400 text-xs">${timeStr}</span>
+            <span class="font-semibold text-blue-300">${messageData.playerName}:</span>
+            <span class="text-white">${messageData.message}</span>
+        `;
         }
         
         mobileChatMessagesDiv.appendChild(messageDiv);
@@ -1073,24 +1073,24 @@ function updateLeaderboard() {
         window.leaderboardManager.setMatchLeaderboard(allEntities.slice(0, 15));
     } else {
         // Fallback to old system if leaderboard manager not available
-        const leaderboardList = document.getElementById('leaderboardList');
+    const leaderboardList = document.getElementById('leaderboardList');
         if (leaderboardList) {
-            leaderboardList.innerHTML = '';
-            
+    leaderboardList.innerHTML = '';
+    
             allEntities.slice(0, 15).forEach((entity, index) => {
-                const entryDiv = document.createElement('div');
-                entryDiv.className = `flex justify-between items-center text-sm ${entity.id === gameState.playerId ? 'bg-blue-800 bg-opacity-50 rounded px-2 py-1' : ''}`;
-                
-                const rankEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-                const botIndicator = entity.isBot ? ' 🤖' : '';
-                
-                entryDiv.innerHTML = `
-                    <span class="flex-1 truncate">${rankEmoji} ${entity.name}${botIndicator}</span>
-                    <span class="text-yellow-400 font-bold">${entity.score}</span>
-                `;
-                
-                leaderboardList.appendChild(entryDiv);
-            });
+        const entryDiv = document.createElement('div');
+        entryDiv.className = `flex justify-between items-center text-sm ${entity.id === gameState.playerId ? 'bg-blue-800 bg-opacity-50 rounded px-2 py-1' : ''}`;
+        
+        const rankEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+        const botIndicator = entity.isBot ? ' 🤖' : '';
+        
+        entryDiv.innerHTML = `
+            <span class="flex-1 truncate">${rankEmoji} ${entity.name}${botIndicator}</span>
+            <span class="text-yellow-400 font-bold">${entity.score}</span>
+        `;
+        
+        leaderboardList.appendChild(entryDiv);
+    });
         }
     }
 }
@@ -1108,12 +1108,12 @@ function startClientTimer() {
         
         const currentTimeLeft = Math.max(0, Math.floor((endOfDay.getTime() - now.getTime()) / 1000));
         matchTimeLeft = currentTimeLeft; // Update global variable
-        updateTimerDisplay(currentTimeLeft);
-        
-        if (currentTimeLeft <= 0) {
+            updateTimerDisplay(currentTimeLeft);
+            
+            if (currentTimeLeft <= 0) {
             console.log('⏰ Day ended, stopping timer');
-            stopClientTimer();
-        }
+                stopClientTimer();
+            }
     }, 1000); // Update every second is sufficient for day countdown
 }
 
