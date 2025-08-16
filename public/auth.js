@@ -20,6 +20,8 @@ class AuthSystem {
                 if (user) {
                     this.loadPlayerStats();
                     this.showAuthenticatedUI();
+                    // Auto-fill player name if signed in
+                    this.autoFillPlayerInfo();
                 } else {
                     this.showGuestUI();
                 }
@@ -28,6 +30,9 @@ class AuthSystem {
             console.error('❌ AuthSystem: Firebase not available:', error);
             this.showGuestUI();
         });
+        
+        // Also show guest UI initially
+        this.showGuestUI();
     }
 
     async waitForFirebase() {
@@ -306,11 +311,46 @@ class AuthSystem {
         const signOutBtn = document.getElementById('signOutBtn');
         
         if (authStatusText) {
-            authStatusText.textContent = 'Not signed in';
+            authStatusText.innerHTML = '👤 Not signed in';
         }
         
-        if (signInBtn) signInBtn.classList.remove('hidden');
-        if (signOutBtn) signOutBtn.classList.add('hidden');
+        if (signInBtn) {
+            signInBtn.classList.remove('hidden');
+            console.log('🔄 Showing Sign In button');
+        }
+        if (signOutBtn) {
+            signOutBtn.classList.add('hidden');
+        }
+    }
+
+    // Auto-fill player information when signed in
+    autoFillPlayerInfo() {
+        const playerNameInput = document.getElementById('playerNameInput');
+        const playerWalletInput = document.getElementById('playerWalletInput');
+        
+        if (this.currentUser && playerNameInput) {
+            // Fill name from Firebase profile or stats
+            let displayName = '';
+            if (this.playerStats?.playerName) {
+                displayName = this.playerStats.playerName;
+            } else if (this.currentUser.displayName) {
+                displayName = this.currentUser.displayName;
+            } else if (this.currentUser.email) {
+                displayName = this.currentUser.email.split('@')[0];
+            }
+            
+            if (displayName && !playerNameInput.value.trim()) {
+                playerNameInput.value = displayName;
+                console.log('📝 Auto-filled player name:', displayName);
+            }
+        }
+        
+        if (this.playerStats?.walletAddress && playerWalletInput) {
+            if (!playerWalletInput.value.trim()) {
+                playerWalletInput.value = this.playerStats.walletAddress;
+                console.log('💳 Auto-filled wallet address');
+            }
+        }
     }
 
     // Get current user ID for game
@@ -331,9 +371,13 @@ class AuthSystem {
 
     // Show authentication modal
     showAuthModal() {
+        console.log('🔄 showAuthModal called');
         const authModal = document.getElementById('authModal');
         if (authModal) {
+            console.log('✅ Auth modal found, showing it');
             authModal.classList.remove('hidden');
+        } else {
+            console.error('❌ Auth modal not found');
         }
     }
 
@@ -488,7 +532,11 @@ window.authSystem = authSystem;
 
 // Setup auth modal handlers when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🔄 DOM loaded, setting up auth modal handlers');
     if (window.authSystem) {
         window.authSystem.setupAuthModalHandlers();
+        console.log('✅ Auth modal handlers set up');
+    } else {
+        console.error('❌ AuthSystem not available on DOM load');
     }
 }); 

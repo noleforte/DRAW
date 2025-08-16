@@ -358,11 +358,18 @@ function setupUIHandlers() {
     const signOutBtn = document.getElementById('signOutBtn');
     
     if (signInBtn) {
+        console.log('✅ Sign In button found, adding event listener');
         signInBtn.addEventListener('click', () => {
+            console.log('🖱️ Sign In button clicked');
             if (window.authSystem) {
+                console.log('🔄 Opening auth modal');
                 window.authSystem.showAuthModal();
+            } else {
+                console.error('❌ AuthSystem not available');
             }
         });
+    } else {
+        console.error('❌ Sign In button not found');
     }
     
     if (signOutBtn) {
@@ -374,6 +381,83 @@ function setupUIHandlers() {
                     console.error('Sign out failed:', error);
                 }
             }
+        });
+    }
+    
+    // Main Google Sign In button (in welcome modal)
+    const mainGoogleSignInBtn = document.getElementById('mainGoogleSignInBtn');
+    if (mainGoogleSignInBtn) {
+        console.log('✅ Main Google Sign In button found');
+        mainGoogleSignInBtn.addEventListener('click', async () => {
+            console.log('🔑 Main Google Sign In clicked');
+            const originalText = mainGoogleSignInBtn.innerHTML;
+            mainGoogleSignInBtn.innerHTML = '<div class="flex items-center justify-center"><div class="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mr-2"></div>Signing in...</div>';
+            mainGoogleSignInBtn.disabled = true;
+            
+            if (window.authSystem) {
+                try {
+                    await window.authSystem.signInWithGoogle();
+                    console.log('✅ Google sign-in successful from main button');
+                    // The auth state change will hide the modal automatically
+                } catch (error) {
+                    console.error('❌ Google sign-in failed:', error);
+                    if (window.authSystem.showError) {
+                        window.authSystem.showError('Google Sign-In Failed', error.message);
+                    } else {
+                        alert('Google Sign-In Failed: ' + error.message);
+                    }
+                }
+            } else {
+                console.error('❌ AuthSystem not available');
+                alert('Authentication system not ready. Please refresh and try again.');
+            }
+            
+            mainGoogleSignInBtn.innerHTML = originalText;
+            mainGoogleSignInBtn.disabled = false;
+        });
+    }
+    
+    // More Sign-In Options button
+    const moreSignInBtn = document.getElementById('moreSignInBtn');
+    if (moreSignInBtn) {
+        console.log('✅ More Sign-In Options button found');
+        moreSignInBtn.addEventListener('click', () => {
+            console.log('📧 More Sign-In Options clicked');
+            if (window.authSystem) {
+                window.authSystem.showAuthModal();
+            }
+        });
+    }
+    
+    // Main Guest Play button (in welcome modal)
+    const mainGuestPlayBtn = document.getElementById('mainGuestPlayBtn');
+    if (mainGuestPlayBtn) {
+        console.log('✅ Main Guest Play button found');
+        mainGuestPlayBtn.addEventListener('click', async () => {
+            console.log('👤 Guest play clicked');
+            mainGuestPlayBtn.textContent = 'Signing in as guest...';
+            mainGuestPlayBtn.disabled = true;
+            
+            if (window.authSystem) {
+                try {
+                    await window.authSystem.signInAnonymously();
+                    console.log('✅ Anonymous sign-in successful from main button');
+                    // Auth state change will handle the rest
+                } catch (error) {
+                    console.error('❌ Anonymous sign-in failed:', error);
+                    if (window.authSystem.showError) {
+                        window.authSystem.showError('Guest Access Failed', error.message);
+                    } else {
+                        alert('Guest Access Failed: ' + error.message);
+                    }
+                }
+            } else {
+                console.error('❌ AuthSystem not available');
+                alert('Authentication system not ready. Please refresh and try again.');
+            }
+            
+            mainGuestPlayBtn.textContent = 'Continue as Guest (no progress saved)';
+            mainGuestPlayBtn.disabled = false;
         });
     }
 }
