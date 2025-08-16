@@ -111,13 +111,17 @@ function setupSocketListeners() {
         showSpeechBubble(data);
     });
     
-    socket.on('matchStarted', (data) => {
-        console.log('🏁 Match started!');
+        socket.on('matchStarted', (data) => {
+        console.log('🏁 Daily match started until GMT day end!');
         matchTimeLeft = data.timeLeft;
-        matchStartTime = data.startTime || Date.now();
-                    matchDuration = data.duration || 86400;
         gameEnded = false;
         timeOffset = 0; // Reset time offset for new match
+        
+        // Store end of GMT day if provided
+        if (data.endOfDayGMT) {
+            window.endOfDayGMT = data.endOfDayGMT;
+        }
+        
         startClientTimer();
     });
     
@@ -125,22 +129,23 @@ function setupSocketListeners() {
         // Handle both old format (number) and new format (object)
         if (typeof data === 'number') {
             matchTimeLeft = data;
-            matchStartTime = Date.now();
         } else {
-            // New synchronized format
+            // GMT day-based format
             matchTimeLeft = data.timeLeft;
-            matchStartTime = data.startTime;
-            matchDuration = data.duration;
             
             // Calculate offset between client and server time
             const serverTime = data.serverTime;
             const clientTime = Date.now();
             timeOffset = serverTime - clientTime;
             
-            console.log('🕐 Timer synchronized with server:', {
+            // Store end of GMT day for calculations
+            if (data.endOfDayGMT) {
+                window.endOfDayGMT = data.endOfDayGMT;
+            }
+            
+            console.log('🕐 Timer synchronized with GMT day end:', {
                 timeLeft: matchTimeLeft,
-                startTime: new Date(matchStartTime).toLocaleTimeString(),
-                duration: matchDuration,
+                endOfDay: data.endOfDayGMT ? new Date(data.endOfDayGMT).toUTCString() : 'unknown',
                 offset: timeOffset
             });
         }
@@ -944,16 +949,16 @@ function startClientTimer() {
     stopClientTimer(); // Clear any existing timer
     
     clientTimerInterval = setInterval(() => {
-        if (matchStartTime) {
-            // Use server time with offset compensation for accurate timing
-            const now = Date.now() + timeOffset;
-            const elapsed = Math.floor((now - matchStartTime) / 1000);
-            const currentTimeLeft = Math.max(0, matchDuration - elapsed);
-            updateTimerDisplay(currentTimeLeft);
-            
-            if (currentTimeLeft <= 0) {
-                stopClientTimer();
-            }
+        // Calculate time remaining until end of GMT day
+        const now = new Date();
+        const endOfDay = new Date(now);
+        endOfDay.setUTCHours(23, 59, 59, 999); // End at 23:59:59.999 GMT
+        
+        const currentTimeLeft = Math.max(0, Math.floor((endOfDay.getTime() - now.getTime()) / 1000));
+        updateTimerDisplay(currentTimeLeft);
+        
+        if (currentTimeLeft <= 0) {
+            stopClientTimer();
         }
     }, 100); // Update every 100ms for smooth countdown
 }

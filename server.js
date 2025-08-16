@@ -5,6 +5,14 @@ const cors = require('cors');
 const path = require('path');
 const { GameDataService } = require('./firebase-admin');
 
+// Helper function to get time until end of GMT day
+function getTimeUntilEndOfGMTDay() {
+  const now = new Date();
+  const endOfDay = new Date(now);
+  endOfDay.setUTCHours(23, 59, 59, 999);
+  return Math.max(0, Math.floor((endOfDay.getTime() - now.getTime()) / 1000));
+}
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -64,9 +72,9 @@ const gameState = {
   worldSize: 4000, // Large world size
   nextCoinId: 0,
   nextBotId: 0,
-  matchTimeLeft: 86400, // 24 hours in seconds (24 * 60 * 60)
+  matchTimeLeft: getTimeUntilEndOfGMTDay(), // Time until end of current GMT day
   matchStartTime: null, // When the current match started
-  matchDuration: 86400, // Total match duration in seconds (24 hours)
+  matchDuration: getTimeUntilEndOfGMTDay(), // Duration until end of GMT day
   gameStarted: false,
   gameEnded: false
 };
@@ -213,11 +221,23 @@ function initializeGame() {
 
 // Start new match
 function startNewMatch() {
-  console.log('Starting new 24-hour match...');
-  gameState.matchTimeLeft = 86400; // 24 hours
+  console.log('Starting daily match until end of GMT day...');
+  
+  // Calculate time until end of current GMT day
+  const now = new Date();
+  const endOfDay = new Date(now);
+  endOfDay.setUTCHours(23, 59, 59, 999); // End at 23:59:59.999 GMT
+  
+  const timeUntilEndOfDay = Math.floor((endOfDay.getTime() - now.getTime()) / 1000);
+  
+  gameState.matchTimeLeft = timeUntilEndOfDay;
+  gameState.matchDuration = timeUntilEndOfDay;
   gameState.matchStartTime = Date.now(); // Record exact start time
   gameState.gameStarted = true;
   gameState.gameEnded = false;
+  
+  console.log(`Match will end at: ${endOfDay.toUTCString()}`);
+  console.log(`Match duration: ${Math.floor(timeUntilEndOfDay / 3600)}h ${Math.floor((timeUntilEndOfDay % 3600) / 60)}m ${timeUntilEndOfDay % 60}s`);
   
   // Reset all player scores
   gameState.players.forEach(player => {
@@ -235,10 +255,13 @@ function startNewMatch() {
   generateCoins(200);
   
   // Notify all clients
+  const matchStartNow = new Date();
+  const matchEndOfDay = new Date(matchStartNow);
+  matchEndOfDay.setUTCHours(23, 59, 59, 999);
+  
   io.emit('matchStarted', {
     timeLeft: gameState.matchTimeLeft,
-    startTime: gameState.matchStartTime,
-    duration: gameState.matchDuration
+    endOfDayGMT: matchEndOfDay.getTime()
   });
 }
 
@@ -310,12 +333,14 @@ async function endMatch() {
 // Match timer countdown
 let timerSyncCounter = 0;
 function updateMatchTimer() {
-  if (!gameState.gameStarted || gameState.gameEnded || !gameState.matchStartTime) return;
+  if (!gameState.gameStarted || gameState.gameEnded) return;
   
-  // Calculate accurate time based on start time
-  const now = Date.now();
-  const elapsed = Math.floor((now - gameState.matchStartTime) / 1000);
-  gameState.matchTimeLeft = Math.max(0, gameState.matchDuration - elapsed);
+  // Calculate time remaining until end of current GMT day
+  const now = new Date();
+  const endOfDay = new Date(now);
+  endOfDay.setUTCHours(23, 59, 59, 999); // End at 23:59:59.999 GMT
+  
+  gameState.matchTimeLeft = Math.max(0, Math.floor((endOfDay.getTime() - now.getTime()) / 1000));
   
   timerSyncCounter++;
   
@@ -323,9 +348,8 @@ function updateMatchTimer() {
   if (timerSyncCounter >= 5) {
     io.emit('matchTimer', {
       timeLeft: gameState.matchTimeLeft,
-      startTime: gameState.matchStartTime,
-      duration: gameState.matchDuration,
-      serverTime: now
+      serverTime: Date.now(),
+      endOfDayGMT: endOfDay.getTime()
     });
     timerSyncCounter = 0;
   }
@@ -371,12 +395,15 @@ io.on('connection', (socket) => {
       playerId: socket.id
     });
     
-    // Send current timer state with start time for synchronization
+    // Send current timer state for synchronization
+    const timerNow = new Date();
+    const timerEndOfDay = new Date(timerNow);
+    timerEndOfDay.setUTCHours(23, 59, 59, 999);
+    
     socket.emit('matchTimer', {
       timeLeft: gameState.matchTimeLeft,
-      startTime: gameState.matchStartTime,
-      duration: gameState.matchDuration,
-      serverTime: Date.now()
+      serverTime: Date.now(),
+      endOfDayGMT: timerEndOfDay.getTime()
     });
     
     // Start match if this is the first player and game hasn't started
