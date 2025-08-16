@@ -297,14 +297,15 @@
         
         /* Player info panel responsive */
         @media (max-width: 1024px) {
-            #nameModal .player-info-panel {
-                position: absolute;
+            #playerInfoPanel {
+                position: fixed;
                 left: 1rem;
                 top: 1rem;
                 transform: none;
                 width: 240px;
                 max-height: 300px;
                 z-index: 40;
+                margin-top: 0;
             }
             
             /* Remove left margin on tablet */
@@ -314,14 +315,15 @@
         }
         
         @media (max-width: 640px) {
-            #nameModal .player-info-panel {
-                position: absolute;
+            #playerInfoPanel {
+                position: fixed;
                 left: 0.5rem;
                 top: 0.5rem;
                 transform: none;
                 width: 200px;
                 max-height: 250px;
                 z-index: 40;
+                margin-top: 0;
             }
             
             /* Remove left margin on mobile */
@@ -330,22 +332,22 @@
             }
         }
         
-        /* Hide player panel on small screens */
-        .player-info-panel {
+        /* Player panel scrollbar styling */
+        #playerInfoPanel {
             overflow-y: auto;
             scrollbar-width: thin;
             scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
         }
         
-        .player-info-panel::-webkit-scrollbar {
+        #playerInfoPanel::-webkit-scrollbar {
             width: 4px;
         }
         
-        .player-info-panel::-webkit-scrollbar-track {
+        #playerInfoPanel::-webkit-scrollbar-track {
             background: transparent;
         }
         
-        .player-info-panel::-webkit-scrollbar-thumb {
+        #playerInfoPanel::-webkit-scrollbar-thumb {
             background-color: rgba(156, 163, 175, 0.5);
             border-radius: 2px;
         }
@@ -399,7 +401,7 @@
 </head>
 <body class="bg-gray-900 text-white overflow-hidden">
     <!-- Player Info Panel (Always Visible) -->
-    <div id="playerInfoPanel" class="fixed left-8 top-1/2 transform -translate-y-1/2 bg-gray-800 p-6 rounded-lg w-64 max-h-screen overflow-y-auto z-40" style="margin-top: 9%;">
+    <div id="playerInfoPanel" class="fixed left-8 top-1/2 transform -translate-y-1/2 bg-gray-800 p-6 rounded-lg w-64 max-h-screen overflow-y-auto z-50" style="margin-top: 9%; display: block !important; visibility: visible !important;">
         <!-- Header -->
         <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white rounded-lg mb-4">
             <div class="flex items-center justify-between">
