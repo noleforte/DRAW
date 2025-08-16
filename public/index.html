@@ -407,13 +407,72 @@
             </div>
         </div>
         
-        <!-- Main Menu Panel (Center) -->
-        <div class="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4 text-white">
+        <!-- Main Menu Modal (Center) -->
+        <div class="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4 max-h-screen overflow-y-auto" style="padding: 28px;">
             <h2 class="text-2xl font-bold mb-3 text-center">Welcome to Royale Ball!</h2>
             <p class="text-gray-300 mb-4 text-center">Sign in to save your progress, or play as guest</p>
             
-            <!-- Google Sign In Button (Primary) -->
+            <!-- Alternative Sign In Options -->
+            <button 
+                id="moreSignInBtn" 
+                class="w-full max-w-sm mx-auto bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-semibold transition-colors mb-3 flex items-center justify-center"
+            >
+                <span class="mr-2">📧</span>
+                <span>Email / Other Options</span>
+            </button>
             
+            <!-- Guest Play Option -->
+            <button 
+                id="mainGuestPlayBtn" 
+                class="w-full max-w-sm mx-auto bg-gray-600 hover:bg-gray-700 px-6 py-2 rounded-lg font-semibold transition-colors mb-4 flex items-center justify-center"
+            >
+                <span class="mr-2">👤</span>
+                <span>Continue as Guest</span>
+            </button>
+            
+            <!-- Divider -->
+            <div class="border-t border-gray-600 my-4"></div>
+            
+            <!-- Player Name -->
+            <input 
+                type="text" 
+                id="playerNameInput" 
+                placeholder="Your name" 
+                class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3 text-sm"
+                maxlength="20"
+            >
+            
+            <!-- Wallet Address -->
+            <input 
+                type="text" 
+                id="playerWalletInput" 
+                placeholder="Wallet address (optional)" 
+                class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3 text-sm"
+                maxlength="50"
+            >
+            
+            <!-- Color Picker -->
+            <div class="mb-3" style="margin-top: 10px;">
+                <label class="block text-sm font-medium text-gray-300 mb-2">Choose your ball color:</label>
+                <div class="flex flex-wrap gap-2 justify-center" style="margin-top: 10px; margin-bottom: 10px;">
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #ff6b6b" data-color="0"></div>
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #4ecdc4" data-color="45"></div>
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #45b7d1" data-color="90"></div>
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #a8e6cf" data-color="135"></div>
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #ffd93d" data-color="180"></div>
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #ff9ff3" data-color="225"></div>
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #74b9ff" data-color="270"></div>
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #5f27cd" data-color="270"></div>
+                </div>
+            </div>
             
             <!-- Alternative Sign In Options -->
             <button 
@@ -428,7 +487,6 @@
             <button 
                 id="mainGuestPlayBtn" 
                 class="w-full max-w-sm mx-auto bg-gray-600 hover:bg-gray-700 px-6 py-2 rounded-lg font-semibold transition-colors mb-4 flex items-center justify-center"
-                >
             >
                 <span class="mr-2">👤</span>
                 <span>Continue as Guest</span>
