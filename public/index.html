@@ -429,12 +429,27 @@
             
             <!-- Compact Stats -->
             <div class="space-y-3">
-                <!-- Coins -->
+                <!-- Current Game Stats -->
+                <div class="bg-green-50 rounded-lg p-3">
+                    <div class="text-xs font-medium text-gray-600 mb-2">Current Game</div>
+                    <div class="space-y-1 text-xs">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Score:</span>
+                            <span id="currentScore" class="font-semibold text-green-600">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Size:</span>
+                            <span id="currentSize" class="font-semibold text-green-600">20</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Total Coins -->
                 <div class="bg-yellow-50 rounded-lg p-3">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-2">
                             <span class="text-lg">🪙</span>
-                            <span class="font-medium text-gray-700 text-sm">Coins</span>
+                            <span class="font-medium text-gray-700 text-sm">Coins This Game</span>
                         </div>
                         <span id="totalCoins" class="font-bold text-yellow-600">0</span>
                     </div>

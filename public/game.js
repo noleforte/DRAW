@@ -298,6 +298,11 @@ function setupSocketListeners() {
             }
         }
         
+        // Update Player Info Panel with current game stats
+        if (localPlayer) {
+            updatePlayerInfoPanelStats(localPlayer);
+        }
+        
         updateLeaderboard();
     });
     
@@ -1691,6 +1696,44 @@ function updatePlayerInfoPanelWithStats(user) {
 
     if (logoutBtn) {
         logoutBtn.classList.remove('hidden');
+    }
+}
+
+function updatePlayerInfoPanelStats(player) {
+    // Update current game stats (real-time)
+    const currentScore = document.getElementById('currentScore');
+    const currentSize = document.getElementById('currentSize');
+    const totalCoinsElement = document.getElementById('totalCoins');
+    
+    if (currentScore) {
+        currentScore.textContent = player.score || 0;
+    }
+    
+    if (currentSize) {
+        currentSize.textContent = Math.round(player.size || 20);
+    }
+    
+    // Show current game score as "coins collected this game"
+    if (totalCoinsElement) {
+        totalCoinsElement.textContent = player.score || 0;
+    }
+    
+    // Update best score if current score is higher
+    const currentUser = nicknameAuth.getCurrentUser();
+    if (currentUser && player.name === currentUser.nickname) {
+        const bestScoreElement = document.getElementById('bestScore');
+        if (bestScoreElement) {
+            const currentBest = parseInt(bestScoreElement.textContent) || 0;
+            const currentGameScore = player.score || 0;
+            
+            if (currentGameScore > currentBest) {
+                bestScoreElement.textContent = currentGameScore;
+                
+                // Update in localStorage
+                currentUser.stats.bestScore = currentGameScore;
+                nicknameAuth.updateUserStats(currentUser.nickname, currentUser.stats);
+            }
+        }
     }
 }
 
