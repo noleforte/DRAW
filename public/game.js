@@ -980,14 +980,26 @@ function addChatMessage(messageData) {
     // Add to desktop chat
     const chatMessagesDiv = document.getElementById('chatMessages');
     const messageDiv = document.createElement('div');
-    messageDiv.className = 'bg-gray-800 rounded px-2 py-1';
     
     const timeStr = new Date(messageData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    messageDiv.innerHTML = `
-        <span class="text-gray-400 text-xs">${timeStr}</span>
-        <span class="font-semibold text-blue-300">${messageData.playerName}:</span>
-        <span class="text-white">${messageData.message}</span>
-    `;
+    
+    if (messageData.isSystem) {
+        // System messages (bot join/leave notifications)
+        messageDiv.className = 'bg-yellow-900 bg-opacity-50 rounded px-2 py-1 border-l-2 border-yellow-500';
+        messageDiv.innerHTML = `
+            <span class="text-gray-400 text-xs">${timeStr}</span>
+            <span class="font-semibold text-yellow-400">📢 System:</span>
+            <span class="text-yellow-200 italic">${messageData.message}</span>
+        `;
+    } else {
+        // Regular player messages
+        messageDiv.className = 'bg-gray-800 rounded px-2 py-1';
+        messageDiv.innerHTML = `
+            <span class="text-gray-400 text-xs">${timeStr}</span>
+            <span class="font-semibold text-blue-300">${messageData.playerName}:</span>
+            <span class="text-white">${messageData.message}</span>
+        `;
+    }
     
     chatMessagesDiv.appendChild(messageDiv);
     chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
@@ -1004,14 +1016,26 @@ function syncChatMessages() {
     
     chatMessages.forEach(messageData => {
         const messageDiv = document.createElement('div');
-        messageDiv.className = 'bg-gray-800 rounded px-2 py-1';
         
         const timeStr = new Date(messageData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        messageDiv.innerHTML = `
-            <span class="text-gray-400 text-xs">${timeStr}</span>
-            <span class="font-semibold text-blue-300">${messageData.playerName}:</span>
-            <span class="text-white">${messageData.message}</span>
-        `;
+        
+        if (messageData.isSystem) {
+            // System messages for mobile
+            messageDiv.className = 'bg-yellow-900 bg-opacity-50 rounded px-2 py-1 border-l-2 border-yellow-500';
+            messageDiv.innerHTML = `
+                <span class="text-gray-400 text-xs">${timeStr}</span>
+                <span class="font-semibold text-yellow-400">📢</span>
+                <span class="text-yellow-200 italic text-xs">${messageData.message}</span>
+            `;
+        } else {
+            // Regular messages for mobile
+            messageDiv.className = 'bg-gray-800 rounded px-2 py-1';
+            messageDiv.innerHTML = `
+                <span class="text-gray-400 text-xs">${timeStr}</span>
+                <span class="font-semibold text-blue-300">${messageData.playerName}:</span>
+                <span class="text-white">${messageData.message}</span>
+            `;
+        }
         
         mobileChatMessagesDiv.appendChild(messageDiv);
     });
@@ -1046,14 +1070,14 @@ function updateLeaderboard() {
     
     // Update match leaderboard in leaderboard manager
     if (window.leaderboardManager) {
-        window.leaderboardManager.setMatchLeaderboard(allEntities.slice(0, 10));
+        window.leaderboardManager.setMatchLeaderboard(allEntities.slice(0, 15));
     } else {
         // Fallback to old system if leaderboard manager not available
         const leaderboardList = document.getElementById('leaderboardList');
         if (leaderboardList) {
             leaderboardList.innerHTML = '';
             
-            allEntities.slice(0, 10).forEach((entity, index) => {
+            allEntities.slice(0, 15).forEach((entity, index) => {
                 const entryDiv = document.createElement('div');
                 entryDiv.className = `flex justify-between items-center text-sm ${entity.id === gameState.playerId ? 'bg-blue-800 bg-opacity-50 rounded px-2 py-1' : ''}`;
                 
@@ -1185,8 +1209,8 @@ function showGameOverModal(finalResults) {
     // Sort results by score
     finalResults.sort((a, b) => b.score - a.score);
     
-    // Display top 10 players
-    finalResults.slice(0, 10).forEach((player, index) => {
+    // Display top 15 players
+    finalResults.slice(0, 15).forEach((player, index) => {
         const playerDiv = document.createElement('div');
         playerDiv.className = 'flex justify-between items-center p-2 bg-gray-700 rounded mb-1';
         

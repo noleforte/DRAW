@@ -36,11 +36,12 @@ let movement = { x: 0, y: 0 };
 let joystickActive = false;
 let joystickCenter = { x: 0, y: 0 };
 
-// Bot names
+// Bot names (realistic player names)
 const botNames = [
-    'BotMax', 'CoinHunter', 'Goldy', 'SpeedBot', 'CoinMaster',
-    'BotAlex', 'QuickSilver', 'GoldRush', 'FastBot', 'CoinSeeker',
-    'BotZero', 'Lightning', 'GoldDigger', 'RocketBot', 'CoinCollector'
+    'Alex', 'Mike', 'Sarah', 'John', 'Emma', 'David', 'Lisa', 'Tom', 'Anna', 'Chris',
+    'Maria', 'James', 'Kate', 'Ben', 'Sofia', 'Nick', 'Amy', 'Dan', 'Luna', 'Max',
+    'Zoe', 'Ryan', 'Mia', 'Sam', 'Lea', 'Jake', 'Ivy', 'Leo', 'Eva', 'Noah',
+    'Ava', 'Luke', 'Eli', 'Kai', 'Joy', 'Tim', 'Sky', 'Ace', 'Rio', 'Zara'
 ];
 
 // Bot messages
@@ -91,16 +92,62 @@ function resizeCanvas() {
 
 function initializeOfflineGame() {
     // Generate coins
-    generateCoins(200);
+    generateCoins(300);
     
-    // Create AI bots
+    // Create initial AI bots (start with fewer)
     for (let i = 0; i < 8; i++) {
         const bot = createBot(i);
         gameState.bots.push(bot);
     }
     
+    // Start bot simulation
+    startBotSimulation();
+    
     // Start match
     startMatch();
+}
+
+// Bot simulation for offline version
+function startBotSimulation() {
+    function scheduleNextBotEvent() {
+        // Random delay between 30 seconds and 10 minutes
+        const delay = 30000 + Math.random() * 570000;
+        const minutes = Math.floor(delay / 60000);
+        const seconds = Math.floor((delay % 60000) / 1000);
+        
+        console.log(`⏰ Next bot event scheduled in ${minutes}m ${seconds}s`);
+        
+        setTimeout(() => {
+            const currentBotCount = gameState.bots.length;
+            const maxBots = 15;
+            const minBots = 5;
+            
+            const action = Math.random();
+            
+            if (action < 0.4 && currentBotCount < maxBots) {
+                // 40% chance to add a new bot (player joins)
+                const newBot = createBot(gameState.bots.length);
+                gameState.bots.push(newBot);
+                console.log(`🤖 Bot "${newBot.name}" joined (${gameState.bots.length} bots online)`);
+                
+            } else if (action > 0.6 && currentBotCount > minBots) {
+                // 40% chance to remove a random bot (player leaves)
+                const randomIndex = Math.floor(Math.random() * gameState.bots.length);
+                const leavingBot = gameState.bots[randomIndex];
+                
+                if (leavingBot) {
+                    gameState.bots.splice(randomIndex, 1);
+                    console.log(`👋 Bot "${leavingBot.name}" left (${gameState.bots.length} bots online)`);
+                }
+            }
+            
+            // Schedule next event
+            scheduleNextBotEvent();
+        }, delay);
+    }
+    
+    // Start the simulation
+    scheduleNextBotEvent();
 }
 
 function generateCoins(count) {
@@ -119,7 +166,7 @@ function generateCoins(count) {
 function createBot(id) {
     return {
         id: `bot_${id}`,
-        name: botNames[Math.floor(Math.random() * botNames.length)] + Math.floor(Math.random() * 100),
+        name: botNames[Math.floor(Math.random() * botNames.length)],
         x: (Math.random() - 0.5) * gameState.worldSize,
         y: (Math.random() - 0.5) * gameState.worldSize,
         vx: 0,
@@ -621,7 +668,7 @@ function updateLeaderboard() {
     if (leaderboardList) {
         leaderboardList.innerHTML = '';
         
-        allEntities.slice(0, 10).forEach((entity, index) => {
+        allEntities.slice(0, 15).forEach((entity, index) => {
             const entryDiv = document.createElement('div');
             entryDiv.className = `flex justify-between items-center text-sm ${entity.id === 'player1' ? 'bg-blue-800 bg-opacity-50 rounded px-2 py-1' : ''}`;
             
@@ -867,7 +914,7 @@ function showGameOverModal(finalResults) {
     finalLeaderboard.innerHTML = '';
     finalResults.sort((a, b) => b.score - a.score);
     
-    finalResults.slice(0, 10).forEach((player, index) => {
+    finalResults.slice(0, 15).forEach((player, index) => {
         const playerDiv = document.createElement('div');
         playerDiv.className = 'flex justify-between items-center p-2 bg-gray-700 rounded mb-1';
         

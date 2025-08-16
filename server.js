@@ -79,11 +79,12 @@ const gameState = {
   gameEnded: false
 };
 
-// Bot names
+// Bot names (realistic player names)
 const botNames = [
-  'BotMax', 'CoinHunter', 'Goldy', 'SpeedBot', 'CoinMaster',
-  'BotAlex', 'QuickSilver', 'GoldRush', 'FastBot', 'CoinSeeker',
-  'BotZero', 'Lightning', 'GoldDigger', 'RocketBot', 'CoinCollector'
+  'Alex', 'Mike', 'Sarah', 'John', 'Emma', 'David', 'Lisa', 'Tom', 'Anna', 'Chris',
+  'Maria', 'James', 'Kate', 'Ben', 'Sofia', 'Nick', 'Amy', 'Dan', 'Luna', 'Max',
+  'Zoe', 'Ryan', 'Mia', 'Sam', 'Lea', 'Jake', 'Ivy', 'Leo', 'Eva', 'Noah',
+  'Ava', 'Luke', 'Eli', 'Kai', 'Joy', 'Tim', 'Sky', 'Ace', 'Rio', 'Zara'
 ];
 
 // Bot chat messages
@@ -104,7 +105,7 @@ function getRandomPosition() {
 }
 
 // Generate coins
-function generateCoins(count = 200) {
+function generateCoins(count = 300) {
   for (let i = 0; i < count; i++) {
     const coin = {
       id: gameState.nextCoinId++,
@@ -119,7 +120,7 @@ function generateCoins(count = 200) {
 function createBot(id) {
   const bot = {
     id: `bot_${id}`,
-    name: botNames[Math.floor(Math.random() * botNames.length)] + Math.floor(Math.random() * 100),
+    name: botNames[Math.floor(Math.random() * botNames.length)],
     ...getRandomPosition(),
     vx: 0,
     vy: 0,
@@ -209,14 +210,100 @@ function updateBots() {
 }
 
 // Initialize game
-function initializeGame() {
-  generateCoins(200);
+// Bot simulation system
+function startBotSimulation() {
+  function scheduleNextBotEvent() {
+    // Random delay between 30 seconds and 10 minutes
+    const delay = 30000 + Math.random() * 570000;
+    const minutes = Math.floor(delay / 60000);
+    const seconds = Math.floor((delay % 60000) / 1000);
+    
+    console.log(`⏰ Next bot event scheduled in ${minutes}m ${seconds}s`);
+    
+    setTimeout(() => {
+      const currentBotCount = gameState.bots.size;
+      const maxBots = 15;
+      const minBots = 5;
+      
+      // Random chance to add or remove a bot
+      const action = Math.random();
+      
+      if (action < 0.4 && currentBotCount < maxBots) {
+        // 40% chance to add a bot (player joins)
+        const newBot = createBot(gameState.nextBotId++);
+        gameState.bots.set(newBot.id, newBot);
+        console.log(`🤖 Bot "${newBot.name}" joined the game (${gameState.bots.size} bots online)`);
+        
+        // Notify players about new "player"
+        if (gameState.players.size > 0) {
+          const joinMessages = [
+            `${newBot.name} joined the game!`,
+            `Welcome ${newBot.name}!`,
+            `${newBot.name} entered the battlefield!`,
+            `${newBot.name} is ready to play!`,
+            `A new player ${newBot.name} appeared!`
+          ];
+          const message = joinMessages[Math.floor(Math.random() * joinMessages.length)];
+          io.emit('chatMessage', {
+            playerId: 'system',
+            playerName: 'System',
+            message: message,
+            timestamp: Date.now(),
+            isSystem: true
+          });
+        }
+        
+      } else if (action > 0.6 && currentBotCount > minBots) {
+        // 40% chance to remove a bot (player leaves)
+        const botIds = Array.from(gameState.bots.keys());
+        const randomBotId = botIds[Math.floor(Math.random() * botIds.length)];
+        const leavingBot = gameState.bots.get(randomBotId);
+        
+        if (leavingBot) {
+          gameState.bots.delete(randomBotId);
+          console.log(`👋 Bot "${leavingBot.name}" left the game (${gameState.bots.size} bots online)`);
+          
+          // Notify players about leaving "player"
+          if (gameState.players.size > 0) {
+            const leaveMessages = [
+              `${leavingBot.name} left the game`,
+              `${leavingBot.name} disconnected`,
+              `Goodbye ${leavingBot.name}!`,
+              `${leavingBot.name} went offline`,
+              `See you later, ${leavingBot.name}!`
+            ];
+            const message = leaveMessages[Math.floor(Math.random() * leaveMessages.length)];
+            io.emit('chatMessage', {
+              playerId: 'system',
+              playerName: 'System',
+              message: message,
+              timestamp: Date.now(),
+              isSystem: true
+            });
+          }
+        }
+      }
+      
+      // Schedule next event
+      scheduleNextBotEvent();
+    }, delay);
+  }
   
-  // Create AI bots
+  // Start the simulation
+  scheduleNextBotEvent();
+}
+
+function initializeGame() {
+  generateCoins(300);
+  
+  // Create initial AI bots (start with fewer)
   for (let i = 0; i < 8; i++) {
     const bot = createBot(gameState.nextBotId++);
     gameState.bots.set(bot.id, bot);
   }
+  
+  // Start bot simulation (players joining/leaving)
+  startBotSimulation();
 }
 
 // Start new match
@@ -252,7 +339,7 @@ function startNewMatch() {
   // Regenerate coins
   gameState.coins.clear();
   gameState.nextCoinId = 0;
-  generateCoins(200);
+  generateCoins(300);
   
   // Notify all clients
   const matchStartNow = new Date();
