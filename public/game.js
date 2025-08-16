@@ -697,7 +697,7 @@ function setupUIHandlers() {
     if (closeRegistrationModalBtn) {
         closeRegistrationModalBtn.addEventListener('click', () => {
             document.getElementById('registrationModal').classList.add('hidden');
-            document.getElementById('authModal').classList.remove('hidden');
+            document.getElementById('nameModal').style.display = 'flex';
         });
     }
     
@@ -791,29 +791,24 @@ function setupUIHandlers() {
                 // Try to register new user
                 const user = nicknameAuth.register(email, nickname, password, wallet);
                 
-                // Set as current user
-                nicknameAuth.setCurrentUser(user);
-                
                 // Close registration modal on success
                 document.getElementById('registrationModal').classList.add('hidden');
                 document.getElementById('nameModal').style.display = 'flex';
                 
-                // Auto-fill the main name input
-                const mainNameInput = document.getElementById('playerNameInput');
-                if (mainNameInput) {
-                    mainNameInput.value = user.nickname;
+                // Clear registration form
+                regEmailInput.value = '';
+                regNicknameInput.value = '';
+                regPasswordInput.value = '';
+                regWalletInput.value = '';
+                
+                // Focus on nickname input in main menu for sign in
+                const mainNicknameInput = document.getElementById('mainNicknameInput');
+                if (mainNicknameInput) {
+                    mainNicknameInput.value = user.nickname; // Pre-fill nickname for convenience
+                    document.getElementById('mainPasswordInput').focus(); // Focus on password
                 }
                 
-                // Auto-fill wallet if available
-                const mainWalletInput = document.getElementById('playerWalletInput');
-                if (mainWalletInput && user.wallet) {
-                    mainWalletInput.value = user.wallet;
-                }
-                
-                // Update player info panel with stats
-                updatePlayerInfoPanelWithStats(user);
-                
-                alert(`Account created successfully! Welcome, ${user.nickname}!`);
+                alert(`Account created successfully! Please sign in with your new account.`);
                 
             } catch (error) {
                 alert('Registration failed: ' + error.message);
