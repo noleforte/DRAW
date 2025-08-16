@@ -139,10 +139,22 @@ function setupSocketListeners() {
         gameState.bots = data.bots;
         gameState.coins = data.coins;
         
+        const previousLocalPlayer = localPlayer;
         localPlayer = gameState.players.find(p => p.id === gameState.playerId);
+        
         if (!localPlayer) {
             console.warn(`⚠️ LocalPlayer not found in update. PlayerId: ${gameState.playerId}`);
+            console.log('Available player IDs:', data.players.map(p => p.id));
+            
+            // Try to recover localPlayer
+            if (previousLocalPlayer) {
+                console.log('🔄 Attempting to recover localPlayer');
+                localPlayer = previousLocalPlayer;
+            }
+        } else {
+            console.log(`✅ LocalPlayer found: ${localPlayer.name} at (${localPlayer.x}, ${localPlayer.y})`);
         }
+        
         updateLeaderboard();
     });
     
@@ -693,20 +705,28 @@ function updateMovement() {
 }
 
 function updateCamera() {
-    if (!localPlayer) return;
+    if (!localPlayer) {
+        console.warn('⚠️ No localPlayer for camera update');
+        return;
+    }
     
     // Smooth camera follow
     const lerpFactor = 0.1;
     camera.x += (localPlayer.x - camera.x) * lerpFactor;
     camera.y += (localPlayer.y - camera.y) * lerpFactor;
     
-    // Dynamic zoom based on speed
-    const speed = Math.sqrt(localPlayer.vx * localPlayer.vx + localPlayer.vy * localPlayer.vy);
+    // Dynamic zoom based on speed (with safety checks)
+    const vx = localPlayer.vx || 0;
+    const vy = localPlayer.vy || 0;
+    const speed = Math.sqrt(vx * vx + vy * vy);
     const targetZoom = Math.max(0.8, 1.2 - speed * 0.1);
     camera.zoom += (targetZoom - camera.zoom) * 0.05;
     
-    // Update speed indicator
-    document.getElementById('speedValue').textContent = Math.round(speed * 10) / 10;
+    // Update speed indicator (with safety check)
+    const speedElement = document.getElementById('speedValue');
+    if (speedElement) {
+        speedElement.textContent = isNaN(speed) ? '0.0' : (Math.round(speed * 10) / 10).toString();
+    }
 }
 
 function worldToScreen(worldX, worldY) {
@@ -740,13 +760,18 @@ function render() {
     });
     
     // Draw players and bots
-    const allEntities = [...gameState.players, ...gameState.bots];
+    const players = gameState.players || [];
+    const bots = gameState.bots || [];
+    const allEntities = [...players, ...bots];
     
-    // Debug: log entities being drawn
-    if (allEntities.length === 0) {
-        console.log('⚠️ No entities to draw');
-    } else {
-        console.log(`🎨 Drawing ${allEntities.length} entities (${gameState.players.length} players, ${gameState.bots.length} bots)`);
+    // Debug: log entities being drawn (only when count changes)
+    if (window.lastEntityCount !== allEntities.length) {
+        window.lastEntityCount = allEntities.length;
+        if (allEntities.length === 0) {
+            console.log('⚠️ No entities to draw');
+        } else {
+            console.log(`🎨 Drawing ${allEntities.length} entities (${players.length} players, ${bots.length} bots)`);
+        }
     }
     
     allEntities.forEach(entity => {
@@ -1301,7 +1326,9 @@ function gameLoop() {
     // Log every 60 frames (once per second at 60fps)
     gameLoopCounter++;
     if (gameLoopCounter % 60 === 0) {
-        console.log(`🔄 GameLoop #${gameLoopCounter} - Players: ${gameState.players.length}, Bots: ${gameState.bots.length}`);
+        const players = gameState.players || [];
+        const bots = gameState.bots || [];
+        console.log(`🔄 GameLoop #${gameLoopCounter} - Players: ${players.length}, Bots: ${bots.length}, LocalPlayer: ${localPlayer ? 'OK' : 'MISSING'}`);
     }
     
     updateMovement();
