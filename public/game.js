@@ -507,7 +507,8 @@ function setupUIHandlers() {
     const guestPlayBtn = document.getElementById('guestPlayBtn'); // Fixed: was guestSignInBtn
     const emailSignInBtn = document.getElementById('emailSignInBtn');
     const emailCreateAccountBtn = document.getElementById('emailCreateAccountBtn');
-    const authEmailInput = document.getElementById('authEmailInput');
+    const authNicknameInput = document.getElementById('authNicknameInput');
+    const authWalletInput = document.getElementById('authWalletInput');
     const authPasswordInput = document.getElementById('authPasswordInput');
     
     if (closeAuthModalBtn) {
@@ -535,20 +536,37 @@ function setupUIHandlers() {
     
     if (emailSignInBtn) {
         emailSignInBtn.addEventListener('click', async () => {
-            const email = authEmailInput.value.trim();
+            const nickname = authNicknameInput.value.trim();
+            const wallet = authWalletInput.value.trim();
             const password = authPasswordInput.value;
             
-            if (!email || !password) {
-                alert('Please enter both email and password.');
+            if (!nickname || !password) {
+                alert('Please enter both nickname and password.');
                 return;
             }
             
+            // For now, we'll use nickname as a simple authentication
+            // In a real app, you'd want proper user authentication
             if (window.authSystem) {
                 try {
-                    await window.authSystem.signInWithEmailAndPassword(email, password);
+                    // Use anonymous auth but store nickname/wallet
+                    await window.authSystem.signInAnonymously();
+                    
+                    // Store user info locally
+                    localStorage.setItem('playerNickname', nickname);
+                    if (wallet) {
+                        localStorage.setItem('playerWallet', wallet);
+                    }
+                    
                     // Close auth modal on success
                     document.getElementById('authModal').classList.add('hidden');
                     document.getElementById('nameModal').style.display = 'flex';
+                    
+                    // Auto-fill the main name input
+                    const mainNameInput = document.getElementById('playerNameInput');
+                    if (mainNameInput) {
+                        mainNameInput.value = nickname;
+                    }
                 } catch (error) {
                     alert('Sign in failed: ' + error.message);
                 }
@@ -558,11 +576,12 @@ function setupUIHandlers() {
     
     if (emailCreateAccountBtn) {
         emailCreateAccountBtn.addEventListener('click', async () => {
-            const email = authEmailInput.value.trim();
+            const nickname = authNicknameInput.value.trim();
+            const wallet = authWalletInput.value.trim();
             const password = authPasswordInput.value;
             
-            if (!email || !password) {
-                alert('Please enter both email and password.');
+            if (!nickname || !password) {
+                alert('Please enter both nickname and password.');
                 return;
             }
             
@@ -573,10 +592,24 @@ function setupUIHandlers() {
             
             if (window.authSystem) {
                 try {
-                    await window.authSystem.createUserWithEmailAndPassword(email, password);
+                    // Create anonymous account but store nickname/wallet
+                    await window.authSystem.signInAnonymously();
+                    
+                    // Store user info locally
+                    localStorage.setItem('playerNickname', nickname);
+                    if (wallet) {
+                        localStorage.setItem('playerWallet', wallet);
+                    }
+                    
                     // Close auth modal on success
                     document.getElementById('authModal').classList.add('hidden');
                     document.getElementById('nameModal').style.display = 'flex';
+                    
+                    // Auto-fill the main name input
+                    const mainNameInput = document.getElementById('playerNameInput');
+                    if (mainNameInput) {
+                        mainNameInput.value = nickname;
+                    }
                 } catch (error) {
                     alert('Account creation failed: ' + error.message);
                 }
@@ -585,8 +618,16 @@ function setupUIHandlers() {
     }
     
     // Add Enter key support for email form
-    if (authEmailInput) {
-        authEmailInput.addEventListener('keypress', (e) => {
+    if (authNicknameInput) {
+        authNicknameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                authWalletInput.focus();
+            }
+        });
+    }
+    
+    if (authWalletInput) {
+        authWalletInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 authPasswordInput.focus();
             }
@@ -1321,4 +1362,37 @@ function gameLoop() {
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', () => {
     init();
-}); 
+    
+    // Load saved player data
+    loadSavedPlayerData();
+});
+
+function loadSavedPlayerData() {
+    const savedNickname = localStorage.getItem('playerNickname');
+    const savedWallet = localStorage.getItem('playerWallet');
+    
+    if (savedNickname) {
+        // Auto-fill main name input
+        const mainNameInput = document.getElementById('playerNameInput');
+        if (mainNameInput) {
+            mainNameInput.value = savedNickname;
+        }
+        
+        // Auto-fill wallet input
+        const mainWalletInput = document.getElementById('playerWalletInput');
+        if (mainWalletInput && savedWallet) {
+            mainWalletInput.value = savedWallet;
+        }
+        
+        // Update player info panel
+        const playerInfoName = document.getElementById('playerInfoName');
+        if (playerInfoName) {
+            playerInfoName.textContent = savedNickname;
+        }
+        
+        const playerInfoStatus = document.getElementById('playerInfoStatus');
+        if (playerInfoStatus) {
+            playerInfoStatus.textContent = 'Saved locally';
+        }
+    }
+} 

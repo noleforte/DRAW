@@ -528,10 +528,18 @@
             <!-- Email Sign In Form -->
             <div id="emailSignInForm">
                 <input 
-                    type="email" 
-                    id="authEmailInput" 
-                    placeholder="Email address" 
+                    type="text" 
+                    id="authNicknameInput" 
+                    placeholder="Nickname" 
                     class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+                    maxlength="20"
+                >
+                <input 
+                    type="text" 
+                    id="authWalletInput" 
+                    placeholder="Wallet Address (optional)" 
+                    class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+                    maxlength="50"
                 >
                 <input 
                     type="password" 
@@ -543,7 +551,7 @@
                     id="emailSignInBtn" 
                     class="w-full bg-blue-600 hover:bg-blue-700 px-4 py-3 rounded-lg font-semibold transition-colors mb-2"
             >
-                    Sign In with Email
+                    Sign In
                 </button>
                 <button 
                     id="emailCreateAccountBtn" 
