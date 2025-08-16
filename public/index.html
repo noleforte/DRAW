@@ -398,79 +398,78 @@
     </style>
 </head>
 <body class="bg-gray-900 text-white overflow-hidden">
-    <!-- Name Input Modal -->
-    <div id="nameModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <!-- Player Info Panel (Left Side) -->
-        <div class="absolute left-8 top-1/2 transform -translate-y-1/2 bg-gray-800 p-6 rounded-lg w-64 max-h-screen overflow-y-auto player-info-panel z-40" style="    margin-right: 30%;
-    margin-top: 9%;">
-            <!-- Header -->
-            <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white rounded-lg mb-4">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 id="playerInfoName" class="font-bold text-base">Guest</h3>
-                            <p id="playerInfoStatus" class="text-xs opacity-90">Not signed in</p>
-                        </div>
+    <!-- Player Info Panel (Always Visible) -->
+    <div id="playerInfoPanel" class="fixed left-8 top-1/2 transform -translate-y-1/2 bg-gray-800 p-6 rounded-lg w-64 max-h-screen overflow-y-auto z-40" style="margin-top: 9%;">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white rounded-lg mb-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                        </svg>
                     </div>
-                    <button 
-                        id="logoutBtn" 
-                        class="text-white hover:text-red-300 text-xs opacity-75 hover:opacity-100 hidden"
-                        title="Logout"
-                    >
-                        ↗
-                    </button>
+                    <div>
+                        <h3 id="playerInfoName" class="font-bold text-base">Guest</h3>
+                        <p id="playerInfoStatus" class="text-xs opacity-90">Not signed in</p>
+                    </div>
+                </div>
+                <button 
+                    id="logoutBtn" 
+                    class="text-white hover:text-red-300 text-xs opacity-75 hover:opacity-100 hidden"
+                    title="Logout"
+                >
+                    ↗
+                </button>
+            </div>
+        </div>
+        
+        <!-- Compact Stats -->
+        <div class="space-y-3">
+            <!-- Current Game Stats -->
+            <div class="bg-green-50 rounded-lg p-3">
+                <div class="text-xs font-medium text-gray-600 mb-2">Current Game</div>
+                <div class="space-y-1 text-xs">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Score:</span>
+                        <span id="currentScore" class="font-semibold text-green-600">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Size:</span>
+                        <span id="currentSize" class="font-semibold text-green-600">20</span>
+                    </div>
                 </div>
             </div>
             
-            <!-- Compact Stats -->
-            <div class="space-y-3">
-                <!-- Current Game Stats -->
-                <div class="bg-green-50 rounded-lg p-3">
-                    <div class="text-xs font-medium text-gray-600 mb-2">Current Game</div>
-                    <div class="space-y-1 text-xs">
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Score:</span>
-                            <span id="currentScore" class="font-semibold text-green-600">0</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Size:</span>
-                            <span id="currentSize" class="font-semibold text-green-600">20</span>
-                        </div>
+            <!-- Total Coins -->
+            <div class="bg-yellow-50 rounded-lg p-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-lg">🪙</span>
+                        <span class="font-medium text-gray-700 text-sm">Total Coins</span>
                     </div>
+                    <span id="totalCoins" class="font-bold text-yellow-600">0</span>
                 </div>
-                
-                <!-- Total Coins -->
-                <div class="bg-yellow-50 rounded-lg p-3">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-2">
-                            <span class="text-lg">🪙</span>
-                            <span class="font-medium text-gray-700 text-sm">Total Coins</span>
-                        </div>
-                        <span id="totalCoins" class="font-bold text-yellow-600">0</span>
+            </div>
+            
+            <!-- Quick Stats -->
+            <div class="bg-gray-50 rounded-lg p-3">
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Matches:</span>
+                        <span id="matchesPlayed" class="font-semibold">0</span>
                     </div>
-                </div>
-                
-                <!-- Quick Stats -->
-                <div class="bg-gray-50 rounded-lg p-3">
-                    <div class="space-y-2 text-xs">
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Matches:</span>
-                            <span id="matchesPlayed" class="font-semibold">0</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Best Score:</span>
-                            <span id="bestScore" class="font-semibold">0</span>
-                        </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Best Score:</span>
+                        <span id="bestScore" class="font-semibold">0</span>
                     </div>
                 </div>
             </div>
         </div>
-        
+    </div>
+
+    <!-- Name Input Modal -->
+    <div id="nameModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">        
         <!-- Main Menu Modal (Center) -->
         <div class="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4 ml-80 max-h-screen overflow-y-auto z-50" style="padding: 28px;">
             <h2 class="text-2xl font-bold mb-3 text-center">Welcome to Royale Ball!</h2>

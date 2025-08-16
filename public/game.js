@@ -41,26 +41,51 @@ let joystickCenter = { x: 0, y: 0 };
 let lastMovementSent = 0;
 const MOVEMENT_SEND_INTERVAL = 1000 / 30; // Send movement at 30fps max
 
-// Enhanced authentication system using localStorage
-class NicknameAuthSystem {
+// Enhanced hybrid authentication system using localStorage + Firestore
+class HybridAuthSystem {
     constructor() {
-        this.users = this.loadUsers();
+        this.localUsers = this.loadLocalUsers();
+        this.syncInProgress = false;
+        this.isOnline = navigator.onLine;
+        
+        // Monitor online status
+        window.addEventListener('online', () => {
+            this.isOnline = true;
+            this.syncWithFirestore();
+        });
+        
+        window.addEventListener('offline', () => {
+            this.isOnline = false;
+        });
+        
+        // Auto-sync when Firebase is ready
+        this.waitForFirebase();
     }
 
-    // Load users from localStorage
-    loadUsers() {
+    // Wait for Firebase to be ready, then sync
+    async waitForFirebase() {
+        if (window.firebaseReady && window.firebaseDb) {
+            console.log('🔥 Firebase ready, starting sync...');
+            await this.syncWithFirestore();
+        } else {
+            // Wait and try again
+            setTimeout(() => this.waitForFirebase(), 1000);
+        }
+    }
+
+    // Load users from localStorage (fast, offline)
+    loadLocalUsers() {
         const users = localStorage.getItem('registeredUsers');
         return users ? JSON.parse(users) : {};
     }
 
-    // Save users to localStorage
-    saveUsers() {
-        localStorage.setItem('registeredUsers', JSON.stringify(this.users));
+    // Save users to localStorage (fast, offline)
+    saveLocalUsers() {
+        localStorage.setItem('registeredUsers', JSON.stringify(this.localUsers));
     }
 
     // Simple password hashing (in real app use proper crypto)
     hashPassword(password) {
-        // Simple hash - in production use bcrypt or similar
         let hash = 0;
         for (let i = 0; i < password.length; i++) {
             const char = password.charCodeAt(i);
@@ -76,8 +101,8 @@ class NicknameAuthSystem {
         return emailRegex.test(email);
     }
 
-    // Register new user
-    register(email, nickname, password, wallet = '') {
+    // Register new user (localStorage + Firestore)
+    async register(email, nickname, password, wallet = '') {
         const normalizedNickname = nickname.toLowerCase().trim();
         const normalizedEmail = email.toLowerCase().trim();
         
@@ -94,19 +119,18 @@ class NicknameAuthSystem {
             throw new Error('Password must be at least 6 characters');
         }
 
-        // Check for existing email
-        const existingUserByEmail = Object.values(this.users).find(user => user.email === normalizedEmail);
+        // Check for existing users in localStorage first (fast)
+        const existingUserByEmail = Object.values(this.localUsers).find(user => user.email === normalizedEmail);
         if (existingUserByEmail) {
             throw new Error('Email already registered');
         }
 
-        // Check for existing nickname
-        if (this.users[normalizedNickname]) {
+        if (this.localUsers[normalizedNickname]) {
             throw new Error('Nickname already exists');
         }
 
         // Create new user
-        this.users[normalizedNickname] = {
+        const newUser = {
             email: normalizedEmail,
             nickname: nickname.trim(),
             passwordHash: this.hashPassword(password),
@@ -121,14 +145,45 @@ class NicknameAuthSystem {
             }
         };
 
-        this.saveUsers();
-        return this.users[normalizedNickname];
+        // Save to localStorage immediately (fast)
+        this.localUsers[normalizedNickname] = newUser;
+        this.saveLocalUsers();
+
+        // Sync to Firestore (when online)
+        if (this.isOnline && window.firebaseDb) {
+            try {
+                await this.saveUserToFirestore(normalizedNickname, newUser);
+                console.log('✅ User synced to Firestore:', normalizedNickname);
+            } catch (error) {
+                console.warn('⚠️ Firestore sync failed (will retry later):', error.message);
+                // User is still registered locally, sync will happen later
+            }
+        }
+
+        return newUser;
     }
 
     // Login user
-    login(nickname, password) {
+    async login(nickname, password) {
         const normalizedNickname = nickname.toLowerCase().trim();
-        const user = this.users[normalizedNickname];
+        
+        // First check localStorage (fast)
+        let user = this.localUsers[normalizedNickname];
+        
+        // If not found locally and online, check Firestore
+        if (!user && this.isOnline && window.firebaseDb) {
+            try {
+                user = await this.loadUserFromFirestore(normalizedNickname);
+                if (user) {
+                    // Cache in localStorage for future fast access
+                    this.localUsers[normalizedNickname] = user;
+                    this.saveLocalUsers();
+                    console.log('📥 User loaded from Firestore and cached locally');
+                }
+            } catch (error) {
+                console.warn('⚠️ Firestore load failed:', error.message);
+            }
+        }
 
         if (!user) {
             throw new Error('Nickname not found');
@@ -140,21 +195,135 @@ class NicknameAuthSystem {
 
         // Update last login
         user.lastLogin = Date.now();
-        this.saveUsers();
+        this.localUsers[normalizedNickname] = user;
+        this.saveLocalUsers();
+
+        // Sync to Firestore (when online)
+        if (this.isOnline && window.firebaseDb) {
+            try {
+                await this.saveUserToFirestore(normalizedNickname, user);
+            } catch (error) {
+                console.warn('⚠️ Login sync to Firestore failed:', error.message);
+            }
+        }
 
         return user;
     }
 
-    // Check if nickname exists
-    nicknameExists(nickname) {
-        const normalizedNickname = nickname.toLowerCase().trim();
-        return !!this.users[normalizedNickname];
+    // Save user to Firestore
+    async saveUserToFirestore(nickname, userData) {
+        if (!window.firebaseDb) throw new Error('Firestore not available');
+        
+        await window.firebaseDb.collection('users').doc(nickname).set({
+            ...userData,
+            lastSync: Date.now()
+        });
     }
 
-    // Check if email exists
-    emailExists(email) {
+    // Load user from Firestore
+    async loadUserFromFirestore(nickname) {
+        if (!window.firebaseDb) throw new Error('Firestore not available');
+        
+        const doc = await window.firebaseDb.collection('users').doc(nickname).get();
+        if (doc.exists) {
+            return doc.data();
+        }
+        return null;
+    }
+
+    // Sync all local users with Firestore
+    async syncWithFirestore() {
+        if (this.syncInProgress || !this.isOnline || !window.firebaseDb) return;
+        
+        this.syncInProgress = true;
+        console.log('🔄 Starting Firestore sync...');
+
+        try {
+            // Download all users from Firestore
+            const snapshot = await window.firebaseDb.collection('users').get();
+            let syncedCount = 0;
+
+            snapshot.forEach(doc => {
+                const firestoreUser = doc.data();
+                const nickname = doc.id;
+                const localUser = this.localUsers[nickname];
+
+                // If user doesn't exist locally or Firestore version is newer
+                if (!localUser || firestoreUser.lastSync > (localUser.lastSync || 0)) {
+                    this.localUsers[nickname] = firestoreUser;
+                    syncedCount++;
+                }
+            });
+
+            // Upload any local users that aren't in Firestore or are newer
+            for (const [nickname, localUser] of Object.entries(this.localUsers)) {
+                try {
+                    const firestoreDoc = await window.firebaseDb.collection('users').doc(nickname).get();
+                    
+                    if (!firestoreDoc.exists || localUser.lastLogin > (firestoreDoc.data().lastLogin || 0)) {
+                        await this.saveUserToFirestore(nickname, localUser);
+                        syncedCount++;
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ Failed to sync user ${nickname}:`, error.message);
+                }
+            }
+
+            // Save updated local data
+            this.saveLocalUsers();
+            console.log(`✅ Firestore sync completed. ${syncedCount} users synchronized.`);
+
+        } catch (error) {
+            console.error('❌ Firestore sync failed:', error);
+        }
+
+        this.syncInProgress = false;
+    }
+
+    // Check if nickname exists (check both local and Firestore)
+    async nicknameExists(nickname) {
+        const normalizedNickname = nickname.toLowerCase().trim();
+        
+        // Check locally first
+        if (this.localUsers[normalizedNickname]) {
+            return true;
+        }
+
+        // Check Firestore if online
+        if (this.isOnline && window.firebaseDb) {
+            try {
+                const doc = await window.firebaseDb.collection('users').doc(normalizedNickname).get();
+                return doc.exists;
+            } catch (error) {
+                console.warn('⚠️ Firestore nickname check failed:', error.message);
+            }
+        }
+
+        return false;
+    }
+
+    // Check if email exists (check both local and Firestore)
+    async emailExists(email) {
         const normalizedEmail = email.toLowerCase().trim();
-        return Object.values(this.users).some(user => user.email === normalizedEmail);
+        
+        // Check locally first
+        const localExists = Object.values(this.localUsers).some(user => user.email === normalizedEmail);
+        if (localExists) return true;
+
+        // Check Firestore if online
+        if (this.isOnline && window.firebaseDb) {
+            try {
+                const snapshot = await window.firebaseDb.collection('users')
+                    .where('email', '==', normalizedEmail)
+                    .limit(1)
+                    .get();
+                return !snapshot.empty;
+            } catch (error) {
+                console.warn('⚠️ Firestore email check failed:', error.message);
+            }
+        }
+
+        return false;
     }
 
     // Get current logged in user
@@ -163,25 +332,35 @@ class NicknameAuthSystem {
         return currentUser ? JSON.parse(currentUser) : null;
     }
 
-    // Set current user
+    // Set current logged in user
     setCurrentUser(user) {
         localStorage.setItem('currentUser', JSON.stringify(user));
-        localStorage.setItem('playerNickname', user.nickname);
-        localStorage.setItem('playerWallet', user.wallet);
     }
 
-    // Update user stats
-    updateUserStats(nickname, stats) {
+    // Update user stats (both local and Firestore)
+    async updateUserStats(nickname, stats) {
         const normalizedNickname = nickname.toLowerCase().trim();
-        if (this.users[normalizedNickname]) {
-            Object.assign(this.users[normalizedNickname].stats, stats);
-            this.saveUsers();
-            
+        
+        if (this.localUsers[normalizedNickname]) {
+            this.localUsers[normalizedNickname].stats = stats;
+            this.localUsers[normalizedNickname].lastLogin = Date.now();
+            this.saveLocalUsers();
+
             // Update current user if it's the same user
             const currentUser = this.getCurrentUser();
-            if (currentUser && currentUser.nickname.toLowerCase() === normalizedNickname) {
-                currentUser.stats = this.users[normalizedNickname].stats;
+            if (currentUser && currentUser.nickname === nickname) {
+                currentUser.stats = stats;
                 this.setCurrentUser(currentUser);
+            }
+
+            // Sync to Firestore
+            if (this.isOnline && window.firebaseDb) {
+                try {
+                    await this.saveUserToFirestore(normalizedNickname, this.localUsers[normalizedNickname]);
+                    console.log('📊 Stats synced to Firestore for:', nickname);
+                } catch (error) {
+                    console.warn('⚠️ Stats sync to Firestore failed:', error.message);
+                }
             }
         }
     }
@@ -195,7 +374,7 @@ class NicknameAuthSystem {
 }
 
 // Initialize nickname auth system
-const nicknameAuth = new NicknameAuthSystem();
+const nicknameAuth = new HybridAuthSystem();
 
 // Initialize game
 function init() {
@@ -369,7 +548,7 @@ function setupSocketListeners() {
                 };
                 
                 // Update user stats in localStorage
-                nicknameAuth.updateUserStats(currentUser.nickname, newStats);
+                await nicknameAuth.updateUserStats(currentUser.nickname, newStats);
                 
                 console.log('📊 Game stats saved:', newStats);
                 console.log('🎮 Final score:', currentGameScore);
@@ -571,7 +750,7 @@ function setupUIHandlers() {
         }
     });
     
-    function startGame(e) {
+    async function startGame(e) {
         if (e) e.preventDefault();
         
         // Get nickname and password from main inputs
@@ -599,7 +778,7 @@ function setupUIHandlers() {
         
         // Try to authenticate the user
         try {
-            const user = nicknameAuth.login(nickname, password);
+            const user = await nicknameAuth.login(nickname, password);
             
             // Update player info panel with authenticated user
             updatePlayerInfoPanelWithStats(user);
@@ -791,7 +970,7 @@ function setupUIHandlers() {
             
             try {
                 // Try to login with nickname + password
-                const user = nicknameAuth.login(nickname, password);
+                const user = await nicknameAuth.login(nickname, password);
                 
                 // Set as current user
                 nicknameAuth.setCurrentUser(user);
@@ -837,7 +1016,7 @@ function setupUIHandlers() {
             
             try {
                 // Try to register new user
-                const user = nicknameAuth.register(email, nickname, password, wallet);
+                const user = await nicknameAuth.register(email, nickname, password, wallet);
                 
                 // Close registration modal on success
                 document.getElementById('registrationModal').classList.add('hidden');
@@ -856,7 +1035,11 @@ function setupUIHandlers() {
                     document.getElementById('mainPasswordInput').focus(); // Focus on password
                 }
                 
-                alert(`Account created successfully! Please sign in with your new account.`);
+                // Show success message with sync status
+                const syncStatus = navigator.onLine && window.firebaseDb ? 
+                    'Account created and synced to cloud!' : 
+                    'Account created locally (will sync when online)!';
+                alert(`${syncStatus} Please sign in with your new account.`);
                 
             } catch (error) {
                 alert('Registration failed: ' + error.message);
@@ -1707,21 +1890,38 @@ function updatePlayerInfoPanel(nickname, status) {
     }
 }
 
-function updatePlayerInfoPanelWithStats(user) {
+async function updatePlayerInfoPanelWithStats(user) {
+    console.log('🔄 updatePlayerInfoPanelWithStats called with:', user);
+    
     const playerInfoName = document.getElementById('playerInfoName');
     const playerInfoStatus = document.getElementById('playerInfoStatus');
     const logoutBtn = document.getElementById('logoutBtn');
 
+    console.log('🔍 Found elements:', {
+        playerInfoName: !!playerInfoName,
+        playerInfoStatus: !!playerInfoStatus,
+        logoutBtn: !!logoutBtn
+    });
+
     if (playerInfoName) {
         playerInfoName.textContent = user.nickname || 'Guest';
+        console.log('✅ Updated playerInfoName to:', user.nickname);
+    } else {
+        console.log('❌ playerInfoName element not found!');
     }
 
     if (playerInfoStatus) {
         playerInfoStatus.textContent = 'Authenticated';
+        console.log('✅ Updated playerInfoStatus to: Authenticated');
+    } else {
+        console.log('❌ playerInfoStatus element not found!');
     }
 
     if (logoutBtn) {
         logoutBtn.classList.remove('hidden');
+        console.log('✅ Showed logout button');
+    } else {
+        console.log('❌ logoutBtn element not found!');
     }
     
     // Load and display user's saved statistics
@@ -1758,7 +1958,7 @@ function updatePlayerInfoPanelWithStats(user) {
     }
 }
 
-function updatePlayerInfoPanelStats(player) {
+async function updatePlayerInfoPanelStats(player) {
     // Update current game stats (real-time)
     const currentScore = document.getElementById('currentScore');
     const currentSize = document.getElementById('currentSize');
@@ -1795,7 +1995,7 @@ function updatePlayerInfoPanelStats(player) {
                 
                 // Update in localStorage
                 currentUser.stats.bestScore = currentGameScore;
-                nicknameAuth.updateUserStats(currentUser.nickname, currentUser.stats);
+                await nicknameAuth.updateUserStats(currentUser.nickname, currentUser.stats);
             }
         }
     }
