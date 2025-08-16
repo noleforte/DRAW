@@ -44,6 +44,14 @@ function init() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
     
+    // Show player info panel with animation
+    setTimeout(() => {
+        const nameModal = document.getElementById('nameModal');
+        if (nameModal) {
+            nameModal.classList.add('show');
+        }
+    }, 100);
+    
     // Setup socket connection
     const isProduction = window.location.hostname !== 'localhost';
     // Use Render server URL in production, localhost for development

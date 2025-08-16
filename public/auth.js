@@ -302,6 +302,47 @@ class AuthSystem {
         
         if (signInBtn) signInBtn.classList.add('hidden');
         if (signOutBtn) signOutBtn.classList.remove('hidden');
+        
+        // Update player info panel
+        this.updatePlayerInfoPanel();
+    }
+    
+    // Update player info panel with current user data
+    updatePlayerInfoPanel() {
+        const playerInfoName = document.getElementById('playerInfoName');
+        const totalXP = document.getElementById('totalXP');
+        const currentXP = document.getElementById('currentXP');
+        const xpProgress = document.getElementById('xpProgress');
+        const matchesPlayed = document.getElementById('matchesPlayed');
+        const bestScore = document.getElementById('bestScore');
+        const winRate = document.getElementById('winRate');
+        
+        if (this.currentUser) {
+            // Update name
+            if (playerInfoName) {
+                const displayName = this.currentUser.isAnonymous ? 'Guest' : 
+                    (this.currentUser.displayName || this.currentUser.email || 'Player');
+                playerInfoName.textContent = displayName;
+            }
+            
+            // Update stats from Firebase
+            if (this.playerStats) {
+                if (totalXP) totalXP.textContent = this.playerStats.totalScore || 0;
+                if (currentXP) currentXP.textContent = (this.playerStats.totalScore || 0) % 60;
+                if (xpProgress) {
+                    const progress = ((this.playerStats.totalScore || 0) % 60) / 60 * 100;
+                    xpProgress.style.width = `${progress}%`;
+                }
+                if (matchesPlayed) matchesPlayed.textContent = this.playerStats.gamesPlayed || 0;
+                if (bestScore) bestScore.textContent = this.playerStats.bestScore || 0;
+                if (winRate) {
+                    const wins = this.playerStats.wins || 0;
+                    const games = this.playerStats.gamesPlayed || 0;
+                    const rate = games > 0 ? Math.round((wins / games) * 100) : 0;
+                    winRate.textContent = `${rate}%`;
+                }
+            }
+        }
     }
 
     // Show UI for guest users
