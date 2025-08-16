@@ -723,6 +723,13 @@ setInterval(() => {
 // Initialize and start server
 initializeGame();
 
+// Keep Render server awake (ping every 14 minutes)
+if (process.env.NODE_ENV === 'production') {
+  setInterval(() => {
+    console.log('🏓 Ping to keep server awake');
+  }, 14 * 60 * 1000); // 14 minutes
+}
+
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

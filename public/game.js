@@ -60,7 +60,7 @@ function init() {
     }, 100);
     
     // Setup socket connection
-    const isProduction = window.location.hostname !== 'localhost';
+    const isProduction = false; // Temporarily force localhost for testing
     // Use Render server URL in production, localhost for development
     const socketUrl = isProduction ? 'https://draw-e67b.onrender.com' : 'http://localhost:3001';
     
