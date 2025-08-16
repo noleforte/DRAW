@@ -212,6 +212,40 @@ function updateBots() {
 // Initialize game
 // Bot simulation system
 function startBotSimulation() {
+  // Make existing bots also leave randomly (after 1-5 minutes)
+  function scheduleExistingBotLeave() {
+    const existingBots = Array.from(gameState.bots.values());
+    existingBots.forEach(bot => {
+      const leaveDelay = 60000 + Math.random() * 240000; // 1-5 minutes
+      setTimeout(() => {
+        // Check if bot still exists and there are enough bots
+        if (gameState.bots.has(bot.id) && gameState.bots.size > 5) {
+          gameState.bots.delete(bot.id);
+          console.log(`👋 Initial bot "${bot.name}" left the game (${gameState.bots.size} bots online)`);
+          
+          // Notify players about leaving "player"
+          if (gameState.players.size > 0) {
+            const leaveMessages = [
+              `${bot.name} left the game`,
+              `${bot.name} disconnected`,
+              `Goodbye ${bot.name}!`,
+              `${bot.name} went offline`,
+              `See you later, ${bot.name}!`
+            ];
+            const message = leaveMessages[Math.floor(Math.random() * leaveMessages.length)];
+            io.emit('chatMessage', {
+              playerId: 'system',
+              playerName: 'System',
+              message: message,
+              timestamp: Date.now(),
+              isSystem: true
+            });
+          }
+        }
+      }, leaveDelay);
+    });
+  }
+  
   function scheduleNextBotEvent() {
     // Random delay between 20 seconds and 3 minutes
     const delay = 20000 + Math.random() * 160000;
@@ -288,6 +322,9 @@ function startBotSimulation() {
       scheduleNextBotEvent();
     }, delay);
   }
+  
+  // Schedule existing bots to leave randomly
+  scheduleExistingBotLeave();
   
   // Start the simulation with a quick first event (5-30 seconds)
   setTimeout(() => {

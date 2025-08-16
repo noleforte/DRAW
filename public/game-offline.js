@@ -109,6 +109,22 @@ function initializeOfflineGame() {
 
 // Bot simulation for offline version
 function startBotSimulation() {
+    // Make existing bots also leave randomly (after 1-5 minutes)
+    function scheduleExistingBotLeave() {
+        gameState.bots.forEach((bot, index) => {
+            const leaveDelay = 60000 + Math.random() * 240000; // 1-5 minutes
+            setTimeout(() => {
+                // Check if bot still exists and there are enough bots
+                const botIndex = gameState.bots.findIndex(b => b.id === bot.id);
+                if (botIndex !== -1 && gameState.bots.length > 5) {
+                    const leavingBot = gameState.bots[botIndex];
+                    gameState.bots.splice(botIndex, 1);
+                    console.log(`👋 Initial bot "${leavingBot.name}" left (${gameState.bots.length} bots online)`);
+                }
+            }, leaveDelay);
+        });
+    }
+    
     function scheduleNextBotEvent() {
         // Random delay between 20 seconds and 3 minutes
         const delay = 20000 + Math.random() * 160000;
@@ -145,6 +161,9 @@ function startBotSimulation() {
             scheduleNextBotEvent();
         }, delay);
     }
+    
+    // Schedule existing bots to leave randomly
+    scheduleExistingBotLeave();
     
     // Start the simulation with a quick first event (5-30 seconds)
     setTimeout(() => {
