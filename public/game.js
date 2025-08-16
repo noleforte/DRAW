@@ -321,6 +321,18 @@ function setupSocketListeners() {
             window.endOfDayGMT = data.endOfDayGMT;
         }
         
+        // Reset current game stats display
+        const currentScoreElement = document.getElementById('currentScore');
+        const currentSizeElement = document.getElementById('currentSize');
+        
+        if (currentScoreElement) {
+            currentScoreElement.textContent = '0';
+        }
+        
+        if (currentSizeElement) {
+            currentSizeElement.textContent = '20';
+        }
+        
         startClientTimer();
     });
     
@@ -343,17 +355,31 @@ function setupSocketListeners() {
         gameEnded = true;
         stopClientTimer();
         
-        // Save game result to Firebase
-        if (window.authSystem && localPlayer) {
+        // Save game result to localStorage for authenticated users
+        const currentUser = nicknameAuth.getCurrentUser();
+        if (currentUser && localPlayer && localPlayer.name === currentUser.nickname) {
             try {
-                await window.authSystem.updateUserStats(localPlayer.nickname, {
-                    gamesPlayed: localPlayer.stats.gamesPlayed + 1,
-                    totalScore: localPlayer.stats.totalScore + localPlayer.score,
-                    bestScore: Math.max(localPlayer.stats.bestScore, localPlayer.score),
-                    wins: localPlayer.stats.wins + (finalResults.findIndex(p => p.id === localPlayer.id) + 1 === 1 ? 1 : 0)
-                });
+                // Calculate new stats
+                const currentGameScore = localPlayer.score || 0;
+                const newStats = {
+                    gamesPlayed: (currentUser.stats.gamesPlayed || 0) + 1,
+                    totalScore: (currentUser.stats.totalScore || 0) + currentGameScore,
+                    bestScore: Math.max((currentUser.stats.bestScore || 0), currentGameScore),
+                    wins: (currentUser.stats.wins || 0) + (finalResults.findIndex(p => p.id === localPlayer.id) === 0 ? 1 : 0)
+                };
+                
+                // Update user stats in localStorage
+                nicknameAuth.updateUserStats(currentUser.nickname, newStats);
+                
+                console.log('📊 Game stats saved:', newStats);
+                console.log('🎮 Final score:', currentGameScore);
+                
+                // Refresh player info panel with updated stats
+                const updatedUser = nicknameAuth.getCurrentUser();
+                updatePlayerInfoPanelWithStats(updatedUser);
+                
             } catch (error) {
-                // Silent error handling
+                console.error('❌ Error saving game stats:', error);
             }
         }
         
@@ -1697,6 +1723,39 @@ function updatePlayerInfoPanelWithStats(user) {
     if (logoutBtn) {
         logoutBtn.classList.remove('hidden');
     }
+    
+    // Load and display user's saved statistics
+    const totalCoinsElement = document.getElementById('totalCoins');
+    const matchesPlayedElement = document.getElementById('matchesPlayed');
+    const bestScoreElement = document.getElementById('bestScore');
+    const currentScoreElement = document.getElementById('currentScore');
+    const currentSizeElement = document.getElementById('currentSize');
+    
+    if (user.stats) {
+        // Show accumulated total coins from all games
+        if (totalCoinsElement) {
+            totalCoinsElement.textContent = user.stats.totalScore || 0;
+        }
+        
+        // Show matches played
+        if (matchesPlayedElement) {
+            matchesPlayedElement.textContent = user.stats.gamesPlayed || 0;
+        }
+        
+        // Show best score
+        if (bestScoreElement) {
+            bestScoreElement.textContent = user.stats.bestScore || 0;
+        }
+    }
+    
+    // Reset current game stats
+    if (currentScoreElement) {
+        currentScoreElement.textContent = '0';
+    }
+    
+    if (currentSizeElement) {
+        currentSizeElement.textContent = '20';
+    }
 }
 
 function updatePlayerInfoPanelStats(player) {
@@ -1713,13 +1772,18 @@ function updatePlayerInfoPanelStats(player) {
         currentSize.textContent = Math.round(player.size || 20);
     }
     
-    // Show current game score as "coins collected this game"
-    if (totalCoinsElement) {
+    // Show accumulated coins + current game score
+    const currentUser = nicknameAuth.getCurrentUser();
+    if (totalCoinsElement && currentUser && player.name === currentUser.nickname) {
+        const accumulatedCoins = currentUser.stats.totalScore || 0;
+        const currentGameScore = player.score || 0;
+        totalCoinsElement.textContent = accumulatedCoins + currentGameScore;
+    } else if (totalCoinsElement) {
+        // For non-authenticated users, just show current game
         totalCoinsElement.textContent = player.score || 0;
     }
     
     // Update best score if current score is higher
-    const currentUser = nicknameAuth.getCurrentUser();
     if (currentUser && player.name === currentUser.nickname) {
         const bestScoreElement = document.getElementById('bestScore');
         if (bestScoreElement) {
