@@ -265,7 +265,7 @@ function updatePlayers(deltaTime) {
             gameState.players.delete(target.id);
           }
           
-          console.log(`🍽️ ${player.name} ate ${target.name}! Score: ${player.score}`);
+          // Silent eating - no logs
         }
       }
     });
@@ -278,17 +278,12 @@ function startBotSimulation() {
   // Make existing bots also leave randomly (after 1-5 minutes)
   function scheduleExistingBotLeave() {
     const existingBots = Array.from(gameState.bots.values());
-    console.log(`📋 Scheduling ${existingBots.length} existing bots to potentially leave`);
     existingBots.forEach(bot => {
       const leaveDelay = 60000 + Math.random() * 240000; // 1-5 minutes
-      const minutes = Math.floor(leaveDelay / 60000);
-      const seconds = Math.floor((leaveDelay % 60000) / 1000);
-      console.log(`⏰ Bot "${bot.name}" may leave in ${minutes}m ${seconds}s`);
       setTimeout(() => {
         // Check if bot still exists and there are enough bots
         if (gameState.bots.has(bot.id) && gameState.bots.size > 5) {
           gameState.bots.delete(bot.id);
-          console.log(`👋 Initial bot "${bot.name}" left the game (${gameState.bots.size} bots online)`);
           
           // Notify players about leaving "player"
           if (gameState.players.size > 0) {
@@ -316,10 +311,6 @@ function startBotSimulation() {
   function scheduleNextBotEvent() {
     // Random delay between 20 seconds and 3 minutes
     const delay = 20000 + Math.random() * 160000;
-    const minutes = Math.floor(delay / 60000);
-    const seconds = Math.floor((delay % 60000) / 1000);
-    
-    console.log(`⏰ Next bot event scheduled in ${minutes}m ${seconds}s`);
     
     setTimeout(() => {
       const currentBotCount = gameState.bots.size;
@@ -328,13 +319,11 @@ function startBotSimulation() {
       
       // Random chance to add or remove a bot
       const action = Math.random();
-      console.log(`🎲 Bot simulation roll: ${action.toFixed(3)} (bots: ${currentBotCount}/${maxBots})`);
       
       if (action <= 0.5 && currentBotCount < maxBots) {
         // 50% chance to add a bot (player joins)
         const newBot = createBot(gameState.nextBotId++);
         gameState.bots.set(newBot.id, newBot);
-        console.log(`🤖 Bot "${newBot.name}" joined the game (${gameState.bots.size} bots online)`);
         
         // Notify players about new "player"
         if (gameState.players.size > 0) {
@@ -357,14 +346,12 @@ function startBotSimulation() {
         
       } else if (action > 0.5 && currentBotCount > minBots) {
         // 50% chance to remove a bot (player leaves)
-        console.log(`📤 Attempting to remove a bot (${currentBotCount} > ${minBots})`);
         const botIds = Array.from(gameState.bots.keys());
         const randomBotId = botIds[Math.floor(Math.random() * botIds.length)];
         const leavingBot = gameState.bots.get(randomBotId);
         
         if (leavingBot) {
           gameState.bots.delete(randomBotId);
-          console.log(`👋 Bot "${leavingBot.name}" left the game (${gameState.bots.size} bots online)`);
           
           // Notify players about leaving "player"
           if (gameState.players.size > 0) {
@@ -386,7 +373,6 @@ function startBotSimulation() {
           }
                   }
         } else {
-          console.log(`😴 No bot action taken (roll: ${action.toFixed(3)}, conditions not met)`);
         }
         
         // Schedule next event
@@ -399,22 +385,16 @@ function startBotSimulation() {
   
   // Start the simulation with a quick first event (5-30 seconds)
   const firstEventDelay = 5000 + Math.random() * 25000;
-  const firstMinutes = Math.floor(firstEventDelay / 60000);
-  const firstSeconds = Math.floor((firstEventDelay % 60000) / 1000);
-  console.log(`🚀 First bot simulation event will happen in ${firstMinutes}m ${firstSeconds}s`);
   
   setTimeout(() => {
-    console.log('🎬 Starting bot simulation events...');
     scheduleNextBotEvent();
   }, firstEventDelay);
   
   // Fallback: force bot action after 2 minutes if nothing happened
   setTimeout(() => {
-    console.log('⚠️ Fallback: Forcing bot simulation check...');
     if (gameState.bots.size < 15) {
       const newBot = createBot(gameState.nextBotId++);
       gameState.bots.set(newBot.id, newBot);
-      console.log(`🚨 Fallback bot "${newBot.name}" joined the game (${gameState.bots.size} bots online)`);
     }
   }, 120000); // 2 minutes
 }
@@ -426,20 +406,14 @@ function initializeGame() {
   for (let i = 0; i < 8; i++) {
     const bot = createBot(gameState.nextBotId++);
     gameState.bots.set(bot.id, bot);
-    console.log(`🤖 Created initial bot "${bot.name}" (ID: ${bot.id})`);
   }
   
-  console.log(`🎮 Game initialized with ${gameState.bots.size} bots`);
-  
   // Start bot simulation (players joining/leaving)
-  console.log('🔄 Starting bot simulation system...');
   startBotSimulation();
 }
 
 // Start new match
 function startNewMatch() {
-  console.log('Starting daily match until end of GMT day...');
-  
   // Calculate time until end of current GMT day
   const now = new Date();
   const endOfDay = new Date(now);
@@ -452,9 +426,6 @@ function startNewMatch() {
   gameState.matchStartTime = Date.now(); // Record exact start time
   gameState.gameStarted = true;
   gameState.gameEnded = false;
-  
-  console.log(`Match will end at: ${endOfDay.toUTCString()}`);
-  console.log(`Match duration: ${Math.floor(timeUntilEndOfDay / 3600)}h ${Math.floor((timeUntilEndOfDay % 3600) / 60)}m ${timeUntilEndOfDay % 60}s`);
   
   // Reset all player scores
   gameState.players.forEach(player => {
@@ -484,7 +455,6 @@ function startNewMatch() {
 
 // End current match
 async function endMatch() {
-  console.log('Match ended!');
   gameState.gameEnded = true;
   gameState.gameStarted = false;
   
@@ -536,12 +506,8 @@ async function endMatch() {
   
   const timeUntilNextDay = nextDay.getTime() - now.getTime();
   
-  console.log(`Next match will start at: ${nextDay.toUTCString()}`);
-  console.log(`Time until next match: ${Math.floor(timeUntilNextDay / 1000 / 60)} minutes`);
-  
   setTimeout(() => {
     if (gameState.players.size > 0 || gameState.bots.size > 0) {
-      console.log('Starting new daily match at GMT 00:00');
       startNewMatch();
     }
   }, timeUntilNextDay);
@@ -581,9 +547,6 @@ const disconnectedPlayers = new Map();
 
 // Socket.io connections
 io.on('connection', (socket) => {
-  console.log('Player connected:', socket.id);
-  console.log('Total players:', gameState.players.size + 1);
-  
   // Heartbeat to detect connection issues
   socket.isAlive = true;
   socket.on('pong', () => {
@@ -601,8 +564,6 @@ io.on('connection', (socket) => {
     const colorHue = typeof playerData === 'object' ? playerData.color : Math.random() * 360;
     const playerId = typeof playerData === 'object' && playerData.playerId ? playerData.playerId : socket.id;
     
-    console.log('🔍 JoinGame request:', { name, playerId, socketId: socket.id });
-    
     // Check for reconnection
     let player = null;
     if (playerId && disconnectedPlayers.has(playerId)) {
@@ -610,7 +571,6 @@ io.on('connection', (socket) => {
       player = disconnectedPlayers.get(playerId);
       player.id = socket.id; // Update socket ID
       disconnectedPlayers.delete(playerId);
-      console.log(`🔄 Player ${player.name} reconnected`);
     } else {
       // New player
       player = {
@@ -628,11 +588,9 @@ io.on('connection', (socket) => {
         color: `hsl(${colorHue}, 70%, 50%)`,
         isBot: false
       };
-      console.log(`➕ New player ${player.name} created`);
     }
     
     gameState.players.set(socket.id, player);
-    console.log(`✅ Player ${player.name} added to gameState. Total players: ${gameState.players.size}`);
     
     // Send initial game state
     socket.emit('gameState', {
@@ -642,8 +600,6 @@ io.on('connection', (socket) => {
       worldSize: gameState.worldSize,
       playerId: socket.id
     });
-    
-    console.log(`📤 Sent gameState to ${player.name}. Players in state: ${gameState.players.size}`);
     
     // Send current timer state for synchronization
     const timerNow = new Date();
@@ -669,8 +625,6 @@ io.on('connection', (socket) => {
       // Set target velocity instead of instant position update
       player.targetVx = movement.x * speed;
       player.targetVy = movement.y * speed;
-      
-      console.log(`🎮 Player ${player.name} movement: (${movement.x.toFixed(2)}, ${movement.y.toFixed(2)}) -> velocity: (${player.targetVx.toFixed(1)}, ${player.targetVy.toFixed(1)})`);
     }
   });
 
@@ -694,20 +648,15 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('Player disconnected:', socket.id);
-    
+    // Save player state for potential reconnection (5 minutes)
     const player = gameState.players.get(socket.id);
     if (player && player.firebaseId) {
-      // Save player state for potential reconnection (5 minutes)
       disconnectedPlayers.set(player.firebaseId, player);
       setTimeout(() => {
         if (disconnectedPlayers.has(player.firebaseId)) {
           disconnectedPlayers.delete(player.firebaseId);
-          console.log(`❌ Player ${player.name} connection timeout`);
         }
       }, 5 * 60 * 1000); // 5 minutes
-      
-      console.log(`⏸️ Player ${player.name} disconnected (saved for reconnect)`);
     }
     
     gameState.players.delete(socket.id);
@@ -775,7 +724,6 @@ setInterval(() => {
 setInterval(() => {
   io.sockets.sockets.forEach((socket) => {
     if (socket.isAlive === false) {
-      console.log('🔴 Socket timeout:', socket.id);
       socket.disconnect();
       return;
     }
@@ -791,17 +739,13 @@ initializeGame();
 // Keep Render server awake (ping every 14 minutes)
 if (process.env.NODE_ENV === 'production') {
   setInterval(() => {
-    console.log('🏓 Ping to keep server awake');
+    // Silent ping to keep server awake
   }, 14 * 60 * 1000); // 14 minutes
 }
 
 // Debug bot status every 30 seconds
 setInterval(() => {
-  console.log(`🤖 Bot Status: ${gameState.bots.size} bots online, ${gameState.players.size} players`);
-  if (gameState.bots.size > 0) {
-    const botNames = Array.from(gameState.bots.values()).map(bot => bot.name).join(', ');
-    console.log(`🎯 Current bots: ${botNames}`);
-  }
+  // Silent monitoring - no logs
 }, 30000);
 
 const PORT = process.env.PORT || 3001;

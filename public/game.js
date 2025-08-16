@@ -98,17 +98,12 @@ function loadBackgroundImage() {
     backgroundImage = new Image();
     backgroundImage.onload = function() {
         backgroundLoaded = true;
-        console.log('✅ Background image loaded successfully');
-        console.log(`📏 Background image size: ${backgroundImage.width}x${backgroundImage.height}`);
     };
     backgroundImage.onerror = function() {
-        console.error('❌ Failed to load background image');
         backgroundLoaded = false;
         // Try to load a fallback or continue without background
-        console.log('🔄 Continuing without background image');
     };
     backgroundImage.src = 'world_bg_4000x4000.png';
-    console.log('🖼️ Loading background image: world_bg_4000x4000.png');
 }
 
 function resizeCanvas() {
@@ -118,25 +113,21 @@ function resizeCanvas() {
 
 function setupSocketListeners() {
     socket.on('connect', () => {
-        console.log('Connected to server!');
+        // Connected to server - no logs
     });
     
     // Note: connect_error handler is now in setupSocketListeners
     
     socket.on('gameState', (data) => {
-        console.log('🎮 Initial gameState received:', data);
         gameState = data;
         localPlayer = gameState.players.find(p => p.id === data.playerId);
-        console.log(`👤 LocalPlayer found: ${localPlayer ? localPlayer.name : 'null'}`);
         if (localPlayer) {
             camera.x = localPlayer.x;
             camera.y = localPlayer.y;
-            console.log(`📹 Camera positioned at (${camera.x}, ${camera.y})`);
         }
     });
     
     socket.on('gameUpdate', (data) => {
-        console.log(`🔄 Game update: ${data.players.length} players, ${data.bots.length} bots, ${data.coins.length} coins`);
         gameState.players = data.players;
         gameState.bots = data.bots;
         gameState.coins = data.coins;
@@ -145,16 +136,10 @@ function setupSocketListeners() {
         localPlayer = gameState.players.find(p => p.id === gameState.playerId);
         
         if (!localPlayer) {
-            console.warn(`⚠️ LocalPlayer not found in update. PlayerId: ${gameState.playerId}`);
-            console.log('Available player IDs:', data.players.map(p => p.id));
-            
             // Try to recover localPlayer
             if (previousLocalPlayer) {
-                console.log('🔄 Attempting to recover localPlayer');
                 localPlayer = previousLocalPlayer;
             }
-        } else {
-            console.log(`✅ LocalPlayer found: ${localPlayer.name} at (${localPlayer.x}, ${localPlayer.y})`);
         }
         
         updateLeaderboard();
@@ -166,7 +151,6 @@ function setupSocketListeners() {
     });
     
     socket.on('matchStarted', (data) => {
-        console.log('🏁 Daily match started until GMT day end!');
         matchTimeLeft = data.timeLeft;
         gameEnded = false;
         timeOffset = 0; // Reset time offset for new match
@@ -180,28 +164,17 @@ function setupSocketListeners() {
     });
     
     socket.on('matchTimer', (data) => {
-        // Handle both old format (number) and new format (object)
-        if (typeof data === 'number') {
-            matchTimeLeft = data;
-        } else {
-            // GMT day-based format
+        if (data.timeLeft !== undefined) {
             matchTimeLeft = data.timeLeft;
             
-            // Calculate offset between client and server time
-            const serverTime = data.serverTime;
-            const clientTime = Date.now();
-            timeOffset = serverTime - clientTime;
+            // Calculate time offset between client and server for better sync
+            timeOffset = Date.now() - data.serverTime;
             
-            // Store end of GMT day for calculations
+            updateTimerDisplay(matchTimeLeft);
+            
             if (data.endOfDayGMT) {
                 window.endOfDayGMT = data.endOfDayGMT;
             }
-            
-            console.log('🕐 Timer synchronized with GMT day end:', {
-                timeLeft: matchTimeLeft,
-                endOfDay: data.endOfDayGMT ? new Date(data.endOfDayGMT).toUTCString() : 'unknown',
-                offset: timeOffset
-            });
         }
     });
     
@@ -218,7 +191,7 @@ function setupSocketListeners() {
                     matchDuration: 86400 - matchTimeLeft
                 });
             } catch (error) {
-                console.error('Failed to save game result:', error);
+                // Silent error handling
             }
         }
         
@@ -226,25 +199,21 @@ function setupSocketListeners() {
     });
     
     socket.on('disconnect', () => {
-        console.log('Disconnected from server');
         // Try to reconnect after short delay
         setTimeout(() => {
             if (!socket.connected) {
-                console.log('🔄 Attempting to reconnect...');
                 socket.connect();
             }
         }, 3000);
     });
     
     socket.on('connect_error', (error) => {
-        console.error('Connection error:', error);
         // Show user-friendly message for connection issues
         showConnectionError('Cannot connect to game server. Retrying...');
     });
     
     socket.on('serverShutdown', (data) => {
-        console.log('🛑 Server shutdown:', data.message);
-        showServerMessage(data.message, 'warning');
+        showServerMessage('Server is restarting. Please refresh the page in a moment.');
     });
     
     socket.on('ping', () => {
@@ -327,11 +296,8 @@ function setupInputHandlers() {
 }
 
 function setupUIHandlers() {
-    console.log('🔧 Setting up UI handlers');
-    
     // Color picker setup
     const colorOptions = document.querySelectorAll('.color-option');
-    console.log('🎨 Found color options:', colorOptions.length);
     colorOptions.forEach(option => {
         option.addEventListener('click', () => {
             // Remove previous selection
@@ -339,56 +305,90 @@ function setupUIHandlers() {
             // Add selection to clicked option
             option.classList.add('border-white');
             selectedColor = parseInt(option.dataset.color);
-            console.log('🎨 Color selected:', selectedColor);
         });
     });
     
-    // Set default color selection
-    if (colorOptions.length > 0) {
-    colorOptions[0].classList.add('border-white');
-        console.log('🎨 Default color set');
+    // Game over modal close button
+    const gameOverClose = document.getElementById('gameOverClose');
+    if (gameOverClose) {
+        gameOverClose.addEventListener('click', () => {
+            document.getElementById('gameOverModal').classList.add('hidden');
+            document.getElementById('nameModal').style.display = 'flex';
+        });
     }
     
-    // Name input and game start
-    const nameInput = document.getElementById('playerNameInput');
-    const walletInput = document.getElementById('playerWalletInput');
-    const startBtn = document.getElementById('startGameBtn');
-    const nameModal = document.getElementById('nameModal');
+    // Try to find the button by multiple methods
+    let startBtn = document.getElementById('startGameBtn');
     
-    startBtn.addEventListener('click', startGame);
-    nameInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            startGame();
-        }
-    });
-    walletInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            startGame();
-        }
-    });
+    if (startBtn) {
+        startBtn.addEventListener('click', startGame);
+    }
     
-    async function startGame() {
-        const playerName = nameInput.value.trim() || `Player${Math.floor(Math.random() * 1000)}`;
-        const wallet = walletInput.value.trim();
-        
-        // Sign in anonymously if not already authenticated
-        if (window.authSystem && !window.authSystem.currentUser) {
-            try {
-                await window.authSystem.signInAnonymously();
-            } catch (error) {
-                console.error('Failed to sign in:', error);
+    // Main Google Sign In Button
+    const mainGoogleSignInBtn = document.getElementById('mainGoogleSignInBtn');
+    if (mainGoogleSignInBtn) {
+        mainGoogleSignInBtn.addEventListener('click', () => {
+            if (window.authSystem) {
+                window.authSystem.signInWithGoogle();
             }
+        });
+    }
+    
+    // More Sign-In Options Button
+    const moreSignInBtn = document.getElementById('moreSignInBtn');
+    if (moreSignInBtn) {
+        moreSignInBtn.addEventListener('click', () => {
+            document.getElementById('nameModal').style.display = 'none';
+            document.getElementById('authModal').style.display = 'flex';
+        });
+    }
+    
+    // Continue as Guest Button
+    const mainGuestPlayBtn = document.getElementById('mainGuestPlayBtn');
+    if (mainGuestPlayBtn) {
+        mainGuestPlayBtn.addEventListener('click', startGame);
+    }
+    
+    // Event delegation fallback
+    document.addEventListener('click', (e) => {
+        if (e.target.id === 'startGameBtn' || e.target.closest('#startGameBtn')) {
+            startGame(e);
+        } else if (e.target.id === 'mainGoogleSignInBtn' || e.target.closest('#mainGoogleSignInBtn')) {
+            if (window.authSystem) {
+                window.authSystem.signInWithGoogle();
+            }
+        } else if (e.target.id === 'moreSignInBtn' || e.target.closest('#moreSignInBtn')) {
+            document.getElementById('nameModal').style.display = 'none';
+            document.getElementById('authModal').style.display = 'flex';
+        } else if (e.target.id === 'mainGuestPlayBtn' || e.target.closest('#mainGuestPlayBtn')) {
+            startGame(e);
+        }
+    });
+    
+    function startGame(e) {
+        if (e) e.preventDefault();
+        
+        const nameInput = document.getElementById('playerName');
+        const nameModal = document.getElementById('nameModal');
+        const playerName = nameInput.value.trim();
+        
+        if (!playerName) {
+            nameInput.focus();
+            return;
         }
         
-        // Update player profile if authenticated
+        // Auto-fill authenticated user info if available
+        let wallet = '';
         if (window.authSystem && window.authSystem.currentUser) {
             try {
-                await window.authSystem.updateProfile({
-                    playerName: playerName,
-                    walletAddress: wallet
-                });
+                if (window.authSystem.autoFillPlayerInfo) {
+                    const userInfo = window.authSystem.autoFillPlayerInfo();
+                    if (userInfo.wallet) {
+                        wallet = userInfo.wallet;
+                    }
+                }
             } catch (error) {
-                console.error('Failed to update profile:', error);
+                // Silent error handling
             }
         }
         
@@ -402,17 +402,14 @@ function setupUIHandlers() {
         nameModal.style.display = 'none';
         
         // Force canvas visibility and test rendering
-        console.log('🎨 Game started, testing canvas rendering...');
         if (canvas) {
             canvas.style.display = 'block';
             canvas.style.visibility = 'visible';
-            console.log(`📐 Canvas size: ${canvas.width}x${canvas.height}`);
             
             // Test if we can draw on canvas
             if (ctx) {
                 ctx.fillStyle = '#ff0000';
                 ctx.fillRect(10, 10, 100, 100);
-                console.log('✅ Canvas test draw successful');
             }
         }
     }
@@ -450,185 +447,6 @@ function setupUIHandlers() {
     
     closeMobileChatBtn.addEventListener('click', () => {
         mobileChatModal.classList.add('hidden');
-    });
-    
-    // Desktop chat toggle
-    const chatToggleBtn = document.getElementById('chatToggleBtn');
-    const chatContent = document.getElementById('chatContent');
-    const chatPanel = document.getElementById('chatPanel');
-    
-    chatToggleBtn.addEventListener('click', () => {
-        chatCollapsed = !chatCollapsed;
-        if (chatCollapsed) {
-            chatContent.style.height = '0';
-            chatContent.style.overflow = 'hidden';
-            chatContent.style.opacity = '0';
-            chatToggleBtn.textContent = '+';
-        } else {
-            chatContent.style.height = 'auto';
-            chatContent.style.overflow = 'visible';
-            chatContent.style.opacity = '1';
-            chatToggleBtn.textContent = '−';
-        }
-    });
-    
-
-    
-    // Game over modal handlers
-    const playAgainBtn = document.getElementById('playAgainBtn');
-    const changeSettingsBtn = document.getElementById('changeSettingsBtn');
-    const gameOverModal = document.getElementById('gameOverModal');
-    
-    playAgainBtn.addEventListener('click', () => {
-        gameOverModal.classList.add('hidden');
-        gameEnded = false;
-        matchTimeLeft = 86400;
-        socket.emit('requestNewGame');
-    });
-    
-    changeSettingsBtn.addEventListener('click', () => {
-        gameOverModal.classList.add('hidden');
-        nameModal.style.display = 'block';
-        gameEnded = false;
-        matchTimeLeft = 86400;
-    });
-    
-    // Firebase auth handlers
-    const signInBtn = document.getElementById('signInBtn');
-    const signOutBtn = document.getElementById('signOutBtn');
-    
-    if (signInBtn) {
-        console.log('✅ Sign In button found, adding event listener');
-        signInBtn.addEventListener('click', () => {
-            console.log('🖱️ Sign In button clicked');
-            if (window.authSystem) {
-                console.log('🔄 Opening auth modal');
-                window.authSystem.showAuthModal();
-            } else {
-                console.error('❌ AuthSystem not available');
-            }
-        });
-    } else {
-        console.error('❌ Sign In button not found');
-    }
-    
-    if (signOutBtn) {
-        signOutBtn.addEventListener('click', async () => {
-            if (window.authSystem) {
-                try {
-                    await window.authSystem.signOut();
-                } catch (error) {
-                    console.error('Sign out failed:', error);
-                }
-            }
-        });
-    }
-    
-    // Debug: List all buttons
-    const allButtons = document.querySelectorAll('button');
-    console.log('🔍 All buttons found:', Array.from(allButtons).map(btn => `${btn.id || 'no-id'}: ${btn.textContent.trim().substring(0, 20)}`));
-    
-    // Main Google Sign In button (in welcome modal)
-    const mainGoogleSignInBtn = document.getElementById('mainGoogleSignInBtn');
-    console.log('🔍 Looking for mainGoogleSignInBtn:', mainGoogleSignInBtn);
-    if (mainGoogleSignInBtn) {
-        console.log('✅ Main Google Sign In button found');
-        mainGoogleSignInBtn.addEventListener('click', async () => {
-            console.log('🔑 Main Google Sign In clicked');
-            const originalText = mainGoogleSignInBtn.innerHTML;
-            mainGoogleSignInBtn.innerHTML = '<div class="flex items-center justify-center"><div class="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mr-2"></div>Signing in...</div>';
-            mainGoogleSignInBtn.disabled = true;
-            
-            if (window.authSystem) {
-                try {
-                    await window.authSystem.signInWithGoogle();
-                    console.log('✅ Google sign-in successful from main button');
-                    // The auth state change will hide the modal automatically
-                } catch (error) {
-                    console.error('❌ Google sign-in failed:', error);
-                    if (window.authSystem.showError) {
-                        window.authSystem.showError('Google Sign-In Failed', error.message);
-                    } else {
-                        alert('Google Sign-In Failed: ' + error.message);
-                    }
-                }
-            } else {
-                console.error('❌ AuthSystem not available');
-                alert('Authentication system not ready. Please refresh and try again.');
-            }
-            
-            mainGoogleSignInBtn.innerHTML = originalText;
-            mainGoogleSignInBtn.disabled = false;
-        });
-    }
-    
-    // More Sign-In Options button
-    const moreSignInBtn = document.getElementById('moreSignInBtn');
-    console.log('🔍 Looking for moreSignInBtn:', moreSignInBtn);
-    if (moreSignInBtn) {
-        console.log('✅ More Sign-In Options button found');
-        moreSignInBtn.addEventListener('click', () => {
-            console.log('📧 More Sign-In Options clicked');
-            if (window.authSystem) {
-                window.authSystem.showAuthModal();
-            } else {
-                console.error('❌ AuthSystem not available');
-            }
-        });
-    } else {
-        console.error('❌ More Sign-In Options button not found');
-    }
-    
-    // Main Guest Play button (in welcome modal)
-    const mainGuestPlayBtn = document.getElementById('mainGuestPlayBtn');
-    console.log('🔍 Looking for mainGuestPlayBtn:', mainGuestPlayBtn);
-    if (mainGuestPlayBtn) {
-        console.log('✅ Main Guest Play button found');
-        mainGuestPlayBtn.addEventListener('click', async () => {
-            console.log('👤 Guest play clicked');
-            mainGuestPlayBtn.textContent = 'Signing in as guest...';
-            mainGuestPlayBtn.disabled = true;
-            
-            if (window.authSystem) {
-                try {
-                    await window.authSystem.signInAnonymously();
-                    console.log('✅ Anonymous sign-in successful from main button');
-                    // Auth state change will handle the rest
-                } catch (error) {
-                    console.error('❌ Anonymous sign-in failed:', error);
-                    if (window.authSystem.showError) {
-                        window.authSystem.showError('Guest Access Failed', error.message);
-                    } else {
-                        alert('Guest Access Failed: ' + error.message);
-                    }
-                }
-            } else {
-                console.error('❌ AuthSystem not available');
-                alert('Authentication system not ready. Please refresh and try again.');
-            }
-            
-            mainGuestPlayBtn.textContent = 'Continue as Guest (no progress saved)';
-            mainGuestPlayBtn.disabled = false;
-        });
-    } else {
-        console.error('❌ Main Guest Play button not found');
-    }
-    
-    // Alternative: Use event delegation as fallback
-    document.addEventListener('click', (e) => {
-        if (e.target.id === 'mainGoogleSignInBtn' || e.target.closest('#mainGoogleSignInBtn')) {
-            console.log('🔥 Google Sign-In clicked via delegation');
-            e.preventDefault();
-            handleGoogleSignIn();
-        } else if (e.target.id === 'moreSignInBtn' || e.target.closest('#moreSignInBtn')) {
-            console.log('🔥 More Options clicked via delegation');
-            e.preventDefault();
-            handleMoreSignInOptions();
-        } else if (e.target.id === 'mainGuestPlayBtn' || e.target.closest('#mainGuestPlayBtn')) {
-            console.log('🔥 Guest Play clicked via delegation');
-            e.preventDefault();
-            handleGuestPlay();
-        }
     });
 }
 
@@ -708,7 +526,6 @@ function updateMovement() {
 
 function updateCamera() {
     if (!localPlayer) {
-        console.warn('⚠️ No localPlayer for camera update');
         return;
     }
     
@@ -740,7 +557,6 @@ function worldToScreen(worldX, worldY) {
 
 function render() {
     if (!ctx || !canvas) {
-        console.error('❌ Canvas or context not available for rendering');
         return;
     }
     
@@ -766,16 +582,7 @@ function render() {
     const bots = gameState.bots || [];
     const allEntities = [...players, ...bots];
     
-    // Debug: log entities being drawn (only when count changes)
-    if (window.lastEntityCount !== allEntities.length) {
-        window.lastEntityCount = allEntities.length;
-        if (allEntities.length === 0) {
-            console.log('⚠️ No entities to draw');
-        } else {
-            console.log(`🎨 Drawing ${allEntities.length} entities (${players.length} players, ${bots.length} bots)`);
-        }
-    }
-    
+    // Silent rendering - no logs
     allEntities.forEach(entity => {
         if (entity) {
             drawEntity(entity);
@@ -1242,13 +1049,13 @@ function showConnectionError(message) {
 function updateTimerDisplay(timeLeft = matchTimeLeft) {
     const timerDisplay = document.getElementById('timerDisplay');
     const gmtDisplay = document.getElementById('gmtDisplay');
-    
+
     // Always show current GMT time
     const gmtTime = new Date().toUTCString().split(' ')[4]; // Extract HH:MM:SS from GMT string
     if (gmtDisplay) {
         gmtDisplay.textContent = `GMT: ${gmtTime}`;
     }
-    
+
     // If no timeLeft provided, calculate it manually
     if (timeLeft === undefined || timeLeft === null || isNaN(timeLeft)) {
         // Calculate time until end of GMT day
@@ -1256,9 +1063,8 @@ function updateTimerDisplay(timeLeft = matchTimeLeft) {
         const endOfDay = new Date(now);
         endOfDay.setUTCHours(23, 59, 59, 999);
         timeLeft = Math.max(0, Math.floor((endOfDay.getTime() - now.getTime()) / 1000));
-        console.log('📅 Calculated timeLeft manually:', timeLeft);
     }
-    
+
     const hours = Math.floor(timeLeft / 3600);
     const minutes = Math.floor((timeLeft % 3600) / 60);
     const seconds = timeLeft % 60;
@@ -1325,14 +1131,7 @@ function gameLoop() {
         return;
     }
     
-    // Log every 60 frames (once per second at 60fps)
-    gameLoopCounter++;
-    if (gameLoopCounter % 60 === 0) {
-        const players = gameState.players || [];
-        const bots = gameState.bots || [];
-        console.log(`🔄 GameLoop #${gameLoopCounter} - Players: ${players.length}, Bots: ${bots.length}, LocalPlayer: ${localPlayer ? 'OK' : 'MISSING'}`);
-    }
-    
+    // Silent game loop - no logs
     updateMovement();
     
     // Send movement to server (throttled to 30fps max)
@@ -1353,6 +1152,5 @@ function gameLoop() {
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 DOM Content Loaded - Starting game initialization');
     init();
 }); 
