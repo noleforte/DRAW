@@ -209,6 +209,69 @@ function updateBots() {
   });
 }
 
+// Update player positions with smooth 60fps movement
+function updatePlayers(deltaTime) {
+  gameState.players.forEach(player => {
+    // Smooth velocity interpolation for 60fps movement
+    const lerpFactor = Math.min(1, deltaTime * 8); // Smooth acceleration/deceleration
+    player.vx += (player.targetVx - player.vx) * lerpFactor;
+    player.vy += (player.targetVy - player.vy) * lerpFactor;
+    
+    // Update position based on velocity and deltaTime
+    player.x += player.vx * deltaTime;
+    player.y += player.vy * deltaTime;
+    
+    // Keep within world bounds
+    player.x = Math.max(-gameState.worldSize/2, Math.min(gameState.worldSize/2, player.x));
+    player.y = Math.max(-gameState.worldSize/2, Math.min(gameState.worldSize/2, player.y));
+    
+    // Check coin collection
+    gameState.coins.forEach(coin => {
+      const distance = Math.sqrt((coin.x - player.x) ** 2 + (coin.y - player.y) ** 2);
+      if (distance < player.size) {
+        player.score += coin.value;
+        
+        // Player growth based on score (Agar.io style)
+        player.size = Math.min(50, 20 + Math.sqrt(player.score) * 2);
+        
+        gameState.coins.delete(coin.id);
+        
+        // Respawn coin
+        const newCoin = {
+          id: gameState.nextCoinId++,
+          ...getRandomPosition(),
+          value: 1
+        };
+        gameState.coins.set(newCoin.id, newCoin);
+      }
+    });
+    
+    // Check eating other players/bots (Agar.io mechanics)
+    const allEntities = [...gameState.players.values(), ...gameState.bots.values()];
+    allEntities.forEach(target => {
+      if (target.id !== player.id && !target.isBot !== !player.isBot) {
+        const distance = Math.sqrt((target.x - player.x) ** 2 + (target.y - player.y) ** 2);
+        const sizeRatio = player.size / target.size;
+        
+        // Can eat if 15% larger and touching
+        if (sizeRatio > 1.15 && distance < (player.size + target.size) * 0.7) {
+          player.score += target.score;
+          player.size = Math.min(50, 20 + Math.sqrt(player.score) * 2);
+          
+          // Remove eaten entity
+          if (target.isBot) {
+            gameState.bots.delete(target.id);
+          } else {
+            gameState.players.delete(target.id);
+          }
+          
+          console.log(`🍽️ ${player.name} ate ${target.name}! Score: ${player.score}`);
+        }
+      }
+    });
+  });
+}
+
 // Initialize game
 // Bot simulation system
 function startBotSimulation() {
@@ -538,6 +601,8 @@ io.on('connection', (socket) => {
     const colorHue = typeof playerData === 'object' ? playerData.color : Math.random() * 360;
     const playerId = typeof playerData === 'object' && playerData.playerId ? playerData.playerId : socket.id;
     
+    console.log('🔍 JoinGame request:', { name, playerId, socketId: socket.id });
+    
     // Check for reconnection
     let player = null;
     if (playerId && disconnectedPlayers.has(playerId)) {
@@ -556,15 +621,18 @@ io.on('connection', (socket) => {
         ...getRandomPosition(),
         vx: 0,
         vy: 0,
+        targetVx: 0, // Add target velocity for smooth 60fps movement
+        targetVy: 0,
         score: 0,
         size: 20,
         color: `hsl(${colorHue}, 70%, 50%)`,
         isBot: false
       };
-      console.log(`➕ New player ${player.name} joined`);
+      console.log(`➕ New player ${player.name} created`);
     }
     
     gameState.players.set(socket.id, player);
+    console.log(`✅ Player ${player.name} added to gameState. Total players: ${gameState.players.size}`);
     
     // Send initial game state
     socket.emit('gameState', {
@@ -574,6 +642,8 @@ io.on('connection', (socket) => {
       worldSize: gameState.worldSize,
       playerId: socket.id
     });
+    
+    console.log(`📤 Sent gameState to ${player.name}. Players in state: ${gameState.players.size}`);
     
     // Send current timer state for synchronization
     const timerNow = new Date();
@@ -595,34 +665,12 @@ io.on('connection', (socket) => {
   socket.on('playerMove', (movement) => {
     const player = gameState.players.get(socket.id);
     if (player && gameState.gameStarted && !gameState.gameEnded) {
-      const speed = 3;
-      player.vx = movement.x * speed;
-      player.vy = movement.y * speed;
+      const speed = 200; // pixels per second for 60fps smooth movement
+      // Set target velocity instead of instant position update
+      player.targetVx = movement.x * speed;
+      player.targetVy = movement.y * speed;
       
-      // Update position
-      player.x += player.vx;
-      player.y += player.vy;
-      
-      // Keep within world bounds
-      player.x = Math.max(-gameState.worldSize/2, Math.min(gameState.worldSize/2, player.x));
-      player.y = Math.max(-gameState.worldSize/2, Math.min(gameState.worldSize/2, player.y));
-
-      // Check coin collection
-      gameState.coins.forEach(coin => {
-        const distance = Math.sqrt((coin.x - player.x) ** 2 + (coin.y - player.y) ** 2);
-        if (distance < player.size) {
-          player.score += coin.value;
-          gameState.coins.delete(coin.id);
-          
-          // Respawn coin
-          const newCoin = {
-            id: gameState.nextCoinId++,
-            ...getRandomPosition(),
-            value: 1
-          };
-          gameState.coins.set(newCoin.id, newCoin);
-        }
-      });
+      console.log(`🎮 Player ${player.name} movement: (${movement.x.toFixed(2)}, ${movement.y.toFixed(2)}) -> velocity: (${player.targetVx.toFixed(1)}, ${player.targetVy.toFixed(1)})`);
     }
   });
 
@@ -676,7 +724,8 @@ setInterval(() => {
   const deltaTime = (now - lastUpdate) / 1000;
   lastUpdate = now;
   
-  // Update game logic
+  // Update game logic with deltaTime for smooth 60fps movement
+  updatePlayers(deltaTime);
   updateBots();
   
   // Only broadcast every 3rd frame (20 FPS instead of 60)
@@ -690,6 +739,8 @@ setInterval(() => {
         id: p.id,
         x: Math.round(p.x),
         y: Math.round(p.y),
+        vx: Math.round(p.vx * 10) / 10, // Send velocity for client-side interpolation
+        vy: Math.round(p.vy * 10) / 10,
         score: p.score,
         size: p.size,
         name: p.name,

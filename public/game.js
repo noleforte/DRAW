@@ -38,6 +38,8 @@ let backgroundLoaded = false;
 let movement = { x: 0, y: 0 };
 let joystickActive = false;
 let joystickCenter = { x: 0, y: 0 };
+let lastMovementSent = 0;
+const MOVEMENT_SEND_INTERVAL = 1000 / 30; // Send movement at 30fps max
 
 // Initialize game
 function init() {
@@ -1333,9 +1335,13 @@ function gameLoop() {
     
     updateMovement();
     
-    // Send movement to server
-    if (socket && (movement.x !== 0 || movement.y !== 0)) {
-        socket.emit('playerMove', movement);
+    // Send movement to server (throttled to 30fps max)
+    if (socket) {
+        const now = Date.now();
+        if (now - lastMovementSent > MOVEMENT_SEND_INTERVAL) {
+            socket.emit('playerMove', movement);
+            lastMovementSent = now;
+        }
     }
     
     updateCamera();
