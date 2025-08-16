@@ -11,7 +11,7 @@ const io = socketIo(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  } 
 });
 
 app.use(cors());
