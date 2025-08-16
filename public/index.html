@@ -297,22 +297,24 @@
         
         /* Player info panel responsive */
         @media (max-width: 1024px) {
-            #nameModal .flex {
-                flex-direction: column;
-                space-x: 0;
-            }
-            
             #nameModal .player-info-panel {
-                width: 300px;
-                max-width: 90vw;
-                margin-bottom: 1rem;
+                position: absolute;
+                left: 1rem;
+                top: 1rem;
+                transform: none;
+                width: 240px;
+                max-height: 300px;
             }
         }
         
         @media (max-width: 640px) {
             #nameModal .player-info-panel {
-                width: 280px;
-                max-width: 85vw;
+                position: absolute;
+                left: 0.5rem;
+                top: 0.5rem;
+                transform: none;
+                width: 200px;
+                max-height: 250px;
             }
         }
         
@@ -337,39 +339,39 @@
         }
         
         /* Smooth panel animations */
-        #nameModal .flex {
-            transform: scale(0.9);
+        #nameModal .player-info-panel {
+            transform: translateX(-100%) translateY(-50%);
             opacity: 0;
             transition: all 0.4s ease-out;
         }
         
-        #nameModal.show .flex {
+        #nameModal.show .player-info-panel {
+            transform: translateX(0) translateY(-50%);
+            opacity: 1;
+        }
+        
+        #nameModal .bg-gray-800:not(.player-info-panel) {
+            transform: scale(0.9);
+            opacity: 0;
+            transition: all 0.3s ease-out 0.1s;
+        }
+        
+        #nameModal.show .bg-gray-800:not(.player-info-panel) {
             transform: scale(1);
             opacity: 1;
         }
         
         /* Ensure panel is visible on mobile screens */
         @media (max-width: 1024px) {
-            #nameModal .flex {
-                transform: scale(1);
+            #nameModal .player-info-panel {
+                transform: translateY(0);
                 opacity: 1;
             }
             
-            #nameModal.show .flex {
-                transform: scale(1);
+            #nameModal.show .player-info-panel {
+                transform: translateY(0);
                 opacity: 1;
             }
-        }
-        
-        #nameModal .bg-gray-800 {
-            transform: scale(0.9);
-            opacity: 0;
-            transition: all 0.3s ease-out 0.1s;
-        }
-        
-        #nameModal.show .bg-gray-800 {
-            transform: scale(1);
-            opacity: 1;
         }
         
         /* Gradient backgrounds */
@@ -386,57 +388,56 @@
 <body class="bg-gray-900 text-white overflow-hidden">
     <!-- Name Input Modal -->
     <div id="nameModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="flex items-center space-x-6">
-            <!-- Player Info Panel (Left Side) -->
-            <div class="bg-gray-800 p-6 rounded-lg max-w-md w-full max-h-screen overflow-y-auto player-info-panel">
-                <!-- Header -->
-                <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white rounded-lg mb-4">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 id="playerInfoName" class="font-bold text-base">Guest</h3>
-                            <p id="playerInfoStatus" class="text-xs opacity-90">Not signed in</p>
-                        </div>
+        <!-- Player Info Panel (Left Side) -->
+        <div class="absolute left-8 top-1/2 transform -translate-y-1/2 bg-gray-800 p-6 rounded-lg w-64 max-h-screen overflow-y-auto player-info-panel">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white rounded-lg mb-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                        </svg>
                     </div>
-                </div>
-                
-                <!-- Compact Stats -->
-                <div class="space-y-3">
-                    <!-- Coins -->
-                    <div class="bg-yellow-50 rounded-lg p-3">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-2">
-                                <span class="text-lg">🪙</span>
-                                <span class="font-medium text-gray-700 text-sm">Coins</span>
-                            </div>
-                            <span id="totalCoins" class="font-bold text-yellow-600">20</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Quick Stats -->
-                    <div class="bg-gray-50 rounded-lg p-3">
-                        <div class="space-y-2 text-xs">
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Matches:</span>
-                                <span id="matchesPlayed" class="font-semibold">0</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Best Score:</span>
-                                <span id="bestScore" class="font-semibold">0</span>
-                            </div>
-                        </div>
+                    <div>
+                        <h3 id="playerInfoName" class="font-bold text-base">Guest</h3>
+                        <p id="playerInfoStatus" class="text-xs opacity-90">Not signed in</p>
                     </div>
                 </div>
             </div>
             
-            <!-- Main Menu Modal (Center) -->
-            <div class="bg-gray-800 p-6 rounded-lg max-w-md w-full max-h-screen overflow-y-auto" style="padding: 28px;">
-                <h2 class="text-2xl font-bold mb-3 text-center">Welcome to Royale Ball!</h2>
-                <p class="text-gray-300 mb-4 text-center">Sign in to save your progress, or play as guest</p>
+            <!-- Compact Stats -->
+            <div class="space-y-3">
+                <!-- Coins -->
+                <div class="bg-yellow-50 rounded-lg p-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">🪙</span>
+                            <span class="font-medium text-gray-700 text-sm">Coins</span>
+                        </div>
+                        <span id="totalCoins" class="font-bold text-yellow-600">20</span>
+                    </div>
+                </div>
+                
+                <!-- Quick Stats -->
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="space-y-2 text-xs">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Matches:</span>
+                            <span id="matchesPlayed" class="font-semibold">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Best Score:</span>
+                            <span id="bestScore" class="font-semibold">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Menu Modal (Center) -->
+        <div class="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4 max-h-screen overflow-y-auto" style="padding: 28px;">
+            <h2 class="text-2xl font-bold mb-3 text-center">Welcome to Royale Ball!</h2>
+            <p class="text-gray-300 mb-4 text-center">Sign in to save your progress, or play as guest</p>
             
             <!-- Alternative Sign In Options -->
             <button 
