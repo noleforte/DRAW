@@ -308,6 +308,11 @@ function setupUIHandlers() {
         });
     });
     
+    // Set default color selection
+    if (colorOptions.length > 0) {
+        colorOptions[0].classList.add('border-white');
+    }
+    
     // Game over modal close button
     const gameOverClose = document.getElementById('gameOverClose');
     if (gameOverClose) {
@@ -368,7 +373,7 @@ function setupUIHandlers() {
     function startGame(e) {
         if (e) e.preventDefault();
         
-        const nameInput = document.getElementById('playerName');
+        const nameInput = document.getElementById('playerNameInput'); // Fixed: was 'playerName'
         const nameModal = document.getElementById('nameModal');
         const playerName = nameInput.value.trim();
         
@@ -420,20 +425,49 @@ function setupUIHandlers() {
     const mobileChatInput = document.getElementById('mobileChatInput');
     const sendMobileChatBtn = document.getElementById('sendMobileChatBtn');
     
-    sendChatBtn.addEventListener('click', sendChatMessage);
-    sendMobileChatBtn.addEventListener('click', sendMobileChatMessage);
+    // Add event listeners for name and wallet inputs
+    const nameInput = document.getElementById('playerNameInput');
+    const walletInput = document.getElementById('playerWalletInput');
     
-    chatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            sendChatMessage();
-        }
-    });
+    if (nameInput) {
+        nameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                startGame();
+            }
+        });
+    }
     
-    mobileChatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            sendMobileChatMessage();
-        }
-    });
+    if (walletInput) {
+        walletInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                startGame();
+            }
+        });
+    }
+    
+    if (sendChatBtn) {
+        sendChatBtn.addEventListener('click', sendChatMessage);
+    }
+    
+    if (sendMobileChatBtn) {
+        sendMobileChatBtn.addEventListener('click', sendMobileChatMessage);
+    }
+    
+    if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+    }
+    
+    if (mobileChatInput) {
+        mobileChatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMobileChatMessage();
+            }
+        });
+    }
     
     // Mobile chat toggle
     const mobileChatToggle = document.getElementById('mobileChatToggle');
