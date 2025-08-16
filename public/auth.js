@@ -3,72 +3,154 @@ class AuthSystem {
     constructor() {
         this.currentUser = null;
         this.playerStats = null;
+        this.firebaseReady = false;
         this.init();
     }
 
     init() {
-        // Listen for auth state changes
-        firebaseAuth.onAuthStateChanged((user) => {
-            this.currentUser = user;
-            if (user) {
-                this.loadPlayerStats();
-                this.showAuthenticatedUI();
-            } else {
-                this.showGuestUI();
-            }
+        // Wait for Firebase to be ready
+        this.waitForFirebase().then(() => {
+            this.firebaseReady = true;
+            console.log('🔥 AuthSystem: Firebase ready, setting up auth listener');
+            
+            // Listen for auth state changes
+            firebaseAuth.onAuthStateChanged((user) => {
+                console.log('🔄 Auth state changed:', user ? `User: ${user.email || user.uid}` : 'No user');
+                this.currentUser = user;
+                if (user) {
+                    this.loadPlayerStats();
+                    this.showAuthenticatedUI();
+                } else {
+                    this.showGuestUI();
+                }
+            });
+        }).catch((error) => {
+            console.error('❌ AuthSystem: Firebase not available:', error);
+            this.showGuestUI();
         });
+    }
+
+    async waitForFirebase() {
+        let attempts = 0;
+        while (attempts < 50) { // Wait up to 5 seconds
+            if (window.firebaseReady && window.firebaseAuth) {
+                return true;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+        throw new Error('Firebase not ready after 5 seconds');
     }
 
     // Anonymous authentication for guest players
     async signInAnonymously() {
+        if (!this.firebaseReady) {
+            throw new Error('Firebase not ready yet. Please wait a moment and try again.');
+        }
+
         try {
+            console.log('👤 Starting anonymous sign-in...');
             const result = await firebaseAuth.signInAnonymously();
-            console.log('Signed in anonymously:', result.user.uid);
+            console.log('✅ Anonymous sign-in successful:', result.user.uid);
             return result.user;
         } catch (error) {
-            console.error('Anonymous sign-in failed:', error);
-            throw error;
+            console.error('❌ Anonymous sign-in failed:', error);
+            throw new Error(`Guest sign-in failed: ${error.message}`);
         }
     }
 
     // Google authentication
     async signInWithGoogle() {
+        if (!this.firebaseReady) {
+            throw new Error('Firebase not ready yet. Please wait a moment and try again.');
+        }
+
         try {
+            console.log('🔑 Starting Google sign-in...');
             const provider = new firebase.auth.GoogleAuthProvider();
             provider.addScope('profile');
             provider.addScope('email');
             
+            // Use popup for better compatibility
             const result = await firebaseAuth.signInWithPopup(provider);
-            console.log('Signed in with Google:', result.user.uid);
+            console.log('✅ Google sign-in successful:', {
+                uid: result.user.uid,
+                email: result.user.email,
+                name: result.user.displayName
+            });
             return result.user;
         } catch (error) {
-            console.error('Google sign-in failed:', error);
-            throw error;
+            console.error('❌ Google sign-in failed:', error);
+            
+            // Handle specific error cases
+            if (error.code === 'auth/popup-closed-by-user') {
+                throw new Error('Sign-in was cancelled. Please try again.');
+            } else if (error.code === 'auth/popup-blocked') {
+                throw new Error('Popup was blocked by browser. Please allow popups and try again.');
+            } else if (error.code === 'auth/cancelled-popup-request') {
+                throw new Error('Another sign-in process is already in progress.');
+            } else {
+                throw new Error(`Sign-in failed: ${error.message}`);
+            }
         }
     }
 
     // Email/password authentication
     async signInWithEmail(email, password) {
+        if (!this.firebaseReady) {
+            throw new Error('Firebase not ready yet. Please wait a moment and try again.');
+        }
+
         try {
+            console.log('📧 Starting email sign-in for:', email);
             const result = await firebaseAuth.signInWithEmailAndPassword(email, password);
+            console.log('✅ Email sign-in successful:', result.user.uid);
             return result.user;
         } catch (error) {
-            console.error('Email sign-in failed:', error);
-            throw error;
+            console.error('❌ Email sign-in failed:', error);
+            
+            // Handle specific error cases
+            if (error.code === 'auth/user-not-found') {
+                throw new Error('No account found with this email address.');
+            } else if (error.code === 'auth/wrong-password') {
+                throw new Error('Incorrect password.');
+            } else if (error.code === 'auth/invalid-email') {
+                throw new Error('Invalid email address.');
+            } else if (error.code === 'auth/too-many-requests') {
+                throw new Error('Too many failed attempts. Please try again later.');
+            } else {
+                throw new Error(`Sign-in failed: ${error.message}`);
+            }
         }
     }
 
     // Create account with email/password
     async createAccount(email, password, displayName) {
+        if (!this.firebaseReady) {
+            throw new Error('Firebase not ready yet. Please wait a moment and try again.');
+        }
+
         try {
+            console.log('👤 Creating account for:', email);
             const result = await firebaseAuth.createUserWithEmailAndPassword(email, password);
             await result.user.updateProfile({
                 displayName: displayName
             });
+            console.log('✅ Account created successfully:', result.user.uid);
             return result.user;
         } catch (error) {
-            console.error('Account creation failed:', error);
-            throw error;
+            console.error('❌ Account creation failed:', error);
+            
+            // Handle specific error cases
+            if (error.code === 'auth/email-already-in-use') {
+                throw new Error('An account with this email already exists.');
+            } else if (error.code === 'auth/invalid-email') {
+                throw new Error('Invalid email address.');
+            } else if (error.code === 'auth/weak-password') {
+                throw new Error('Password is too weak. Please use at least 6 characters.');
+            } else {
+                throw new Error(`Account creation failed: ${error.message}`);
+            }
         }
     }
 
@@ -263,6 +345,29 @@ class AuthSystem {
         }
     }
 
+    // Show error message
+    showError(title, message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'fixed top-4 right-4 bg-red-600 text-white p-4 rounded-lg shadow-lg z-50 max-w-sm';
+        errorDiv.innerHTML = `
+            <div class="flex justify-between items-start">
+                <div>
+                    <h4 class="font-bold">${title}</h4>
+                    <p class="text-sm mt-1">${message}</p>
+                </div>
+                <button class="ml-2 text-white hover:text-gray-200" onclick="this.parentElement.parentElement.remove()">✕</button>
+            </div>
+        `;
+        document.body.appendChild(errorDiv);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (errorDiv.parentElement) {
+                errorDiv.remove();
+            }
+        }, 5000);
+    }
+
     // Setup auth modal handlers
     setupAuthModalHandlers() {
         const authModal = document.getElementById('authModal');
@@ -290,11 +395,19 @@ class AuthSystem {
         // Google Sign In
         if (googleSignInBtn) {
             googleSignInBtn.addEventListener('click', async () => {
+                const originalText = googleSignInBtn.innerHTML;
+                googleSignInBtn.innerHTML = '<div class="flex items-center justify-center"><div class="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mr-2"></div>Signing in...</div>';
+                googleSignInBtn.disabled = true;
+                
                 try {
                     await this.signInWithGoogle();
                     this.hideAuthModal();
                 } catch (error) {
-                    alert('Google sign-in failed: ' + error.message);
+                    console.error('Google sign-in error:', error);
+                    this.showError('Google Sign-In Failed', error.message);
+                } finally {
+                    googleSignInBtn.innerHTML = originalText;
+                    googleSignInBtn.disabled = false;
                 }
             });
         }
@@ -314,7 +427,7 @@ class AuthSystem {
                     await this.signInWithEmail(email, password);
                     this.hideAuthModal();
                 } catch (error) {
-                    alert('Sign-in failed: ' + error.message);
+                    this.showError('Email Sign-In Failed', error.message);
                 }
             });
         }
@@ -339,7 +452,7 @@ class AuthSystem {
                     await this.createAccount(email, password, email.split('@')[0]);
                     this.hideAuthModal();
                 } catch (error) {
-                    alert('Account creation failed: ' + error.message);
+                    this.showError('Account Creation Failed', error.message);
                 }
             });
         }
@@ -351,7 +464,7 @@ class AuthSystem {
                     await this.signInAnonymously();
                     this.hideAuthModal();
                 } catch (error) {
-                    alert('Failed to continue as guest: ' + error.message);
+                    this.showError('Guest Access Failed', error.message);
                 }
             });
         }

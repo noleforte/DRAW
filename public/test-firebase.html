@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Test - Royale Ball</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+</head>
+<body class="bg-gray-900 text-white p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8">🔥 Firebase Connection Test</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Connection Status -->
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-xl font-bold mb-4">Connection Status</h2>
+                <div id="connectionStatus" class="space-y-2">
+                    <div id="firebaseStatus" class="flex items-center">
+                        <span class="w-4 h-4 bg-gray-500 rounded-full mr-2"></span>
+                        Firebase SDK: Loading...
+                    </div>
+                    <div id="authStatus" class="flex items-center">
+                        <span class="w-4 h-4 bg-gray-500 rounded-full mr-2"></span>
+                        Authentication: Loading...
+                    </div>
+                    <div id="firestoreStatus" class="flex items-center">
+                        <span class="w-4 h-4 bg-gray-500 rounded-full mr-2"></span>
+                        Firestore: Loading...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Test Authentication -->
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-xl font-bold mb-4">Test Authentication</h2>
+                
+                <div class="space-y-3">
+                    <button id="testAnonymous" class="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg">
+                        Test Anonymous Sign-In
+                    </button>
+                    <button id="testGoogle" class="w-full bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg">
+                        Test Google Sign-In
+                    </button>
+                    <button id="signOut" class="w-full bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded-lg">
+                        Sign Out
+                    </button>
+                </div>
+                
+                <div id="userInfo" class="mt-4 p-3 bg-gray-700 rounded-lg hidden">
+                    <h3 class="font-bold">Current User:</h3>
+                    <div id="userDetails"></div>
+                </div>
+            </div>
+            
+            <!-- Test Firestore -->
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-xl font-bold mb-4">Test Firestore</h2>
+                
+                <div class="space-y-3">
+                    <button id="testWrite" class="w-full bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg">
+                        Test Write Data
+                    </button>
+                    <button id="testRead" class="w-full bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg">
+                        Test Read Data
+                    </button>
+                </div>
+                
+                <div id="firestoreResults" class="mt-4 p-3 bg-gray-700 rounded-lg text-sm max-h-40 overflow-y-auto"></div>
+            </div>
+            
+            <!-- Console Log -->
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-xl font-bold mb-4">Console Log</h2>
+                <div id="consoleLog" class="bg-black p-3 rounded-lg text-green-400 text-sm font-mono h-64 overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Override console.log to show in UI
+        const originalLog = console.log;
+        const originalError = console.error;
+        const logElement = document.getElementById('consoleLog');
+        
+        function addToLog(message, type = 'log') {
+            const div = document.createElement('div');
+            div.className = type === 'error' ? 'text-red-400' : 'text-green-400';
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logElement.appendChild(div);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToLog(args.join(' '), 'log');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToLog(args.join(' '), 'error');
+        };
+
+        // Wait for Firebase to load
+        let checkCount = 0;
+        function checkFirebase() {
+            checkCount++;
+            
+            if (window.firebaseReady) {
+                updateStatus('firebaseStatus', 'Firebase SDK: ✅ Ready', 'bg-green-500');
+                updateStatus('authStatus', 'Authentication: ✅ Ready', 'bg-green-500');
+                updateStatus('firestoreStatus', 'Firestore: ✅ Ready', 'bg-green-500');
+                
+                setupTests();
+                console.log('Firebase is ready!');
+            } else if (checkCount < 50) {
+                setTimeout(checkFirebase, 100);
+            } else {
+                updateStatus('firebaseStatus', 'Firebase SDK: ❌ Failed to load', 'bg-red-500');
+                console.error('Firebase failed to load after 5 seconds');
+            }
+        }
+        
+        function updateStatus(elementId, text, colorClass) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<span class="w-4 h-4 ${colorClass} rounded-full mr-2"></span>${text}`;
+        }
+        
+        function setupTests() {
+            // Anonymous sign-in test
+            document.getElementById('testAnonymous').addEventListener('click', async () => {
+                try {
+                    const result = await firebaseAuth.signInAnonymously();
+                    console.log('Anonymous sign-in successful:', result.user.uid);
+                    showUserInfo(result.user);
+                } catch (error) {
+                    console.error('Anonymous sign-in failed:', error);
+                }
+            });
+            
+            // Google sign-in test
+            document.getElementById('testGoogle').addEventListener('click', async () => {
+                try {
+                    const provider = new firebase.auth.GoogleAuthProvider();
+                    const result = await firebaseAuth.signInWithPopup(provider);
+                    console.log('Google sign-in successful:', result.user.email);
+                    showUserInfo(result.user);
+                } catch (error) {
+                    console.error('Google sign-in failed:', error);
+                }
+            });
+            
+            // Sign out test
+            document.getElementById('signOut').addEventListener('click', async () => {
+                try {
+                    await firebaseAuth.signOut();
+                    console.log('Sign out successful');
+                    hideUserInfo();
+                } catch (error) {
+                    console.error('Sign out failed:', error);
+                }
+            });
+            
+            // Write test
+            document.getElementById('testWrite').addEventListener('click', async () => {
+                if (!firebaseAuth.currentUser) {
+                    console.error('Please sign in first');
+                    return;
+                }
+                
+                try {
+                    const testData = {
+                        message: 'Hello from Firebase test',
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                        userId: firebaseAuth.currentUser.uid
+                    };
+                    
+                    await firebaseDb.collection('test').add(testData);
+                    console.log('Write test successful');
+                    document.getElementById('firestoreResults').innerHTML = '<div class="text-green-400">✅ Write successful</div>';
+                } catch (error) {
+                    console.error('Write test failed:', error);
+                    document.getElementById('firestoreResults').innerHTML = '<div class="text-red-400">❌ Write failed: ' + error.message + '</div>';
+                }
+            });
+            
+            // Read test
+            document.getElementById('testRead').addEventListener('click', async () => {
+                try {
+                    const snapshot = await firebaseDb.collection('test').orderBy('timestamp', 'desc').limit(5).get();
+                    console.log('Read test successful, documents:', snapshot.size);
+                    
+                    let html = '<div class="text-green-400">✅ Read successful:</div>';
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        html += `<div class="text-gray-300 ml-4">• ${data.message} (${doc.id.substr(0, 8)}...)</div>`;
+                    });
+                    
+                    document.getElementById('firestoreResults').innerHTML = html;
+                } catch (error) {
+                    console.error('Read test failed:', error);
+                    document.getElementById('firestoreResults').innerHTML = '<div class="text-red-400">❌ Read failed: ' + error.message + '</div>';
+                }
+            });
+            
+            // Listen to auth state
+            firebaseAuth.onAuthStateChanged((user) => {
+                if (user) {
+                    showUserInfo(user);
+                    console.log('Auth state changed: User signed in');
+                } else {
+                    hideUserInfo();
+                    console.log('Auth state changed: User signed out');
+                }
+            });
+        }
+        
+        function showUserInfo(user) {
+            const userInfo = document.getElementById('userInfo');
+            const userDetails = document.getElementById('userDetails');
+            
+            userDetails.innerHTML = `
+                <div><strong>UID:</strong> ${user.uid}</div>
+                <div><strong>Email:</strong> ${user.email || 'Anonymous'}</div>
+                <div><strong>Name:</strong> ${user.displayName || 'No name'}</div>
+                <div><strong>Anonymous:</strong> ${user.isAnonymous ? 'Yes' : 'No'}</div>
+            `;
+            
+            userInfo.classList.remove('hidden');
+        }
+        
+        function hideUserInfo() {
+            document.getElementById('userInfo').classList.add('hidden');
+        }
+        
+        // Start checking
+        checkFirebase();
+    </script>
+</body>
+</html> 

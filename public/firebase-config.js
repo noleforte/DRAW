@@ -9,22 +9,43 @@ const firebaseConfig = {
     measurementId: "G-VZKYSJX7E9"
 };
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
+// Check if Firebase is loaded
+if (typeof firebase === 'undefined') {
+    console.error('Firebase SDK not loaded!');
+    alert('Firebase not loaded. Please check your internet connection.');
+} else {
+    try {
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        console.log('✅ Firebase initialized successfully');
 
-// Initialize Firebase services
-const auth = firebase.auth();
-const db = firebase.firestore();
+        // Initialize Firebase services
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
-// Initialize Analytics if available
-let analytics = null;
-try {
-    analytics = firebase.analytics();
-} catch (e) {
-    console.log('Analytics not available');
-}
+        // Initialize Analytics if available
+        let analytics = null;
+        try {
+            analytics = firebase.analytics();
+            console.log('✅ Firebase Analytics initialized');
+        } catch (e) {
+            console.log('ℹ️ Analytics not available (this is normal for localhost)');
+        }
 
-// Export for use in other files
-window.firebaseAuth = auth;
-window.firebaseDb = db;
-window.firebaseAnalytics = analytics; 
+        // Export for use in other files
+        window.firebaseAuth = auth;
+        window.firebaseDb = db;
+        window.firebaseAnalytics = analytics;
+        window.firebaseReady = true;
+
+        console.log('🔥 Firebase services ready:', {
+            auth: !!auth,
+            firestore: !!db,
+            analytics: !!analytics
+        });
+
+    } catch (error) {
+        console.error('❌ Firebase initialization failed:', error);
+        alert('Firebase initialization failed: ' + error.message);
+    }
+} 
