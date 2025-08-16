@@ -209,8 +209,11 @@ function setupInputHandlers() {
 }
 
 function setupUIHandlers() {
+    console.log('🔧 Setting up UI handlers');
+    
     // Color picker setup
     const colorOptions = document.querySelectorAll('.color-option');
+    console.log('🎨 Found color options:', colorOptions.length);
     colorOptions.forEach(option => {
         option.addEventListener('click', () => {
             // Remove previous selection
@@ -218,11 +221,15 @@ function setupUIHandlers() {
             // Add selection to clicked option
             option.classList.add('border-white');
             selectedColor = parseInt(option.dataset.color);
+            console.log('🎨 Color selected:', selectedColor);
         });
     });
     
     // Set default color selection
-    colorOptions[0].classList.add('border-white');
+    if (colorOptions.length > 0) {
+        colorOptions[0].classList.add('border-white');
+        console.log('🎨 Default color set');
+    }
     
     // Name input and game start
     const nameInput = document.getElementById('playerNameInput');
@@ -384,8 +391,13 @@ function setupUIHandlers() {
         });
     }
     
+    // Debug: List all buttons
+    const allButtons = document.querySelectorAll('button');
+    console.log('🔍 All buttons found:', Array.from(allButtons).map(btn => `${btn.id || 'no-id'}: ${btn.textContent.trim().substring(0, 20)}`));
+    
     // Main Google Sign In button (in welcome modal)
     const mainGoogleSignInBtn = document.getElementById('mainGoogleSignInBtn');
+    console.log('🔍 Looking for mainGoogleSignInBtn:', mainGoogleSignInBtn);
     if (mainGoogleSignInBtn) {
         console.log('✅ Main Google Sign In button found');
         mainGoogleSignInBtn.addEventListener('click', async () => {
@@ -419,18 +431,24 @@ function setupUIHandlers() {
     
     // More Sign-In Options button
     const moreSignInBtn = document.getElementById('moreSignInBtn');
+    console.log('🔍 Looking for moreSignInBtn:', moreSignInBtn);
     if (moreSignInBtn) {
         console.log('✅ More Sign-In Options button found');
         moreSignInBtn.addEventListener('click', () => {
             console.log('📧 More Sign-In Options clicked');
             if (window.authSystem) {
                 window.authSystem.showAuthModal();
+            } else {
+                console.error('❌ AuthSystem not available');
             }
         });
+    } else {
+        console.error('❌ More Sign-In Options button not found');
     }
     
     // Main Guest Play button (in welcome modal)
     const mainGuestPlayBtn = document.getElementById('mainGuestPlayBtn');
+    console.log('🔍 Looking for mainGuestPlayBtn:', mainGuestPlayBtn);
     if (mainGuestPlayBtn) {
         console.log('✅ Main Guest Play button found');
         mainGuestPlayBtn.addEventListener('click', async () => {
@@ -459,6 +477,76 @@ function setupUIHandlers() {
             mainGuestPlayBtn.textContent = 'Continue as Guest (no progress saved)';
             mainGuestPlayBtn.disabled = false;
         });
+    } else {
+        console.error('❌ Main Guest Play button not found');
+    }
+    
+    // Alternative: Use event delegation as fallback
+    document.addEventListener('click', (e) => {
+        if (e.target.id === 'mainGoogleSignInBtn' || e.target.closest('#mainGoogleSignInBtn')) {
+            console.log('🔥 Google Sign-In clicked via delegation');
+            e.preventDefault();
+            handleGoogleSignIn();
+        } else if (e.target.id === 'moreSignInBtn' || e.target.closest('#moreSignInBtn')) {
+            console.log('🔥 More Options clicked via delegation');
+            e.preventDefault();
+            handleMoreSignInOptions();
+        } else if (e.target.id === 'mainGuestPlayBtn' || e.target.closest('#mainGuestPlayBtn')) {
+            console.log('🔥 Guest Play clicked via delegation');
+            e.preventDefault();
+            handleGuestPlay();
+        }
+    });
+}
+
+// Separate handler functions
+async function handleGoogleSignIn() {
+    console.log('🔑 Handling Google Sign-In');
+    if (window.authSystem) {
+        try {
+            await window.authSystem.signInWithGoogle();
+            console.log('✅ Google sign-in successful');
+        } catch (error) {
+            console.error('❌ Google sign-in failed:', error);
+            if (window.authSystem.showError) {
+                window.authSystem.showError('Google Sign-In Failed', error.message);
+            } else {
+                alert('Google Sign-In Failed: ' + error.message);
+            }
+        }
+    } else {
+        console.error('❌ AuthSystem not available');
+        alert('Authentication system not ready. Please refresh and try again.');
+    }
+}
+
+function handleMoreSignInOptions() {
+    console.log('📧 Handling More Sign-In Options');
+    if (window.authSystem) {
+        window.authSystem.showAuthModal();
+    } else {
+        console.error('❌ AuthSystem not available');
+        alert('Authentication system not ready. Please refresh and try again.');
+    }
+}
+
+async function handleGuestPlay() {
+    console.log('👤 Handling Guest Play');
+    if (window.authSystem) {
+        try {
+            await window.authSystem.signInAnonymously();
+            console.log('✅ Anonymous sign-in successful');
+        } catch (error) {
+            console.error('❌ Anonymous sign-in failed:', error);
+            if (window.authSystem.showError) {
+                window.authSystem.showError('Guest Access Failed', error.message);
+            } else {
+                alert('Guest Access Failed: ' + error.message);
+            }
+        }
+    } else {
+        console.error('❌ AuthSystem not available');
+        alert('Authentication system not ready. Please refresh and try again.');
     }
 }
 
@@ -918,4 +1006,7 @@ function gameLoop() {
 }
 
 // Initialize when page loads
-document.addEventListener('DOMContentLoaded', init); 
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 DOM Content Loaded - Starting game initialization');
+    init();
+}); 

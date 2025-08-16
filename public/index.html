@@ -274,77 +274,22 @@
 <body class="bg-gray-900 text-white overflow-hidden">
     <!-- Name Input Modal -->
     <div id="nameModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-gray-800 p-8 rounded-lg max-w-md w-full mx-4">
-            <h2 class="text-2xl font-bold mb-4 text-center">Welcome to Royale Ball!</h2>
-            <p class="text-gray-300 mb-6 text-center">Sign in to save your progress, or play as guest</p>
+        <div class="bg-gray-800 p-6 rounded-lg max-w-lg w-full mx-4 max-h-screen overflow-y-auto">
+            <h2 class="text-2xl font-bold mb-3 text-center">Welcome to Royale Ball!</h2>
+            <p class="text-gray-300 mb-4 text-center">Sign in to save your progress, or play as guest</p>
             
-            <!-- Player Name -->
-            <input 
-                type="text" 
-                id="playerNameInput" 
-                placeholder="Your name" 
-                class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-                maxlength="20"
-            >
-            
-            <!-- Wallet Address -->
-            <input 
-                type="text" 
-                id="playerWalletInput" 
-                placeholder="Wallet address (optional)" 
-                class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-                maxlength="50"
-            >
-            
-            <!-- Auth Status -->
-            <div id="authStatus" class="mb-4 text-sm text-gray-400">
-                <span id="authStatusText">Connecting to Firebase...</span>
-                <button id="signInBtn" class="ml-2 text-blue-400 hover:text-blue-300 hidden">Sign In</button>
-                <button id="signOutBtn" class="ml-2 text-red-400 hover:text-red-300 hidden">Sign Out</button>
-            </div>
-            
-            <!-- Color Picker -->
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-300 mb-2">Choose your ball color:</label>
-                <div class="flex flex-wrap gap-2 justify-center">
-                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
-                         style="background-color: #ff6b6b" data-color="0"></div>
-                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
-                         style="background-color: #4ecdc4" data-color="120"></div>
-                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
-                         style="background-color: #45b7d1" data-color="200"></div>
-                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
-                         style="background-color: #96ceb4" data-color="150"></div>
-                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
-                         style="background-color: #feca57" data-color="45"></div>
-                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
-                         style="background-color: #ff9ff3" data-color="300"></div>
-                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
-                         style="background-color: #54a0ff" data-color="220"></div>
-                    <div class="color-option w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
-                         style="background-color: #5f27cd" data-color="270"></div>
-                </div>
-            </div>
-            
-            <button 
-                id="startGameBtn" 
-                class="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-semibold transition-colors mb-2"
-            >
-                Start Game
-            </button>
-            
-            <!-- Google Sign In Button -->
+            <!-- Google Sign In Button (Primary) -->
             <button 
                 id="mainGoogleSignInBtn" 
-                class="w-full bg-white text-gray-900 hover:bg-gray-100 px-4 py-3 rounded-lg font-semibold transition-colors mb-2 flex items-center justify-center"
+                class="w-full bg-white text-gray-900 hover:bg-gray-100 px-4 py-3 rounded-lg font-semibold transition-colors mb-3 flex items-center justify-center border-2 border-gray-300 hover:border-gray-400"
             >
-                <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 mr-3" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                Sign in with Google
+                Continue with Google
             </button>
             
             <!-- Divider -->
@@ -357,20 +302,76 @@
             <!-- Alternative Sign In Options -->
             <button 
                 id="moreSignInBtn" 
-                class="w-full bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors text-sm mb-3"
+                class="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-semibold transition-colors mb-3"
             >
-                📧 More Sign-In Options
+                📧 Email / Other Options
             </button>
             
             <!-- Guest Play Option -->
-            <div class="text-center">
-                <button 
-                    id="mainGuestPlayBtn" 
-                    class="text-gray-400 hover:text-gray-300 text-sm underline"
-                >
-                    Continue as Guest (no progress saved)
-                </button>
+            <button 
+                id="mainGuestPlayBtn" 
+                class="w-full bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors mb-4"
+            >
+                👤 Continue as Guest
+            </button>
+            
+            <!-- Divider -->
+            <div class="border-t border-gray-600 my-4"></div>
+            
+            <!-- Player Name -->
+            <input 
+                type="text" 
+                id="playerNameInput" 
+                placeholder="Your name" 
+                class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3 text-sm"
+                maxlength="20"
+            >
+            
+            <!-- Wallet Address -->
+            <input 
+                type="text" 
+                id="playerWalletInput" 
+                placeholder="Wallet address (optional)" 
+                class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3 text-sm"
+                maxlength="50"
+            >
+            
+            <!-- Auth Status -->
+            <div id="authStatus" class="mb-3 text-xs text-gray-400 text-center">
+                <span id="authStatusText">Connecting to Firebase...</span>
+                <button id="signInBtn" class="ml-2 text-blue-400 hover:text-blue-300 underline hidden">Sign In</button>
+                <button id="signOutBtn" class="ml-2 text-red-400 hover:text-red-300 underline hidden">Sign Out</button>
             </div>
+            
+            <!-- Color Picker -->
+            <div class="mb-3">
+                <label class="block text-sm font-medium text-gray-300 mb-2">Choose your ball color:</label>
+                <div class="flex flex-wrap gap-2 justify-center">
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #ff6b6b" data-color="0"></div>
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #4ecdc4" data-color="120"></div>
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #45b7d1" data-color="200"></div>
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #96ceb4" data-color="150"></div>
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #feca57" data-color="45"></div>
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #ff9ff3" data-color="300"></div>
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #54a0ff" data-color="220"></div>
+                    <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
+                         style="background-color: #5f27cd" data-color="270"></div>
+                </div>
+            </div>
+            
+            <button 
+                id="startGameBtn" 
+                class="w-full bg-green-600 hover:bg-green-700 px-4 py-3 rounded-lg font-bold transition-colors text-lg"
+            >
+                🎮 Start Game
+            </button>
         </div>
     </div>
 
