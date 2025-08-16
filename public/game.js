@@ -381,26 +381,48 @@ function setupSocketListeners() {
 function setupInputHandlers() {
     // Keyboard input
     document.addEventListener('keydown', (e) => {
-        keys[e.code] = true;
+        // Check if user is typing in an input field
+        const activeElement = document.activeElement;
+        const isTyping = activeElement && (
+            activeElement.tagName === 'INPUT' || 
+            activeElement.tagName === 'TEXTAREA' || 
+            activeElement.contentEditable === 'true'
+        );
         
-        // Chat input focus handling
-        if (e.code === 'Enter') {
-            const chatInput = document.getElementById('chatInput');
-            if (document.activeElement === chatInput) {
-                sendChatMessage();
-            } else {
-                chatInput.focus();
+        // Don't process game keys if user is typing
+        if (!isTyping) {
+            keys[e.code] = true;
+            
+            // Chat input focus handling
+            if (e.code === 'Enter') {
+                const chatInput = document.getElementById('chatInput');
+                if (document.activeElement === chatInput) {
+                    sendChatMessage();
+                } else {
+                    chatInput.focus();
+                }
             }
-        }
-        
-        // Prevent default for game keys
-        if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
-            e.preventDefault();
+            
+            // Prevent default for game keys only when not typing
+            if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                e.preventDefault();
+            }
         }
     });
     
     document.addEventListener('keyup', (e) => {
-        keys[e.code] = false;
+        // Check if user is typing in an input field
+        const activeElement = document.activeElement;
+        const isTyping = activeElement && (
+            activeElement.tagName === 'INPUT' || 
+            activeElement.tagName === 'TEXTAREA' || 
+            activeElement.contentEditable === 'true'
+        );
+        
+        // Don't process game keys if user is typing
+        if (!isTyping) {
+            keys[e.code] = false;
+        }
     });
     
     // Touch input for mobile joystick
@@ -941,6 +963,21 @@ async function handleGuestPlay() {
 }
 
 function updateMovement() {
+    // Check if user is typing in an input field
+    const activeElement = document.activeElement;
+    const isTyping = activeElement && (
+        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'TEXTAREA' || 
+        activeElement.contentEditable === 'true'
+    );
+    
+    // Don't process movement if user is typing
+    if (isTyping) {
+        movement.x = 0;
+        movement.y = 0;
+        return;
+    }
+    
     if (isMobile && joystickActive) {
         // Use joystick input
         return;
