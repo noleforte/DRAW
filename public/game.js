@@ -45,7 +45,7 @@ function init() {
     // Setup socket connection
     const isProduction = window.location.hostname !== 'localhost';
     // Use Render server URL in production, localhost for development
-    const socketUrl = isProduction ? 'https://royale-ball-server.onrender.com' : 'http://localhost:3001';
+    const socketUrl = isProduction ? 'https://draw-e67b.onrender.com' : 'http://localhost:3001';
     
     socket = io(socketUrl, {
         path: '/socket.io',
