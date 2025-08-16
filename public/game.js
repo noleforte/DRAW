@@ -103,10 +103,7 @@ function setupSocketListeners() {
         console.log('Connected to server!');
     });
     
-    socket.on('connect_error', (error) => {
-        console.error('Connection error:', error);
-        alert('Cannot connect to game server. Please check if the server is running.');
-    });
+    // Note: connect_error handler is now in setupSocketListeners
     
     socket.on('gameState', (data) => {
         gameState = data;
@@ -189,6 +186,28 @@ function setupSocketListeners() {
         }
         
         showGameOverModal(finalResults);
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('Disconnected from server');
+        // Try to reconnect after short delay
+        setTimeout(() => {
+            if (!socket.connected) {
+                console.log('🔄 Attempting to reconnect...');
+                socket.connect();
+            }
+        }, 3000);
+    });
+    
+    socket.on('connect_error', (error) => {
+        console.error('Connection error:', error);
+        // Show user-friendly message for connection issues
+        showConnectionError('Cannot connect to game server. Retrying...');
+    });
+    
+    socket.on('serverShutdown', (data) => {
+        console.log('🛑 Server shutdown:', data.message);
+        showServerMessage(data.message, 'warning');
     });
 }
 
@@ -1037,6 +1056,37 @@ function stopClientTimer() {
         clearInterval(clientTimerInterval);
         clientTimerInterval = null;
     }
+}
+
+function showServerMessage(message, type = 'info') {
+    const messageEl = document.createElement('div');
+    const bgColor = type === 'warning' ? '#f59e0b' : type === 'error' ? '#ef4444' : '#3b82f6';
+    
+    messageEl.style.cssText = `
+        position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+        background: ${bgColor}; color: white; padding: 12px 24px;
+        border-radius: 8px; z-index: 1000; font-weight: bold;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        animation: slideDown 0.3s ease-out;
+    `;
+    messageEl.textContent = message;
+    document.body.appendChild(messageEl);
+    
+    // Remove message after 10 seconds
+    setTimeout(() => {
+        if (messageEl.parentNode) {
+            messageEl.style.animation = 'slideUp 0.3s ease-in';
+            setTimeout(() => {
+                if (messageEl.parentNode) {
+                    messageEl.parentNode.removeChild(messageEl);
+                }
+            }, 300);
+        }
+    }, 10000);
+}
+
+function showConnectionError(message) {
+    showServerMessage(message, 'error');
 }
 
 function updateTimerDisplay(timeLeft = matchTimeLeft) {

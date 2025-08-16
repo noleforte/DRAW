@@ -359,10 +359,19 @@ function updateMatchTimer() {
   }
 }
 
+// Player reconnection storage
+const disconnectedPlayers = new Map();
+
 // Socket.io connections
 io.on('connection', (socket) => {
   console.log('Player connected:', socket.id);
   console.log('Total players:', gameState.players.size + 1);
+  
+  // Heartbeat to detect connection issues
+  socket.isAlive = true;
+  socket.on('pong', () => {
+    socket.isAlive = true;
+  });
 
   socket.on('joinGame', (playerData) => {
     const name = typeof playerData === 'string' ? playerData : playerData.name;
@@ -370,19 +379,31 @@ io.on('connection', (socket) => {
     const colorHue = typeof playerData === 'object' ? playerData.color : Math.random() * 360;
     const playerId = typeof playerData === 'object' && playerData.playerId ? playerData.playerId : socket.id;
     
-    const player = {
-      id: socket.id,
-      firebaseId: playerId, // Store Firebase user ID separately from socket ID
-      name: name || `Player${Math.floor(Math.random() * 1000)}`,
-      wallet: wallet,
-      ...getRandomPosition(),
-      vx: 0,
-      vy: 0,
-      score: 0,
-      size: 20,
-      color: `hsl(${colorHue}, 70%, 50%)`,
-      isBot: false
-    };
+    // Check for reconnection
+    let player = null;
+    if (playerId && disconnectedPlayers.has(playerId)) {
+      // Restore disconnected player
+      player = disconnectedPlayers.get(playerId);
+      player.id = socket.id; // Update socket ID
+      disconnectedPlayers.delete(playerId);
+      console.log(`🔄 Player ${player.name} reconnected`);
+    } else {
+      // New player
+      player = {
+        id: socket.id,
+        firebaseId: playerId, // Store Firebase user ID separately from socket ID
+        name: name || `Player${Math.floor(Math.random() * 1000)}`,
+        wallet: wallet,
+        ...getRandomPosition(),
+        vx: 0,
+        vy: 0,
+        score: 0,
+        size: 20,
+        color: `hsl(${colorHue}, 70%, 50%)`,
+        isBot: false
+      };
+      console.log(`➕ New player ${player.name} joined`);
+    }
     
     gameState.players.set(socket.id, player);
     
@@ -467,26 +488,93 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('Player disconnected:', socket.id);
+    
+    const player = gameState.players.get(socket.id);
+    if (player && player.firebaseId) {
+      // Save player state for potential reconnection (5 minutes)
+      disconnectedPlayers.set(player.firebaseId, player);
+      setTimeout(() => {
+        if (disconnectedPlayers.has(player.firebaseId)) {
+          disconnectedPlayers.delete(player.firebaseId);
+          console.log(`❌ Player ${player.name} connection timeout`);
+        }
+      }, 5 * 60 * 1000); // 5 minutes
+      
+      console.log(`⏸️ Player ${player.name} disconnected (saved for reconnect)`);
+    }
+    
     gameState.players.delete(socket.id);
   });
 });
 
-// Game loop
+// Game loop variables
+let lastUpdate = Date.now();
+let updateCounter = 0;
+
+// Game loop (optimized)
 setInterval(() => {
-  updateBots();
+  const now = Date.now();
+  const deltaTime = (now - lastUpdate) / 1000;
+  lastUpdate = now;
   
-  // Broadcast game state
-  io.emit('gameUpdate', {
-    players: Array.from(gameState.players.values()),
-    bots: Array.from(gameState.bots.values()),
-    coins: Array.from(gameState.coins.values())
-  });
-}, 1000 / 60); // 60 FPS
+  // Update game logic
+  updateBots(deltaTime);
+  updatePlayers(deltaTime);
+  
+  // Only broadcast every 3rd frame (20 FPS instead of 60)
+  updateCounter++;
+  if (updateCounter >= 3) {
+    updateCounter = 0;
+    
+    // Only send essential data, not full objects
+    const gameUpdate = {
+      players: Array.from(gameState.players.values()).map(p => ({
+        id: p.id,
+        x: Math.round(p.x),
+        y: Math.round(p.y),
+        score: p.score,
+        size: p.size,
+        name: p.name,
+        color: p.color
+      })),
+      bots: Array.from(gameState.bots.values()).map(b => ({
+        id: b.id,
+        x: Math.round(b.x),
+        y: Math.round(b.y),
+        score: b.score,
+        size: b.size,
+        name: b.name,
+        color: b.color
+      })),
+      coins: Array.from(gameState.coins.values()).map(c => ({
+        id: c.id,
+        x: Math.round(c.x),
+        y: Math.round(c.y)
+      }))
+    };
+    
+    io.emit('gameUpdate', gameUpdate);
+  }
+}, 1000 / 60); // 60 FPS logic, 20 FPS network
 
 // Timer loop (every second)
 setInterval(() => {
   updateMatchTimer();
 }, 1000);
+
+// Heartbeat check every 30 seconds
+setInterval(() => {
+  io.sockets.sockets.forEach((socket) => {
+    if (socket.isAlive === false) {
+      console.log('🔴 Socket timeout:', socket.id);
+      socket.terminate();
+      return;
+    }
+    
+    socket.isAlive = false;
+    socket.ping();
+  });
+}, 30000);
 
 // Initialize and start server
 initializeGame();
@@ -495,4 +583,25 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Open your browser and go to: http://localhost:${PORT}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully');
+  
+  // Notify all clients about server shutdown
+  io.emit('serverShutdown', { message: 'Server is restarting, please wait...' });
+  
+  server.close(() => {
+    console.log('💤 Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT received, shutting down gracefully');
+  server.close(() => {
+    console.log('💤 Server closed');
+    process.exit(0);
+  });
 }); 
