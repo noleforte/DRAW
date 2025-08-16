@@ -405,16 +405,25 @@
     margin-top: 9%;">
             <!-- Header -->
             <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white rounded-lg mb-4">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
-                        </svg>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 id="playerInfoName" class="font-bold text-base">Guest</h3>
+                            <p id="playerInfoStatus" class="text-xs opacity-90">Not signed in</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 id="playerInfoName" class="font-bold text-base">Guest</h3>
-                        <p id="playerInfoStatus" class="text-xs opacity-90">Not signed in</p>
-                    </div>
+                    <button 
+                        id="logoutBtn" 
+                        class="text-white hover:text-red-300 text-xs opacity-75 hover:opacity-100 hidden"
+                        title="Logout"
+                    >
+                        ↗
+                    </button>
                 </div>
             </div>
             
@@ -523,10 +532,10 @@
     <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-gray-800 p-8 rounded-lg max-w-md w-full mx-4">
             <h2 class="text-2xl font-bold mb-4 text-center">Sign In to Royale Ball</h2>
-            <p class="text-gray-300 mb-6 text-center">Save your progress and compete on global leaderboard!</p>
+            <p class="text-gray-300 mb-6 text-center">Enter your credentials to continue</p>
             
-            <!-- Email Sign In Form -->
-            <div id="emailSignInForm">
+            <!-- Sign In Form -->
+            <div id="signInForm">
                 <input 
                     type="text" 
                     id="authNicknameInput" 
@@ -535,30 +544,28 @@
                     maxlength="20"
                 >
                 <input 
-                    type="text" 
-                    id="authWalletInput" 
-                    placeholder="Wallet Address (optional)" 
-                    class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
-                    maxlength="50"
-                >
-                <input 
                     type="password" 
                     id="authPasswordInput" 
                     placeholder="Password" 
                     class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
                 >
                 <button 
-                    id="emailSignInBtn" 
-                    class="w-full bg-blue-600 hover:bg-blue-700 px-4 py-3 rounded-lg font-semibold transition-colors mb-2"
-            >
+                    id="signInBtn" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 px-4 py-3 rounded-lg font-semibold transition-colors mb-4"
+                >
                     Sign In
                 </button>
-                <button 
-                    id="emailCreateAccountBtn" 
-                    class="w-full bg-green-600 hover:bg-green-700 px-4 py-3 rounded-lg font-semibold transition-colors mb-4"
-                >
-                    Create Account
-                </button>
+                
+                <!-- Registration Link -->
+                <div class="text-center">
+                    <p class="text-gray-400 text-sm mb-3">Don't have an account?</p>
+                    <button 
+                        id="showRegistrationBtn" 
+                        class="w-full bg-green-600 hover:bg-green-700 px-4 py-3 rounded-lg font-semibold transition-colors mb-4"
+                    >
+                        Create New Account
+                    </button>
+                </div>
             </div>
             
             <!-- Guest Option -->
@@ -574,6 +581,64 @@
             <!-- Close Button -->
             <button 
                 id="closeAuthModalBtn" 
+                class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl"
+            >
+                ✕
+            </button>
+        </div>
+    </div>
+
+    <!-- Registration Modal -->
+    <div id="registrationModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 p-8 rounded-lg max-w-md w-full mx-4">
+            <h2 class="text-2xl font-bold mb-4 text-center">Create New Account</h2>
+            <p class="text-gray-300 mb-6 text-center">Fill in your information to register</p>
+            
+            <!-- Registration Form -->
+            <div id="registrationForm">
+                <input 
+                    type="email" 
+                    id="regEmailInput" 
+                    placeholder="Email Address" 
+                    class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+                >
+                <input 
+                    type="text" 
+                    id="regNicknameInput" 
+                    placeholder="Nickname" 
+                    class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+                    maxlength="20"
+                >
+                <input 
+                    type="password" 
+                    id="regPasswordInput" 
+                    placeholder="Password (min 6 characters)" 
+                    class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+                >
+                <input 
+                    type="text" 
+                    id="regWalletInput" 
+                    placeholder="Wallet Address (optional)" 
+                    class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                    maxlength="50"
+                >
+                <button 
+                    id="createAccountBtn" 
+                    class="w-full bg-green-600 hover:bg-green-700 px-4 py-3 rounded-lg font-semibold transition-colors mb-3"
+                >
+                    Create Account
+                </button>
+                <button 
+                    id="backToLoginBtn" 
+                    class="w-full bg-gray-600 hover:bg-gray-700 px-4 py-3 rounded-lg font-semibold transition-colors"
+                >
+                    Back to Login
+                </button>
+            </div>
+            
+            <!-- Close Button -->
+            <button 
+                id="closeRegistrationModalBtn" 
                 class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl"
             >
                 ✕

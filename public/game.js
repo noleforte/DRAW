@@ -41,6 +41,162 @@ let joystickCenter = { x: 0, y: 0 };
 let lastMovementSent = 0;
 const MOVEMENT_SEND_INTERVAL = 1000 / 30; // Send movement at 30fps max
 
+// Enhanced authentication system using localStorage
+class NicknameAuthSystem {
+    constructor() {
+        this.users = this.loadUsers();
+    }
+
+    // Load users from localStorage
+    loadUsers() {
+        const users = localStorage.getItem('registeredUsers');
+        return users ? JSON.parse(users) : {};
+    }
+
+    // Save users to localStorage
+    saveUsers() {
+        localStorage.setItem('registeredUsers', JSON.stringify(this.users));
+    }
+
+    // Simple password hashing (in real app use proper crypto)
+    hashPassword(password) {
+        // Simple hash - in production use bcrypt or similar
+        let hash = 0;
+        for (let i = 0; i < password.length; i++) {
+            const char = password.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32-bit integer
+        }
+        return hash.toString();
+    }
+
+    // Validate email format
+    isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    // Register new user
+    register(email, nickname, password, wallet = '') {
+        const normalizedNickname = nickname.toLowerCase().trim();
+        const normalizedEmail = email.toLowerCase().trim();
+        
+        // Validation
+        if (!email || !this.isValidEmail(email)) {
+            throw new Error('Please enter a valid email address');
+        }
+
+        if (!nickname || nickname.length < 3) {
+            throw new Error('Nickname must be at least 3 characters');
+        }
+
+        if (!password || password.length < 6) {
+            throw new Error('Password must be at least 6 characters');
+        }
+
+        // Check for existing email
+        const existingUserByEmail = Object.values(this.users).find(user => user.email === normalizedEmail);
+        if (existingUserByEmail) {
+            throw new Error('Email already registered');
+        }
+
+        // Check for existing nickname
+        if (this.users[normalizedNickname]) {
+            throw new Error('Nickname already exists');
+        }
+
+        // Create new user
+        this.users[normalizedNickname] = {
+            email: normalizedEmail,
+            nickname: nickname.trim(),
+            passwordHash: this.hashPassword(password),
+            wallet: wallet.trim(),
+            createdAt: Date.now(),
+            lastLogin: Date.now(),
+            stats: {
+                gamesPlayed: 0,
+                totalScore: 0,
+                bestScore: 0,
+                wins: 0
+            }
+        };
+
+        this.saveUsers();
+        return this.users[normalizedNickname];
+    }
+
+    // Login user
+    login(nickname, password) {
+        const normalizedNickname = nickname.toLowerCase().trim();
+        const user = this.users[normalizedNickname];
+
+        if (!user) {
+            throw new Error('Nickname not found');
+        }
+
+        if (user.passwordHash !== this.hashPassword(password)) {
+            throw new Error('Incorrect password');
+        }
+
+        // Update last login
+        user.lastLogin = Date.now();
+        this.saveUsers();
+
+        return user;
+    }
+
+    // Check if nickname exists
+    nicknameExists(nickname) {
+        const normalizedNickname = nickname.toLowerCase().trim();
+        return !!this.users[normalizedNickname];
+    }
+
+    // Check if email exists
+    emailExists(email) {
+        const normalizedEmail = email.toLowerCase().trim();
+        return Object.values(this.users).some(user => user.email === normalizedEmail);
+    }
+
+    // Get current logged in user
+    getCurrentUser() {
+        const currentUser = localStorage.getItem('currentUser');
+        return currentUser ? JSON.parse(currentUser) : null;
+    }
+
+    // Set current user
+    setCurrentUser(user) {
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        localStorage.setItem('playerNickname', user.nickname);
+        localStorage.setItem('playerWallet', user.wallet);
+    }
+
+    // Update user stats
+    updateUserStats(nickname, stats) {
+        const normalizedNickname = nickname.toLowerCase().trim();
+        if (this.users[normalizedNickname]) {
+            Object.assign(this.users[normalizedNickname].stats, stats);
+            this.saveUsers();
+            
+            // Update current user if it's the same user
+            const currentUser = this.getCurrentUser();
+            if (currentUser && currentUser.nickname.toLowerCase() === normalizedNickname) {
+                currentUser.stats = this.users[normalizedNickname].stats;
+                this.setCurrentUser(currentUser);
+            }
+        }
+    }
+
+    // Logout
+    logout() {
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('playerNickname');
+        localStorage.removeItem('playerWallet');
+    }
+}
+
+// Initialize nickname auth system
+const nicknameAuth = new NicknameAuthSystem();
+
 // Initialize game
 function init() {
     canvas = document.getElementById('gameCanvas');
@@ -185,10 +341,11 @@ function setupSocketListeners() {
         // Save game result to Firebase
         if (window.authSystem && localPlayer) {
             try {
-                await window.authSystem.saveGameResult(localPlayer.score, {
-                    finalPosition: finalResults.findIndex(p => p.id === localPlayer.id) + 1,
-                    totalPlayers: finalResults.filter(p => !p.isBot).length,
-                    matchDuration: 86400 - matchTimeLeft
+                await window.authSystem.updateUserStats(localPlayer.nickname, {
+                    gamesPlayed: localPlayer.stats.gamesPlayed + 1,
+                    totalScore: localPlayer.stats.totalScore + localPlayer.score,
+                    bestScore: Math.max(localPlayer.stats.bestScore, localPlayer.score),
+                    wins: localPlayer.stats.wins + (finalResults.findIndex(p => p.id === localPlayer.id) + 1 === 1 ? 1 : 0)
                 });
             } catch (error) {
                 // Silent error handling
@@ -504,17 +661,46 @@ function setupUIHandlers() {
     // Auth Modal handlers
     const closeAuthModalBtn = document.getElementById('closeAuthModalBtn');
     const googleSignInBtn = document.getElementById('googleSignInBtn');
-    const guestPlayBtn = document.getElementById('guestPlayBtn'); // Fixed: was guestSignInBtn
-    const emailSignInBtn = document.getElementById('emailSignInBtn');
-    const emailCreateAccountBtn = document.getElementById('emailCreateAccountBtn');
+    const guestPlayBtn = document.getElementById('guestPlayBtn');
+    const signInBtn = document.getElementById('signInBtn');
+    const showRegistrationBtn = document.getElementById('showRegistrationBtn');
     const authNicknameInput = document.getElementById('authNicknameInput');
-    const authWalletInput = document.getElementById('authWalletInput');
     const authPasswordInput = document.getElementById('authPasswordInput');
+    
+    // Registration Modal handlers
+    const closeRegistrationModalBtn = document.getElementById('closeRegistrationModalBtn');
+    const createAccountBtn = document.getElementById('createAccountBtn');
+    const backToLoginBtn = document.getElementById('backToLoginBtn');
+    const regEmailInput = document.getElementById('regEmailInput');
+    const regNicknameInput = document.getElementById('regNicknameInput');
+    const regPasswordInput = document.getElementById('regPasswordInput');
+    const regWalletInput = document.getElementById('regWalletInput');
     
     if (closeAuthModalBtn) {
         closeAuthModalBtn.addEventListener('click', () => {
             document.getElementById('authModal').classList.add('hidden');
             document.getElementById('nameModal').style.display = 'flex';
+        });
+    }
+    
+    if (closeRegistrationModalBtn) {
+        closeRegistrationModalBtn.addEventListener('click', () => {
+            document.getElementById('registrationModal').classList.add('hidden');
+            document.getElementById('authModal').classList.remove('hidden');
+        });
+    }
+    
+    if (showRegistrationBtn) {
+        showRegistrationBtn.addEventListener('click', () => {
+            document.getElementById('authModal').classList.add('hidden');
+            document.getElementById('registrationModal').classList.remove('hidden');
+        });
+    }
+    
+    if (backToLoginBtn) {
+        backToLoginBtn.addEventListener('click', () => {
+            document.getElementById('registrationModal').classList.add('hidden');
+            document.getElementById('authModal').classList.remove('hidden');
         });
     }
     
@@ -534,10 +720,9 @@ function setupUIHandlers() {
         });
     }
     
-    if (emailSignInBtn) {
-        emailSignInBtn.addEventListener('click', async () => {
+    if (signInBtn) {
+        signInBtn.addEventListener('click', async () => {
             const nickname = authNicknameInput.value.trim();
-            const wallet = authWalletInput.value.trim();
             const password = authPasswordInput.value;
             
             if (!nickname || !password) {
@@ -545,74 +730,82 @@ function setupUIHandlers() {
                 return;
             }
             
-            // For now, we'll use nickname as a simple authentication
-            // In a real app, you'd want proper user authentication
-            if (window.authSystem) {
-                try {
-                    // Use anonymous auth but store nickname/wallet
-                    await window.authSystem.signInAnonymously();
-                    
-                    // Store user info locally
-                    localStorage.setItem('playerNickname', nickname);
-                    if (wallet) {
-                        localStorage.setItem('playerWallet', wallet);
-                    }
-                    
-                    // Close auth modal on success
-                    document.getElementById('authModal').classList.add('hidden');
-                    document.getElementById('nameModal').style.display = 'flex';
-                    
-                    // Auto-fill the main name input
-                    const mainNameInput = document.getElementById('playerNameInput');
-                    if (mainNameInput) {
-                        mainNameInput.value = nickname;
-                    }
-                } catch (error) {
-                    alert('Sign in failed: ' + error.message);
+            try {
+                // Try to login with nickname + password
+                const user = nicknameAuth.login(nickname, password);
+                
+                // Set as current user
+                nicknameAuth.setCurrentUser(user);
+                
+                // Close auth modal on success
+                document.getElementById('authModal').classList.add('hidden');
+                document.getElementById('nameModal').style.display = 'flex';
+                
+                // Auto-fill the main name input
+                const mainNameInput = document.getElementById('playerNameInput');
+                if (mainNameInput) {
+                    mainNameInput.value = user.nickname;
                 }
+                
+                // Auto-fill wallet if available
+                const mainWalletInput = document.getElementById('playerWalletInput');
+                if (mainWalletInput && user.wallet) {
+                    mainWalletInput.value = user.wallet;
+                }
+                
+                // Update player info panel with stats
+                updatePlayerInfoPanelWithStats(user);
+                
+                alert(`Welcome back, ${user.nickname}!`);
+                
+            } catch (error) {
+                alert('Sign in failed: ' + error.message);
             }
         });
     }
     
-    if (emailCreateAccountBtn) {
-        emailCreateAccountBtn.addEventListener('click', async () => {
-            const nickname = authNicknameInput.value.trim();
-            const wallet = authWalletInput.value.trim();
-            const password = authPasswordInput.value;
+    if (createAccountBtn) {
+        createAccountBtn.addEventListener('click', async () => {
+            const email = regEmailInput.value.trim();
+            const nickname = regNicknameInput.value.trim();
+            const password = regPasswordInput.value;
+            const wallet = regWalletInput.value.trim();
             
-            if (!nickname || !password) {
-                alert('Please enter both nickname and password.');
+            if (!email || !nickname || !password) {
+                alert('Please fill in all required fields (Email, Nickname, Password).');
                 return;
             }
             
-            if (password.length < 6) {
-                alert('Password must be at least 6 characters long.');
-                return;
-            }
-            
-            if (window.authSystem) {
-                try {
-                    // Create anonymous account but store nickname/wallet
-                    await window.authSystem.signInAnonymously();
-                    
-                    // Store user info locally
-                    localStorage.setItem('playerNickname', nickname);
-                    if (wallet) {
-                        localStorage.setItem('playerWallet', wallet);
-                    }
-                    
-                    // Close auth modal on success
-                    document.getElementById('authModal').classList.add('hidden');
-                    document.getElementById('nameModal').style.display = 'flex';
-                    
-                    // Auto-fill the main name input
-                    const mainNameInput = document.getElementById('playerNameInput');
-                    if (mainNameInput) {
-                        mainNameInput.value = nickname;
-                    }
-                } catch (error) {
-                    alert('Account creation failed: ' + error.message);
+            try {
+                // Try to register new user
+                const user = nicknameAuth.register(email, nickname, password, wallet);
+                
+                // Set as current user
+                nicknameAuth.setCurrentUser(user);
+                
+                // Close registration modal on success
+                document.getElementById('registrationModal').classList.add('hidden');
+                document.getElementById('nameModal').style.display = 'flex';
+                
+                // Auto-fill the main name input
+                const mainNameInput = document.getElementById('playerNameInput');
+                if (mainNameInput) {
+                    mainNameInput.value = user.nickname;
                 }
+                
+                // Auto-fill wallet if available
+                const mainWalletInput = document.getElementById('playerWalletInput');
+                if (mainWalletInput && user.wallet) {
+                    mainWalletInput.value = user.wallet;
+                }
+                
+                // Update player info panel with stats
+                updatePlayerInfoPanelWithStats(user);
+                
+                alert(`Account created successfully! Welcome, ${user.nickname}!`);
+                
+            } catch (error) {
+                alert('Registration failed: ' + error.message);
             }
         });
     }
@@ -620,14 +813,6 @@ function setupUIHandlers() {
     // Add Enter key support for email form
     if (authNicknameInput) {
         authNicknameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                authWalletInput.focus();
-            }
-        });
-    }
-    
-    if (authWalletInput) {
-        authWalletInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 authPasswordInput.focus();
             }
@@ -637,7 +822,31 @@ function setupUIHandlers() {
     if (authPasswordInput) {
         authPasswordInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                emailSignInBtn.click();
+                signInBtn.click();
+            }
+        });
+    }
+    
+    if (regEmailInput) {
+        regEmailInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                regNicknameInput.focus();
+            }
+        });
+    }
+    
+    if (regNicknameInput) {
+        regNicknameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                regPasswordInput.focus();
+            }
+        });
+    }
+    
+    if (regPasswordInput) {
+        regPasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                createAccountBtn.click();
             }
         });
     }
@@ -654,6 +863,27 @@ function setupUIHandlers() {
                     // Handle error silently or show user-friendly message
                     alert('Guest sign in failed. Please try again.');
                 }
+            }
+        });
+    }
+
+    // Logout button handler
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to logout?')) {
+                nicknameAuth.logout();
+                
+                // Clear form inputs
+                const mainNameInput = document.getElementById('playerNameInput');
+                const mainWalletInput = document.getElementById('playerWalletInput');
+                if (mainNameInput) mainNameInput.value = '';
+                if (mainWalletInput) mainWalletInput.value = '';
+                
+                // Update player info panel
+                updatePlayerInfoPanel('Guest', 'Not signed in');
+                
+                alert('Logged out successfully!');
             }
         });
     }
@@ -1367,32 +1597,87 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSavedPlayerData();
 });
 
-function loadSavedPlayerData() {
-    const savedNickname = localStorage.getItem('playerNickname');
-    const savedWallet = localStorage.getItem('playerWallet');
+function updatePlayerInfoPanel(nickname, status) {
+    const playerInfoName = document.getElementById('playerInfoName');
+    const playerInfoStatus = document.getElementById('playerInfoStatus');
+    const logoutBtn = document.getElementById('logoutBtn');
     
-    if (savedNickname) {
+    if (playerInfoName) {
+        playerInfoName.textContent = nickname || 'Guest';
+    }
+    
+    if (playerInfoStatus) {
+        playerInfoStatus.textContent = status || 'Not signed in';
+    }
+    
+    // Show/hide logout button based on authentication status
+    if (logoutBtn) {
+        if (status === 'Authenticated') {
+            logoutBtn.classList.remove('hidden');
+        } else {
+            logoutBtn.classList.add('hidden');
+        }
+    }
+}
+
+function updatePlayerInfoPanelWithStats(user) {
+    const playerInfoName = document.getElementById('playerInfoName');
+    const playerInfoStatus = document.getElementById('playerInfoStatus');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    if (playerInfoName) {
+        playerInfoName.textContent = user.nickname || 'Guest';
+    }
+
+    if (playerInfoStatus) {
+        playerInfoStatus.textContent = 'Authenticated';
+    }
+
+    if (logoutBtn) {
+        logoutBtn.classList.remove('hidden');
+    }
+}
+
+function loadSavedPlayerData() {
+    // Check if user is authenticated
+    const currentUser = nicknameAuth.getCurrentUser();
+    
+    if (currentUser) {
         // Auto-fill main name input
         const mainNameInput = document.getElementById('playerNameInput');
         if (mainNameInput) {
-            mainNameInput.value = savedNickname;
+            mainNameInput.value = currentUser.nickname;
         }
         
         // Auto-fill wallet input
         const mainWalletInput = document.getElementById('playerWalletInput');
-        if (mainWalletInput && savedWallet) {
-            mainWalletInput.value = savedWallet;
+        if (mainWalletInput && currentUser.wallet) {
+            mainWalletInput.value = currentUser.wallet;
         }
         
         // Update player info panel
-        const playerInfoName = document.getElementById('playerInfoName');
-        if (playerInfoName) {
-            playerInfoName.textContent = savedNickname;
-        }
+        updatePlayerInfoPanelWithStats(currentUser);
         
-        const playerInfoStatus = document.getElementById('playerInfoStatus');
-        if (playerInfoStatus) {
-            playerInfoStatus.textContent = 'Saved locally';
+    } else {
+        // Try to load old saved data (for backwards compatibility)
+        const savedNickname = localStorage.getItem('playerNickname');
+        const savedWallet = localStorage.getItem('playerWallet');
+        
+        if (savedNickname) {
+            // Auto-fill main name input
+            const mainNameInput = document.getElementById('playerNameInput');
+            if (mainNameInput) {
+                mainNameInput.value = savedNickname;
+            }
+            
+            // Auto-fill wallet input
+            const mainWalletInput = document.getElementById('playerWalletInput');
+            if (mainWalletInput && savedWallet) {
+                mainWalletInput.value = savedWallet;
+            }
+            
+            // Update player info panel
+            updatePlayerInfoPanel(savedNickname, 'Saved locally');
         }
     }
 } 
