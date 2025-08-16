@@ -766,9 +766,35 @@ function drawGrid() {
     const endX = camera.x + canvas.width / 2 / camera.zoom;
     const endY = camera.y + canvas.height / 2 / camera.zoom;
     
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([5, 5]);
+    // Draw shadow layer first for better visibility
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]);
+    
+    // Shadow vertical lines
+    for (let x = startX; x <= endX; x += gridSize) {
+        const screenPos = worldToScreen(x, startY);
+        const screenEnd = worldToScreen(x, endY);
+        ctx.beginPath();
+        ctx.moveTo(screenPos.x + 1, screenPos.y + 1);
+        ctx.lineTo(screenEnd.x + 1, screenEnd.y + 1);
+        ctx.stroke();
+    }
+    
+    // Shadow horizontal lines
+    for (let y = startY; y <= endY; y += gridSize) {
+        const screenStart = worldToScreen(startX, y);
+        const screenEnd = worldToScreen(endX, y);
+        ctx.beginPath();
+        ctx.moveTo(screenStart.x + 1, screenStart.y + 1);
+        ctx.lineTo(screenEnd.x + 1, screenEnd.y + 1);
+        ctx.stroke();
+    }
+    
+    // Main grid lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8, 4]);
     
     // Vertical lines
     for (let x = startX; x <= endX; x += gridSize) {
@@ -1144,8 +1170,8 @@ function updateTimerDisplay(timeLeft = matchTimeLeft) {
         matchTimer.className = 'absolute top-4 left-1/2 transform -translate-x-1/2 bg-orange-600 bg-opacity-80 rounded-lg px-6 py-3 text-center z-10';
         timerDisplay.className = 'text-yellow-400 font-mono text-2xl';
     } else {
-        matchTimer.className = 'absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-900 bg-opacity-80 rounded-lg px-6 py-3 text-center z-10';
-        timerDisplay.className = 'text-yellow-400 font-mono text-2xl';
+        matchTimer.className = 'absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-600 bg-opacity-80 rounded-lg px-6 py-3 text-center z-10';
+        timerDisplay.className = 'text-white font-mono text-2xl';
     }
 }
 
