@@ -213,8 +213,8 @@ function updateBots() {
 // Bot simulation system
 function startBotSimulation() {
   function scheduleNextBotEvent() {
-    // Random delay between 30 seconds and 10 minutes
-    const delay = 30000 + Math.random() * 570000;
+    // Random delay between 20 seconds and 3 minutes
+    const delay = 20000 + Math.random() * 160000;
     const minutes = Math.floor(delay / 60000);
     const seconds = Math.floor((delay % 60000) / 1000);
     
@@ -228,8 +228,8 @@ function startBotSimulation() {
       // Random chance to add or remove a bot
       const action = Math.random();
       
-      if (action < 0.4 && currentBotCount < maxBots) {
-        // 40% chance to add a bot (player joins)
+      if (action < 0.5 && currentBotCount < maxBots) {
+        // 50% chance to add a bot (player joins)
         const newBot = createBot(gameState.nextBotId++);
         gameState.bots.set(newBot.id, newBot);
         console.log(`🤖 Bot "${newBot.name}" joined the game (${gameState.bots.size} bots online)`);
@@ -253,8 +253,8 @@ function startBotSimulation() {
           });
         }
         
-      } else if (action > 0.6 && currentBotCount > minBots) {
-        // 40% chance to remove a bot (player leaves)
+      } else if (action > 0.5 && currentBotCount > minBots) {
+        // 50% chance to remove a bot (player leaves)
         const botIds = Array.from(gameState.bots.keys());
         const randomBotId = botIds[Math.floor(Math.random() * botIds.length)];
         const leavingBot = gameState.bots.get(randomBotId);
@@ -289,8 +289,10 @@ function startBotSimulation() {
     }, delay);
   }
   
-  // Start the simulation
-  scheduleNextBotEvent();
+  // Start the simulation with a quick first event (5-30 seconds)
+  setTimeout(() => {
+    scheduleNextBotEvent();
+  }, 5000 + Math.random() * 25000);
 }
 
 function initializeGame() {

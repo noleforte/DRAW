@@ -110,8 +110,8 @@ function initializeOfflineGame() {
 // Bot simulation for offline version
 function startBotSimulation() {
     function scheduleNextBotEvent() {
-        // Random delay between 30 seconds and 10 minutes
-        const delay = 30000 + Math.random() * 570000;
+        // Random delay between 20 seconds and 3 minutes
+        const delay = 20000 + Math.random() * 160000;
         const minutes = Math.floor(delay / 60000);
         const seconds = Math.floor((delay % 60000) / 1000);
         
@@ -124,14 +124,14 @@ function startBotSimulation() {
             
             const action = Math.random();
             
-            if (action < 0.4 && currentBotCount < maxBots) {
-                // 40% chance to add a new bot (player joins)
+            if (action < 0.5 && currentBotCount < maxBots) {
+                // 50% chance to add a new bot (player joins)
                 const newBot = createBot(gameState.bots.length);
                 gameState.bots.push(newBot);
                 console.log(`🤖 Bot "${newBot.name}" joined (${gameState.bots.length} bots online)`);
                 
-            } else if (action > 0.6 && currentBotCount > minBots) {
-                // 40% chance to remove a random bot (player leaves)
+            } else if (action > 0.5 && currentBotCount > minBots) {
+                // 50% chance to remove a random bot (player leaves)
                 const randomIndex = Math.floor(Math.random() * gameState.bots.length);
                 const leavingBot = gameState.bots[randomIndex];
                 
@@ -146,8 +146,10 @@ function startBotSimulation() {
         }, delay);
     }
     
-    // Start the simulation
-    scheduleNextBotEvent();
+    // Start the simulation with a quick first event (5-30 seconds)
+    setTimeout(() => {
+        scheduleNextBotEvent();
+    }, 5000 + Math.random() * 25000);
 }
 
 function generateCoins(count) {
