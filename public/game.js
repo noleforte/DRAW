@@ -24,9 +24,11 @@ let isMobile = window.innerWidth < 1024;
 let selectedColor = 0; // Default color
 let chatCollapsed = false;
 let matchTimeLeft = 120; // 2 minutes in seconds
+let matchDuration = 120; // Total match duration in seconds
 let gameEnded = false;
 let matchStartTime = null;
 let clientTimerInterval = null;
+let timeOffset = 0; // Offset between client and server time
 
 // Input handling
 let movement = { x: 0, y: 0 };
@@ -102,16 +104,38 @@ function setupSocketListeners() {
     });
     
     socket.on('matchStarted', (data) => {
+        console.log('🏁 Match started!');
         matchTimeLeft = data.timeLeft;
-        matchStartTime = Date.now();
+        matchStartTime = data.startTime || Date.now();
+        matchDuration = data.duration || 120;
         gameEnded = false;
+        timeOffset = 0; // Reset time offset for new match
         startClientTimer();
     });
     
-    socket.on('matchTimer', (timeLeft) => {
-        // Sync with server time
-        matchTimeLeft = timeLeft;
-        matchStartTime = Date.now();
+    socket.on('matchTimer', (data) => {
+        // Handle both old format (number) and new format (object)
+        if (typeof data === 'number') {
+            matchTimeLeft = data;
+            matchStartTime = Date.now();
+        } else {
+            // New synchronized format
+            matchTimeLeft = data.timeLeft;
+            matchStartTime = data.startTime;
+            matchDuration = data.duration;
+            
+            // Calculate offset between client and server time
+            const serverTime = data.serverTime;
+            const clientTime = Date.now();
+            timeOffset = serverTime - clientTime;
+            
+            console.log('🕐 Timer synchronized with server:', {
+                timeLeft: matchTimeLeft,
+                startTime: new Date(matchStartTime).toLocaleTimeString(),
+                duration: matchDuration,
+                offset: timeOffset
+            });
+        }
     });
     
     socket.on('gameEnded', async (finalResults) => {
@@ -913,8 +937,10 @@ function startClientTimer() {
     
     clientTimerInterval = setInterval(() => {
         if (matchStartTime) {
-            const elapsed = Math.floor((Date.now() - matchStartTime) / 1000);
-            const currentTimeLeft = Math.max(0, matchTimeLeft - elapsed);
+            // Use server time with offset compensation for accurate timing
+            const now = Date.now() + timeOffset;
+            const elapsed = Math.floor((now - matchStartTime) / 1000);
+            const currentTimeLeft = Math.max(0, matchDuration - elapsed);
             updateTimerDisplay(currentTimeLeft);
             
             if (currentTimeLeft <= 0) {

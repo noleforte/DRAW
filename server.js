@@ -65,6 +65,8 @@ const gameState = {
   nextCoinId: 0,
   nextBotId: 0,
   matchTimeLeft: 120, // 2 minutes in seconds
+  matchStartTime: null, // When the current match started
+  matchDuration: 120, // Total match duration in seconds
   gameStarted: false,
   gameEnded: false
 };
@@ -213,6 +215,7 @@ function initializeGame() {
 function startNewMatch() {
   console.log('Starting new match...');
   gameState.matchTimeLeft = 120;
+  gameState.matchStartTime = Date.now(); // Record exact start time
   gameState.gameStarted = true;
   gameState.gameEnded = false;
   
@@ -233,7 +236,9 @@ function startNewMatch() {
   
   // Notify all clients
   io.emit('matchStarted', {
-    timeLeft: gameState.matchTimeLeft
+    timeLeft: gameState.matchTimeLeft,
+    startTime: gameState.matchStartTime,
+    duration: gameState.matchDuration
   });
 }
 
@@ -294,14 +299,23 @@ async function endMatch() {
 // Match timer countdown
 let timerSyncCounter = 0;
 function updateMatchTimer() {
-  if (!gameState.gameStarted || gameState.gameEnded) return;
+  if (!gameState.gameStarted || gameState.gameEnded || !gameState.matchStartTime) return;
   
-  gameState.matchTimeLeft--;
+  // Calculate accurate time based on start time
+  const now = Date.now();
+  const elapsed = Math.floor((now - gameState.matchStartTime) / 1000);
+  gameState.matchTimeLeft = Math.max(0, gameState.matchDuration - elapsed);
+  
   timerSyncCounter++;
   
-  // Broadcast timer sync every 10 seconds to keep clients in sync
-  if (timerSyncCounter >= 10) {
-    io.emit('matchTimer', gameState.matchTimeLeft);
+  // Broadcast timer sync every 5 seconds to keep clients in sync
+  if (timerSyncCounter >= 5) {
+    io.emit('matchTimer', {
+      timeLeft: gameState.matchTimeLeft,
+      startTime: gameState.matchStartTime,
+      duration: gameState.matchDuration,
+      serverTime: now
+    });
     timerSyncCounter = 0;
   }
   
@@ -346,8 +360,13 @@ io.on('connection', (socket) => {
       playerId: socket.id
     });
     
-    // Send current timer state
-    socket.emit('matchTimer', gameState.matchTimeLeft);
+    // Send current timer state with start time for synchronization
+    socket.emit('matchTimer', {
+      timeLeft: gameState.matchTimeLeft,
+      startTime: gameState.matchStartTime,
+      duration: gameState.matchDuration,
+      serverTime: Date.now()
+    });
     
     // Start match if this is the first player and game hasn't started
     if (gameState.players.size === 1 && !gameState.gameStarted && !gameState.gameEnded) {
