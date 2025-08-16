@@ -526,6 +526,11 @@ io.on('connection', (socket) => {
   socket.on('pong', () => {
     socket.isAlive = true;
   });
+  
+  socket.on('ping', () => {
+    socket.isAlive = true;
+    socket.emit('pong');
+  });
 
   socket.on('joinGame', (playerData) => {
     const name = typeof playerData === 'string' ? playerData : playerData.name;
@@ -720,12 +725,12 @@ setInterval(() => {
   io.sockets.sockets.forEach((socket) => {
     if (socket.isAlive === false) {
       console.log('🔴 Socket timeout:', socket.id);
-      socket.terminate();
+      socket.disconnect();
       return;
     }
     
     socket.isAlive = false;
-    socket.ping();
+    socket.emit('ping'); // Use Socket.IO ping instead
   });
 }, 30000);
 

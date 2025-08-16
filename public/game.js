@@ -97,12 +97,16 @@ function loadBackgroundImage() {
     backgroundImage.onload = function() {
         backgroundLoaded = true;
         console.log('✅ Background image loaded successfully');
+        console.log(`📏 Background image size: ${backgroundImage.width}x${backgroundImage.height}`);
     };
     backgroundImage.onerror = function() {
         console.error('❌ Failed to load background image');
         backgroundLoaded = false;
+        // Try to load a fallback or continue without background
+        console.log('🔄 Continuing without background image');
     };
     backgroundImage.src = 'world_bg_4000x4000.png';
+    console.log('🖼️ Loading background image: world_bg_4000x4000.png');
 }
 
 function resizeCanvas() {
@@ -220,6 +224,10 @@ function setupSocketListeners() {
     socket.on('serverShutdown', (data) => {
         console.log('🛑 Server shutdown:', data.message);
         showServerMessage(data.message, 'warning');
+    });
+    
+    socket.on('ping', () => {
+        socket.emit('pong');
     });
 }
 
@@ -371,6 +379,21 @@ function setupUIHandlers() {
             playerId: playerId 
         });
         nameModal.style.display = 'none';
+        
+        // Force canvas visibility and test rendering
+        console.log('🎨 Game started, testing canvas rendering...');
+        if (canvas) {
+            canvas.style.display = 'block';
+            canvas.style.visibility = 'visible';
+            console.log(`📐 Canvas size: ${canvas.width}x${canvas.height}`);
+            
+            // Test if we can draw on canvas
+            if (ctx) {
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(10, 10, 100, 100);
+                console.log('✅ Canvas test draw successful');
+            }
+        }
     }
     
     // Chat handlers
@@ -687,6 +710,11 @@ function worldToScreen(worldX, worldY) {
 }
 
 function render() {
+    if (!ctx || !canvas) {
+        console.error('❌ Canvas or context not available for rendering');
+        return;
+    }
+    
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
@@ -696,7 +724,7 @@ function render() {
     // Draw background image
     drawBackground();
     
-    // Draw grid background over the image
+    // Always draw grid background over the image
     drawGrid();
     
     // Draw coins
@@ -718,6 +746,7 @@ function drawBackground() {
         // Fallback to solid color if image not loaded
         ctx.fillStyle = '#111827';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        console.log('⚠️ Background image not loaded, using fallback color');
         return;
     }
     
