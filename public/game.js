@@ -529,56 +529,54 @@ function setupUIHandlers() {
     document.addEventListener('click', (e) => {
         if (e.target.id === 'startGameBtn' || e.target.closest('#startGameBtn')) {
             startGame(e);
-        } else if (e.target.id === 'mainGoogleSignInBtn' || e.target.closest('#mainGoogleSignInBtn')) {
-            if (window.authSystem) {
-                window.authSystem.signInWithGoogle();
-            }
-        } else if (e.target.id === 'signInMainBtn' || e.target.closest('#signInMainBtn')) {
-            console.log('🔑 Sign In clicked via delegation!'); // Debug log
-            document.getElementById('nameModal').style.display = 'none';
-            const authModal = document.getElementById('authModal');
-            if (authModal) {
-                console.log('🔑 Opening auth modal via delegation'); // Debug log
-                authModal.classList.remove('hidden');
-            }
-        } else if (e.target.id === 'moreSignInBtn' || e.target.closest('#moreSignInBtn')) {
-            console.log('📧 Sign Up clicked via delegation!'); // Debug log
+        } else if (e.target.id === 'showRegistrationFromMainBtn' || e.target.closest('#showRegistrationFromMainBtn')) {
+            console.log('📧 Create New Account clicked via delegation!'); // Debug log
             document.getElementById('nameModal').style.display = 'none';
             const registrationModal = document.getElementById('registrationModal');
             if (registrationModal) {
                 console.log('📧 Opening registration modal via delegation'); // Debug log
                 registrationModal.classList.remove('hidden');
             }
-        } else if (e.target.id === 'mainGuestPlayBtn' || e.target.closest('#mainGuestPlayBtn')) {
-            startGame(e);
         }
     });
     
     function startGame(e) {
         if (e) e.preventDefault();
         
-        const nameInput = document.getElementById('playerNameInput'); // Fixed: was 'playerName'
+        // Get nickname and password from main inputs
+        const nicknameInput = document.getElementById('mainNicknameInput');
+        const passwordInput = document.getElementById('mainPasswordInput');
         const nameModal = document.getElementById('nameModal');
-        const playerName = nameInput.value.trim();
         
-        if (!playerName) {
-            nameInput.focus();
+        if (!nicknameInput || !passwordInput) {
+            alert('Error: Sign in fields not found!');
             return;
         }
         
-        // Auto-fill authenticated user info if available
-        let wallet = '';
-        if (window.authSystem && window.authSystem.currentUser) {
-            try {
-                if (window.authSystem.autoFillPlayerInfo) {
-                    const userInfo = window.authSystem.autoFillPlayerInfo();
-                    if (userInfo.wallet) {
-                        wallet = userInfo.wallet;
-                    }
-                }
-            } catch (error) {
-                // Silent error handling
-            }
+        const nickname = nicknameInput.value.trim();
+        const password = passwordInput.value.trim();
+        
+        if (!nickname || !password) {
+            alert('Please enter both nickname and password');
+            if (!nickname) nicknameInput.focus();
+            else passwordInput.focus();
+            return;
+        }
+        
+        // Try to authenticate the user
+        try {
+            const user = nicknameAuth.login(nickname, password);
+            
+            // Update player info panel with authenticated user
+            updatePlayerInfoPanelWithStats(user);
+            
+            // Use authenticated user's data
+            const playerName = user.nickname;
+            const wallet = user.wallet || '';
+            
+        } catch (error) {
+            alert('Invalid nickname or password. Please try again or create a new account.');
+            return;
         }
         
         const playerId = window.authSystem ? window.authSystem.getCurrentUserId() : `guest_${Date.now()}_${Math.random()}`;
@@ -609,22 +607,22 @@ function setupUIHandlers() {
     const mobileChatInput = document.getElementById('mobileChatInput');
     const sendMobileChatBtn = document.getElementById('sendMobileChatBtn');
     
-    // Add event listeners for name and wallet inputs
-    const nameInput = document.getElementById('playerNameInput');
-    const walletInput = document.getElementById('playerWalletInput');
+    // Add event listeners for main sign in inputs
+    const mainNicknameInput = document.getElementById('mainNicknameInput');
+    const mainPasswordInput = document.getElementById('mainPasswordInput');
     
-    if (nameInput) {
-        nameInput.addEventListener('keypress', (e) => {
+    if (mainNicknameInput) {
+        mainNicknameInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                startGame();
+                mainPasswordInput.focus(); // Move to password field
             }
         });
     }
     
-    if (walletInput) {
-        walletInput.addEventListener('keypress', (e) => {
+    if (mainPasswordInput) {
+        mainPasswordInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                startGame();
+                startGame(); // Start game when Enter pressed in password field
             }
         });
     }
@@ -901,40 +899,22 @@ function setupUIHandlers() {
         });
     }
 
-    // Sign In Button (opens auth modal)
-    const signInMainBtn = document.getElementById('signInMainBtn');
-    if (signInMainBtn) {
-        signInMainBtn.addEventListener('click', () => {
-            console.log('🔑 Sign In clicked!'); // Debug log
-            document.getElementById('nameModal').style.display = 'none';
-            const authModal = document.getElementById('authModal');
-            if (authModal) {
-                console.log('🔑 Opening auth modal for sign in'); // Debug log
-                authModal.classList.remove('hidden');
-            } else {
-                console.log('❌ authModal not found!'); // Debug log
-            }
-        });
-    } else {
-        console.log('❌ signInMainBtn not found!'); // Debug log
-    }
-    
-    // Sign Up Button (opens registration modal)
-    const moreSignInBtn = document.getElementById('moreSignInBtn');
-    if (moreSignInBtn) {
-        moreSignInBtn.addEventListener('click', () => {
-            console.log('📧 Sign Up clicked!'); // Debug log
+    // Create New Account Button (opens registration modal)
+    const showRegistrationFromMainBtn = document.getElementById('showRegistrationFromMainBtn');
+    if (showRegistrationFromMainBtn) {
+        showRegistrationFromMainBtn.addEventListener('click', () => {
+            console.log('📧 Create New Account clicked!'); // Debug log
             document.getElementById('nameModal').style.display = 'none';
             const registrationModal = document.getElementById('registrationModal');
             if (registrationModal) {
-                console.log('📧 Opening registration modal for sign up'); // Debug log
+                console.log('📧 Opening registration modal'); // Debug log
                 registrationModal.classList.remove('hidden');
             } else {
                 console.log('❌ registrationModal not found!'); // Debug log
             }
         });
     } else {
-        console.log('❌ moreSignInBtn not found!'); // Debug log
+        console.log('❌ showRegistrationFromMainBtn not found!'); // Debug log
     }
 }
 
