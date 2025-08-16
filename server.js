@@ -672,8 +672,7 @@ setInterval(() => {
   lastUpdate = now;
   
   // Update game logic
-  updateBots(deltaTime);
-  updatePlayers(deltaTime);
+  updateBots();
   
   // Only broadcast every 3rd frame (20 FPS instead of 60)
   updateCounter++;
