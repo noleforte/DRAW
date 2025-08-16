@@ -563,6 +563,9 @@ function setupUIHandlers() {
             return;
         }
         
+        // Variables for authenticated user data
+        let playerName, wallet;
+        
         // Try to authenticate the user
         try {
             const user = nicknameAuth.login(nickname, password);
@@ -571,22 +574,36 @@ function setupUIHandlers() {
             updatePlayerInfoPanelWithStats(user);
             
             // Use authenticated user's data
-            const playerName = user.nickname;
-            const wallet = user.wallet || '';
+            playerName = user.nickname;
+            wallet = user.wallet || '';
             
         } catch (error) {
             alert('Invalid nickname or password. Please try again or create a new account.');
             return;
         }
         
+        console.log('🎮 Authentication successful, starting game...');
+        console.log('👤 Player Name:', playerName);
+        console.log('💰 Wallet:', wallet);
+        console.log('🎨 Selected Color:', selectedColor);
+        
         const playerId = window.authSystem ? window.authSystem.getCurrentUserId() : `guest_${Date.now()}_${Math.random()}`;
+        
+        console.log('🆔 Player ID:', playerId);
+        console.log('🔗 Socket connected:', socket.connected);
+        
         socket.emit('joinGame', { 
             name: playerName, 
             wallet: wallet, 
             color: selectedColor,
             playerId: playerId 
         });
+        
+        console.log('📤 joinGame event sent to server');
+        
         nameModal.style.display = 'none';
+        
+        console.log('🎯 Name modal hidden, game should start...');
         
         // Force canvas visibility and test rendering
         if (canvas) {
