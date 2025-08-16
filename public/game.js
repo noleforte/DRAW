@@ -711,7 +711,7 @@ function setupUIHandlers() {
     if (backToLoginBtn) {
         backToLoginBtn.addEventListener('click', () => {
             document.getElementById('registrationModal').classList.add('hidden');
-            document.getElementById('authModal').classList.remove('hidden');
+            document.getElementById('nameModal').style.display = 'flex';
         });
     }
     
