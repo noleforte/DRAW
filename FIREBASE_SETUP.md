@@ -14,9 +14,16 @@
 1. В боковом меню выберите "Authentication"
 2. Перейдите на вкладку "Sign-in method"
 3. Включите следующие методы:
-   - **Anonymous** (для гостевых игроков)
-   - **Email/Password** (для зарегистрированных пользователей)
+   - **Anonymous** (для гостевых игроков) ✅ 
+   - **Email/Password** (для зарегистрированных пользователей) ✅
+   - **Google** (для входа через Google аккаунт) ✅
 4. Сохраните настройки
+
+### Настройка Google Sign-In:
+1. Нажмите на "Google" в списке провайдеров
+2. Переключите в положение "Enable"
+3. Выберите Project support email
+4. Нажмите "Save"
 
 ## 3. Настройка Firestore Database
 
@@ -51,7 +58,9 @@ matches/
 
 ## 4. Настройка правил безопасности Firestore
 
-Замените правила в Firestore на следующие:
+1. В боковом меню выберите "Firestore Database"
+2. Перейдите на вкладку "Rules"
+3. Замените правила на содержимое файла `firestore.rules` из проекта:
 
 ```javascript
 rules_version = '2';
@@ -69,9 +78,16 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow update, delete: if false;
     }
+    
+    // Запретить доступ ко всем остальным коллекциям
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }
 ```
+
+4. Нажмите "Publish" для применения правил
 
 ## 5. Получение конфигурации для веб-приложения
 

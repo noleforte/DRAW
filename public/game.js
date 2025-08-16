@@ -358,13 +358,9 @@ function setupUIHandlers() {
     const signOutBtn = document.getElementById('signOutBtn');
     
     if (signInBtn) {
-        signInBtn.addEventListener('click', async () => {
+        signInBtn.addEventListener('click', () => {
             if (window.authSystem) {
-                try {
-                    await window.authSystem.signInAnonymously();
-                } catch (error) {
-                    console.error('Sign in failed:', error);
-                }
+                window.authSystem.showAuthModal();
             }
         });
     }

@@ -31,6 +31,22 @@ class AuthSystem {
         }
     }
 
+    // Google authentication
+    async signInWithGoogle() {
+        try {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            provider.addScope('profile');
+            provider.addScope('email');
+            
+            const result = await firebaseAuth.signInWithPopup(provider);
+            console.log('Signed in with Google:', result.user.uid);
+            return result.user;
+        } catch (error) {
+            console.error('Google sign-in failed:', error);
+            throw error;
+        }
+    }
+
     // Email/password authentication
     async signInWithEmail(email, password) {
         try {
@@ -179,14 +195,21 @@ class AuthSystem {
         const signOutBtn = document.getElementById('signOutBtn');
         
         if (playerNameInput && this.playerStats) {
-            playerNameInput.value = this.playerStats.playerName || '';
+            playerNameInput.value = this.playerStats.playerName || this.currentUser.displayName || '';
         }
         
         if (authStatusText) {
             if (this.currentUser.isAnonymous) {
-                authStatusText.textContent = 'Playing as Guest';
+                authStatusText.innerHTML = '👤 Playing as Guest';
+            } else if (this.currentUser.providerData && this.currentUser.providerData[0]) {
+                const provider = this.currentUser.providerData[0].providerId;
+                if (provider === 'google.com') {
+                    authStatusText.innerHTML = `🔗 Google: ${this.currentUser.displayName || this.currentUser.email}`;
+                } else if (provider === 'password') {
+                    authStatusText.innerHTML = `📧 Email: ${this.currentUser.email}`;
+                }
             } else {
-                authStatusText.textContent = `Logged in: ${this.currentUser.email || 'User'}`;
+                authStatusText.innerHTML = `✅ Logged in: ${this.currentUser.displayName || this.currentUser.email || 'User'}`;
             }
         }
         
@@ -223,8 +246,136 @@ class AuthSystem {
         }
         return `Player${Math.floor(Math.random() * 1000)}`;
     }
+
+    // Show authentication modal
+    showAuthModal() {
+        const authModal = document.getElementById('authModal');
+        if (authModal) {
+            authModal.classList.remove('hidden');
+        }
+    }
+
+    // Hide authentication modal
+    hideAuthModal() {
+        const authModal = document.getElementById('authModal');
+        if (authModal) {
+            authModal.classList.add('hidden');
+        }
+    }
+
+    // Setup auth modal handlers
+    setupAuthModalHandlers() {
+        const authModal = document.getElementById('authModal');
+        const closeAuthModalBtn = document.getElementById('closeAuthModalBtn');
+        const googleSignInBtn = document.getElementById('googleSignInBtn');
+        const emailSignInBtn = document.getElementById('emailSignInBtn');
+        const emailCreateAccountBtn = document.getElementById('emailCreateAccountBtn');
+        const guestPlayBtn = document.getElementById('guestPlayBtn');
+        const authEmailInput = document.getElementById('authEmailInput');
+        const authPasswordInput = document.getElementById('authPasswordInput');
+
+        // Close modal handlers
+        if (closeAuthModalBtn) {
+            closeAuthModalBtn.addEventListener('click', () => this.hideAuthModal());
+        }
+
+        if (authModal) {
+            authModal.addEventListener('click', (e) => {
+                if (e.target === authModal) {
+                    this.hideAuthModal();
+                }
+            });
+        }
+
+        // Google Sign In
+        if (googleSignInBtn) {
+            googleSignInBtn.addEventListener('click', async () => {
+                try {
+                    await this.signInWithGoogle();
+                    this.hideAuthModal();
+                } catch (error) {
+                    alert('Google sign-in failed: ' + error.message);
+                }
+            });
+        }
+
+        // Email Sign In
+        if (emailSignInBtn) {
+            emailSignInBtn.addEventListener('click', async () => {
+                const email = authEmailInput?.value.trim();
+                const password = authPasswordInput?.value;
+
+                if (!email || !password) {
+                    alert('Please enter both email and password');
+                    return;
+                }
+
+                try {
+                    await this.signInWithEmail(email, password);
+                    this.hideAuthModal();
+                } catch (error) {
+                    alert('Sign-in failed: ' + error.message);
+                }
+            });
+        }
+
+        // Create Account
+        if (emailCreateAccountBtn) {
+            emailCreateAccountBtn.addEventListener('click', async () => {
+                const email = authEmailInput?.value.trim();
+                const password = authPasswordInput?.value;
+
+                if (!email || !password) {
+                    alert('Please enter both email and password');
+                    return;
+                }
+
+                if (password.length < 6) {
+                    alert('Password must be at least 6 characters long');
+                    return;
+                }
+
+                try {
+                    await this.createAccount(email, password, email.split('@')[0]);
+                    this.hideAuthModal();
+                } catch (error) {
+                    alert('Account creation failed: ' + error.message);
+                }
+            });
+        }
+
+        // Guest Play
+        if (guestPlayBtn) {
+            guestPlayBtn.addEventListener('click', async () => {
+                try {
+                    await this.signInAnonymously();
+                    this.hideAuthModal();
+                } catch (error) {
+                    alert('Failed to continue as guest: ' + error.message);
+                }
+            });
+        }
+
+        // Enter key handlers
+        [authEmailInput, authPasswordInput].forEach(input => {
+            if (input) {
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        emailSignInBtn.click();
+                    }
+                });
+            }
+        });
+    }
 }
 
 // Initialize auth system
 const authSystem = new AuthSystem();
-window.authSystem = authSystem; 
+window.authSystem = authSystem;
+
+// Setup auth modal handlers when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.authSystem) {
+        window.authSystem.setupAuthModalHandlers();
+    }
+}); 
