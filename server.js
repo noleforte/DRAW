@@ -288,12 +288,23 @@ async function endMatch() {
   // Notify all clients
   io.emit('gameEnded', finalResults);
   
-  // Start new match after 10 seconds
+  // Start new match at the beginning of next day (GMT)
+  const now = new Date();
+  const nextDay = new Date(now);
+  nextDay.setUTCDate(now.getUTCDate() + 1);
+  nextDay.setUTCHours(0, 0, 0, 0); // Start at 00:00:00 GMT
+  
+  const timeUntilNextDay = nextDay.getTime() - now.getTime();
+  
+  console.log(`Next match will start at: ${nextDay.toUTCString()}`);
+  console.log(`Time until next match: ${Math.floor(timeUntilNextDay / 1000 / 60)} minutes`);
+  
   setTimeout(() => {
     if (gameState.players.size > 0 || gameState.bots.size > 0) {
+      console.log('Starting new daily match at GMT 00:00');
       startNewMatch();
     }
-  }, 10000);
+  }, timeUntilNextDay);
 }
 
 // Match timer countdown

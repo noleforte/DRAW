@@ -115,7 +115,7 @@ function setupSocketListeners() {
         console.log('🏁 Match started!');
         matchTimeLeft = data.timeLeft;
         matchStartTime = data.startTime || Date.now();
-        matchDuration = data.duration || 120;
+                    matchDuration = data.duration || 86400;
         gameEnded = false;
         timeOffset = 0; // Reset time offset for new match
         startClientTimer();

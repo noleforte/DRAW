@@ -22,7 +22,7 @@ let chatMessages = [];
 let isMobile = window.innerWidth < 1024 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 let selectedColor = 0;
 let chatCollapsed = false;
-let matchTimeLeft = 120;
+let matchTimeLeft = 86400;
 let gameEnded = false;
 let matchStartTime = null;
 let clientTimerInterval = null;
@@ -114,7 +114,7 @@ function createBot(id) {
 }
 
 function startMatch() {
-    matchTimeLeft = 120;
+            matchTimeLeft = 86400;
     matchStartTime = Date.now();
     gameEnded = false;
     startClientTimer();
@@ -156,18 +156,21 @@ function endMatch() {
 }
 
 function updateTimerDisplay(timeLeft = matchTimeLeft) {
-    const minutes = Math.floor(timeLeft / 60);
+    const hours = Math.floor(timeLeft / 3600);
+    const minutes = Math.floor((timeLeft % 3600) / 60);
     const seconds = timeLeft % 60;
     const timerDisplay = document.getElementById('timerDisplay');
     
     if (timerDisplay) {
-        timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        // Format time as HH:MM:SS for 24-hour display
+        const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        timerDisplay.textContent = timeString;
         
         const matchTimer = document.getElementById('matchTimer');
-        if (timeLeft <= 30) {
+        if (timeLeft <= 3600) { // Less than 1 hour
             matchTimer.className = 'absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-600 bg-opacity-80 rounded-lg px-6 py-3 text-center z-10';
             timerDisplay.className = 'text-white font-mono text-2xl animate-pulse';
-        } else if (timeLeft <= 60) {
+        } else if (timeLeft <= 7200) { // Less than 2 hours
             matchTimer.className = 'absolute top-4 left-1/2 transform -translate-x-1/2 bg-orange-600 bg-opacity-80 rounded-lg px-6 py-3 text-center z-10';
             timerDisplay.className = 'text-yellow-400 font-mono text-2xl';
         } else {
