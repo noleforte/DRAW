@@ -235,3 +235,44 @@ npm run dev
 ---
 
 Сделано с ❤️ для сообщества геймеров 
+
+## 🚀 Deploy on Render
+
+### Quick Deploy Steps:
+
+1. **Fork this repository** to your GitHub account
+
+2. **Create a new Web Service** on [Render](https://render.com):
+   - Connect your GitHub repository
+   - Choose the forked repository
+   - Render will automatically detect `render.yaml`
+
+3. **Set Environment Variables** in Render Dashboard:
+   ```
+   FIREBASE_PROJECT_ID=royalball-8cc64
+   FIREBASE_PRIVATE_KEY=your-private-key-here
+   FIREBASE_CLIENT_EMAIL=your-service-account-email
+   NODE_ENV=production
+   ```
+
+4. **Get Firebase Service Account**:
+   - Go to [Firebase Console](https://console.firebase.google.com/)
+   - Project Settings → Service Accounts
+   - Generate new private key
+   - Copy the values to Render environment variables
+
+5. **Deploy automatically** - Render will build and deploy your app
+
+### Server URL:
+- Your game server will be available at: `https://your-app-name.onrender.com`
+- Update the `socketUrl` in `public/game.js` if needed
+
+### Environment Variables Required:
+```bash
+FIREBASE_PROJECT_ID=royalball-8cc64
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@royalball-8cc64.iam.gserviceaccount.com
+NODE_ENV=production
+```
+
+**Note**: Make sure to replace line breaks in FIREBASE_PRIVATE_KEY with `\n` 

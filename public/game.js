@@ -44,10 +44,11 @@ function init() {
     
     // Setup socket connection
     const isProduction = window.location.hostname !== 'localhost';
-    const socketUrl = isProduction ? window.location.origin : 'http://localhost:3001';
+    // Use Render server URL in production, localhost for development
+    const socketUrl = isProduction ? 'https://royale-ball-server.onrender.com' : 'http://localhost:3001';
     
     socket = io(socketUrl, {
-        path: isProduction ? '/api/socket' : '/socket.io',
+        path: '/socket.io',
         transports: ['websocket', 'polling']
     });
     setupSocketListeners();

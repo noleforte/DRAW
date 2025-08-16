@@ -46,6 +46,16 @@ app.get('/api/player/:playerId', async (req, res) => {
   }
 });
 
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    players: Object.keys(gameState.players).length,
+    matches: Object.keys(gameState.matches).length
+  });
+});
+
 // Game state
 const gameState = {
   players: new Map(),
