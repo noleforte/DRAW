@@ -343,9 +343,18 @@ function setupUIHandlers() {
     const moreSignInBtn = document.getElementById('moreSignInBtn');
     if (moreSignInBtn) {
         moreSignInBtn.addEventListener('click', () => {
+            console.log('🔍 More Sign-In Options clicked!'); // Debug log
             document.getElementById('nameModal').style.display = 'none';
-            document.getElementById('authModal').style.display = 'flex';
+            const authModal = document.getElementById('authModal');
+            if (authModal) {
+                console.log('🔍 Removing hidden class from authModal'); // Debug log
+                authModal.classList.remove('hidden');
+            } else {
+                console.log('❌ authModal not found!'); // Debug log
+            }
         });
+    } else {
+        console.log('❌ moreSignInBtn not found!'); // Debug log
     }
     
     // Continue as Guest Button
@@ -363,8 +372,13 @@ function setupUIHandlers() {
                 window.authSystem.signInWithGoogle();
             }
         } else if (e.target.id === 'moreSignInBtn' || e.target.closest('#moreSignInBtn')) {
+            console.log('🔍 More Sign-In Options clicked via delegation!'); // Debug log
             document.getElementById('nameModal').style.display = 'none';
-            document.getElementById('authModal').style.display = 'flex';
+            const authModal = document.getElementById('authModal');
+            if (authModal) {
+                console.log('🔍 Removing hidden class from authModal via delegation'); // Debug log
+                authModal.classList.remove('hidden');
+            }
         } else if (e.target.id === 'mainGuestPlayBtn' || e.target.closest('#mainGuestPlayBtn')) {
             startGame(e);
         }
@@ -498,7 +512,7 @@ function setupUIHandlers() {
     
     if (closeAuthModalBtn) {
         closeAuthModalBtn.addEventListener('click', () => {
-            document.getElementById('authModal').style.display = 'none';
+            document.getElementById('authModal').classList.add('hidden');
             document.getElementById('nameModal').style.display = 'flex';
         });
     }
@@ -509,7 +523,7 @@ function setupUIHandlers() {
                 try {
                     await window.authSystem.signInWithGoogle();
                     // Close auth modal on success
-                    document.getElementById('authModal').style.display = 'none';
+                    document.getElementById('authModal').classList.add('hidden');
                     document.getElementById('nameModal').style.display = 'flex';
                 } catch (error) {
                     // Handle error silently or show user-friendly message
@@ -533,7 +547,7 @@ function setupUIHandlers() {
                 try {
                     await window.authSystem.signInWithEmailAndPassword(email, password);
                     // Close auth modal on success
-                    document.getElementById('authModal').style.display = 'none';
+                    document.getElementById('authModal').classList.add('hidden');
                     document.getElementById('nameModal').style.display = 'flex';
                 } catch (error) {
                     alert('Sign in failed: ' + error.message);
@@ -561,7 +575,7 @@ function setupUIHandlers() {
                 try {
                     await window.authSystem.createUserWithEmailAndPassword(email, password);
                     // Close auth modal on success
-                    document.getElementById('authModal').style.display = 'none';
+                    document.getElementById('authModal').classList.add('hidden');
                     document.getElementById('nameModal').style.display = 'flex';
                 } catch (error) {
                     alert('Account creation failed: ' + error.message);
@@ -593,7 +607,7 @@ function setupUIHandlers() {
                 try {
                     await window.authSystem.signInAnonymously();
                     // Close auth modal on success
-                    document.getElementById('authModal').style.display = 'none';
+                    document.getElementById('authModal').classList.add('hidden');
                     document.getElementById('nameModal').style.display = 'flex';
                 } catch (error) {
                     // Handle error silently or show user-friendly message
