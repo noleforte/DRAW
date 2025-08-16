@@ -27,6 +27,10 @@ let gameEnded = false;
 let matchStartTime = null;
 let clientTimerInterval = null;
 
+// Background image
+let backgroundImage = null;
+let backgroundLoaded = false;
+
 // Input handling
 let movement = { x: 0, y: 0 };
 let joystickActive = false;
