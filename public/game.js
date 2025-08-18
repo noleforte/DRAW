@@ -459,7 +459,7 @@ class HybridAuthSystem {
             console.log('🔍 Firestore doc exists:', doc.exists);
             if (doc.exists) {
                 const firestoreData = doc.data();
-                console.log('🔍 Firestore data:', firestoreData);
+                console.log('🔍 Firestore data:', JSON.stringify(firestoreData, null, 2));
                 
                 // Update localStorage user stats with Firestore data
                 currentUser.stats = {
@@ -663,6 +663,53 @@ function resizeCanvas() {
     canvas.height = window.innerHeight;
 }
 
+// Send coins to Firestore in real-time
+async function sendCoinsToFirestore(coinsGained) {
+    const currentUser = window.nicknameAuth?.getCurrentUserSync();
+    if (!currentUser || !window.firebaseDb) {
+        console.log('⚠️ Cannot save coins - no user or Firestore connection');
+        return;
+    }
+    
+    try {
+        const playerId = currentUser.nickname;
+        console.log(`💾 Saving ${coinsGained} coins to Firestore for player: ${playerId}`);
+        
+        // Update Firestore directly
+        const playerRef = window.firebaseDb.collection('players').doc(playerId);
+        const playerDoc = await playerRef.get();
+        
+        if (playerDoc.exists) {
+            // Update existing player's total coins
+            await playerRef.update({
+                totalScore: window.firebase.firestore.FieldValue.increment(coinsGained),
+                lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
+            });
+            console.log(`✅ Added ${coinsGained} coins to Firestore for ${playerId}`);
+        } else {
+            // Create new player document
+            await playerRef.set({
+                playerName: playerId,
+                totalScore: coinsGained,
+                gamesPlayed: 0,
+                bestScore: 0,
+                firstPlayed: window.firebase.firestore.FieldValue.serverTimestamp(),
+                lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
+            });
+            console.log(`🆕 Created new player ${playerId} with ${coinsGained} coins`);
+        }
+        
+        // Force refresh stats from Firestore
+        setTimeout(async () => {
+            await window.nicknameAuth.syncUserStatsFromFirestore();
+            console.log('🔄 Stats refreshed after coin save');
+        }, 1000);
+        
+    } catch (error) {
+        console.error('❌ Failed to save coins to Firestore:', error);
+    }
+}
+
 function setupSocketListeners() {
     socket.on('connect', () => {
         // Connected to server - no logs
@@ -698,6 +745,15 @@ function setupSocketListeners() {
         const previousLocalPlayer = localPlayer;
         localPlayer = gameState.players.find(p => p.id === gameState.playerId);
         window.localPlayer = localPlayer; // Update global reference
+        
+        // Check if player score increased (coin collected)
+        if (previousLocalPlayer && localPlayer && localPlayer.score > previousLocalPlayer.score) {
+            const coinsGained = localPlayer.score - previousLocalPlayer.score;
+            console.log(`🪙 Coins gained: ${coinsGained} (${previousLocalPlayer.score} → ${localPlayer.score})`);
+            
+            // Send coins to Firestore immediately
+            sendCoinsToFirestore(coinsGained);
+        }
         
         if (!localPlayer) {
             // Try to recover localPlayer
@@ -1246,18 +1302,18 @@ function setupUIHandlers() {
                     console.log('🔍 DEBUG: Firestore doc exists:', testDoc.exists);
                     if (testDoc.exists) {
                         console.log('🔍 DEBUG: Firestore doc data:', testDoc.data());
-                    } else {
-                        console.log('🔍 DEBUG: No document found, attempting to create test entry');
-                        await window.firebaseDb.collection('players').doc(playerId).set({
-                            playerName: playerName,
-                            totalScore: 1,
-                            gamesPlayed: 0,
-                            bestScore: 0,
-                            testEntry: true,
-                            timestamp: new Date()
-                        });
-                        console.log('🔍 DEBUG: Test entry created successfully');
-                    }
+                                    } else {
+                    console.log('🔍 DEBUG: No document found, attempting to create initial entry');
+                    await window.firebaseDb.collection('players').doc(playerId).set({
+                        playerName: playerName,
+                        totalScore: 0,
+                        gamesPlayed: 0,
+                        bestScore: 0,
+                        firstPlayed: window.firebase.firestore.FieldValue.serverTimestamp(),
+                        lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    console.log('🔍 DEBUG: Initial player entry created successfully');
+                }
                 } catch (error) {
                     console.error('🔍 DEBUG: Firestore test failed:', error);
                 }
