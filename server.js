@@ -222,67 +222,132 @@ function updateBots() {
   gameState.bots.forEach(bot => {
     let targetFound = false;
     let targetX = 0, targetY = 0;
+    let isFleeingFromThreat = false;
     
-    // First, look for targets to eat (more rewarding than coins)
-    let bestTarget = null;
-    let bestTargetDistance = Infinity;
-    let bestTargetReward = 0;
+    // FIRST PRIORITY: Check for threats that can eat us and flee if needed
+    let nearestThreat = null;
+    let nearestThreatDistance = Infinity;
     
-         // Check all entities for potential targets
-     const potentialTargets = [...gameState.players.values(), ...gameState.bots.values()];
-    potentialTargets.forEach(target => {
-      if (target.id !== bot.id) {
-        const distance = Math.sqrt((target.x - bot.x) ** 2 + (target.y - bot.y) ** 2);
-        const sizeRatio = bot.size / target.size;
+    const allEntities = [...gameState.players.values(), ...gameState.bots.values()];
+    allEntities.forEach(entity => {
+      if (entity.id !== bot.id) {
+        const distance = Math.sqrt((entity.x - bot.x) ** 2 + (entity.y - bot.y) ** 2);
         
-                 // Only consider targets we can eat (have more coins) and that are worth pursuing
-         if (bot.score > target.score && target.score > 5 && distance < 400) { // 400 pixel pursuit range
-          const reward = target.score / Math.max(distance, 1); // Score per distance unit
-          if (reward > bestTargetReward) {
-            bestTarget = target;
-            bestTargetDistance = distance;
-            bestTargetReward = reward;
+        // Check if this entity can eat us (has more coins) and is close enough to be a threat
+        if (entity.score > bot.score && distance < 300) { // 300 pixel threat detection range
+          if (distance < nearestThreatDistance) {
+            nearestThreat = entity;
+            nearestThreatDistance = distance;
           }
         }
       }
     });
     
-         // If we found a good target to eat, go for it
-     if (bestTarget) {
-       targetX = bestTarget.x;
-       targetY = bestTarget.y;
-       targetFound = true;
-       
-       // Occasionally taunt the target
-       const now = Date.now();
-       if (now - bot.lastMessageTime > 30000 && Math.random() < 0.1) { // 10% chance every 30 seconds
-         const huntMessage = botHuntingMessages[Math.floor(Math.random() * botHuntingMessages.length)];
-         bot.lastMessageTime = now;
-         
-         io.emit('chatMessage', {
-           playerId: bot.id,
-           playerName: bot.name,
-           message: huntMessage,
-           timestamp: now
-         });
-       }
-    } else {
-      // Otherwise, find nearest coin
-      let nearestCoin = null;
-      let nearestDistance = Infinity;
+    // If there's a threat, flee from it (highest priority)
+    if (nearestThreat) {
+      const dx = bot.x - nearestThreat.x; // Opposite direction
+      const dy = bot.y - nearestThreat.y; // Opposite direction
+      const distance = Math.sqrt(dx * dx + dy * dy);
       
-      gameState.coins.forEach(coin => {
-        const distance = Math.sqrt((coin.x - bot.x) ** 2 + (coin.y - bot.y) ** 2);
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearestCoin = coin;
+      if (distance > 0) {
+        // Flee to a point away from the threat
+        const fleeDistance = 200; // How far to flee
+        targetX = bot.x + (dx / distance) * fleeDistance;
+        targetY = bot.y + (dy / distance) * fleeDistance;
+        targetFound = true;
+        isFleeingFromThreat = true;
+        
+        // Console logging for debugging  
+        console.log(`🏃 Bot ${bot.name} (${bot.score} coins) fleeing from ${nearestThreat.name || nearestThreat.id} (${nearestThreat.score} coins) at distance ${Math.round(nearestThreatDistance)}`);
+        
+        // Occasionally send flee message
+        const now = Date.now();
+        if (now - bot.lastMessageTime > 25000 && Math.random() < 0.15) { // 15% chance every 25 seconds
+          const fleeMessages = [
+            "Help! Someone's chasing me! 😱",
+            "Running away! 🏃‍♂️💨",
+            "Too dangerous here! 😰",
+            "Retreat! Retreat! 🏃‍♀️",
+            "Getting out of here! 😨",
+            "Nope nope nope! 🏃‍♂️",
+            "Tactical retreat! 📍",
+            "Save yourselves! 😱💨"
+          ];
+          const fleeMessage = fleeMessages[Math.floor(Math.random() * fleeMessages.length)];
+          bot.lastMessageTime = now;
+          
+          io.emit('chatMessage', {
+            playerId: bot.id,
+            playerName: bot.name,
+            message: fleeMessage,
+            timestamp: now
+          });
+        }
+      }
+    }
+    
+    // SECOND PRIORITY: Look for targets to eat (only if not fleeing)
+    let bestTarget = null;
+    if (!isFleeingFromThreat) {
+      let bestTargetDistance = Infinity;
+      let bestTargetReward = 0;
+    
+      // Check all entities for potential targets
+      const potentialTargets = [...gameState.players.values(), ...gameState.bots.values()];
+      potentialTargets.forEach(target => {
+        if (target.id !== bot.id) {
+          const distance = Math.sqrt((target.x - bot.x) ** 2 + (target.y - bot.y) ** 2);
+          const sizeRatio = bot.size / target.size;
+          
+          // Only consider targets we can eat (have more coins) and that are worth pursuing
+          if (bot.score > target.score && target.score > 5 && distance < 400) { // 400 pixel pursuit range
+            const reward = target.score / Math.max(distance, 1); // Score per distance unit
+            if (reward > bestTargetReward) {
+              bestTarget = target;
+              bestTargetDistance = distance;
+              bestTargetReward = reward;
+            }
+          }
         }
       });
-
-      if (nearestCoin) {
-        targetX = nearestCoin.x;
-        targetY = nearestCoin.y;
+      
+      // If we found a good target to eat, go for it
+      if (bestTarget) {
+        targetX = bestTarget.x;
+        targetY = bestTarget.y;
         targetFound = true;
+        
+        // Occasionally taunt the target
+        const now = Date.now();
+        if (now - bot.lastMessageTime > 30000 && Math.random() < 0.1) { // 10% chance every 30 seconds
+          const huntMessage = botHuntingMessages[Math.floor(Math.random() * botHuntingMessages.length)];
+          bot.lastMessageTime = now;
+          
+          io.emit('chatMessage', {
+            playerId: bot.id,
+            playerName: bot.name,
+            message: huntMessage,
+            timestamp: now
+          });
+        }
+      } else {
+        // Otherwise, find nearest coin
+        let nearestCoin = null;
+        let nearestDistance = Infinity;
+        
+        gameState.coins.forEach(coin => {
+          const distance = Math.sqrt((coin.x - bot.x) ** 2 + (coin.y - bot.y) ** 2);
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearestCoin = coin;
+          }
+        });
+
+        if (nearestCoin) {
+          targetX = nearestCoin.x;
+          targetY = nearestCoin.y;
+          targetFound = true;
+        }
       }
     }
 
@@ -294,11 +359,19 @@ function updateBots() {
       
       if (distance > 0) {
         const baseSpeed = 2;
-        // Bots move faster when chasing targets to eat
-        const huntingMultiplier = bestTarget ? 1.3 : 1.0;
+        let speedMultiplier = 1.0;
+        
+        if (isFleeingFromThreat) {
+          // Bots move much faster when fleeing from threats
+          speedMultiplier = 1.8; // 80% speed boost when fleeing
+        } else if (bestTarget) {
+          // Bots move faster when chasing targets to eat
+          speedMultiplier = 1.3; // 30% speed boost when hunting
+        }
+        
         // Apply size-based speed reduction
         const sizeSpeedMultiplier = calculateSpeedMultiplier(bot.size);
-        const speed = baseSpeed * bot.speedVariation * huntingMultiplier * sizeSpeedMultiplier;
+        const speed = baseSpeed * bot.speedVariation * speedMultiplier * sizeSpeedMultiplier;
         bot.vx = (dx / distance) * speed;
         bot.vy = (dy / distance) * speed;
       }

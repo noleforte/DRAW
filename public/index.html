@@ -85,13 +85,13 @@
         
         /* Collapsed button styles */
         .panel-button {
-            width: 100%;
-            height: 100%;
+            width: 80px;
+            height: 60px;
             background: rgba(0, 0, 0, 0.8);
             border: 2px solid #374151;
             border-radius: 12px;
             color: white;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: bold;
             display: flex;
             flex-direction: column;
@@ -100,7 +100,7 @@
             cursor: pointer;
             transition: all 0.3s ease;
             text-align: center;
-            padding: 8px;
+            padding: 4px;
         }
         
         .panel-button:hover {
@@ -110,13 +110,13 @@
         }
         
         .panel-button .icon {
-            font-size: 20px;
-            margin-bottom: 4px;
+            font-size: 16px;
+            margin-bottom: 2px;
         }
         
         .panel-button .label {
-            font-size: 10px;
-            line-height: 1.2;
+            font-size: 8px;
+            line-height: 1.1;
         }
         
         /* Expanded panel styles */
@@ -866,66 +866,83 @@
         
         <!-- User Info Panel (top-left) -->
         <div class="fixed left-4 top-4 z-100">
-            <div class="panel-wrapper userinfo-panel" style="width: 240px; height: 240px;">
+            <div class="panel-wrapper userinfo-panel">
                 <div class="panel-button" id="userinfoToggleLeft">
                     <div class="icon">👤</div>
                     <div class="label">Player Info</div>
                 </div>
-                <div class="panel-content hidden" id="userinfoLeftPanel">
+                <div class="panel-content hidden" id="userinfoLeftPanel" style="width: 350px; height: 350px;">
                     <div class="panel-header">
                         <div class="panel-title">👤 Player Info</div>
                         <button class="panel-close" id="userinfoLeftClose">×</button>
                     </div>
                     <div class="panel-body">
-                        <div class="space-y-2">
+                        <div class="space-y-3">
                             <!-- Player Identity -->
-                            <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded text-xs">
-                                <div class="flex items-center space-x-2">
-                                    <div class="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-3 rounded-lg">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                             <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
                                         </svg>
                                     </div>
                                     <div>
-                                        <div id="playerInfoNameLeft" class="font-bold text-xs">Guest</div>
+                                        <div id="playerInfoNameLeft" class="font-bold text-sm">Guest</div>
                                         <div id="playerInfoStatusLeft" class="text-xs opacity-90">Not signed in</div>
                                     </div>
                                 </div>
                             </div>
                             
-                            <!-- Stats -->
-                            <div class="space-y-1">
-                                <div class="bg-yellow-50 rounded p-2 flex justify-between items-center">
-                                    <div class="flex items-center space-x-1">
-                                        <span class="text-sm">🪙</span>
-                                        <span class="font-medium text-gray-700 text-xs">Total Coins</span>
+                            <!-- Current Game Stats -->
+                            <div class="bg-gray-700 rounded-lg p-3">
+                                <h4 class="font-bold text-green-400 text-sm mb-2">🎮 Current Game</h4>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs text-gray-300">Score:</span>
+                                        <span class="font-bold text-green-400 text-sm" id="currentGameScore">0</span>
                                     </div>
-                                    <span id="totalCoinsLeft" class="font-bold text-yellow-600 text-xs">0</span>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs text-gray-300">Size:</span>
+                                        <span class="font-bold text-blue-400 text-sm" id="currentGameSize">20</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Total Stats -->
+                            <div class="space-y-2">
+                                <h4 class="font-bold text-yellow-400 text-sm">📊 Total Statistics</h4>
+                                
+                                <div class="bg-yellow-50 rounded-lg p-3 flex justify-between items-center">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-lg">🪙</span>
+                                        <span class="font-medium text-gray-700 text-sm">Total Coins</span>
+                                    </div>
+                                    <span id="totalCoinsLeft" class="font-bold text-yellow-600 text-lg">0</span>
                                 </div>
                                 
-                                <div class="bg-green-50 rounded p-2 flex justify-between items-center">
-                                    <div class="flex items-center space-x-1">
-                                        <span class="text-sm">🎯</span>
-                                        <span class="font-medium text-gray-700 text-xs">Matches</span>
+                                <div class="bg-green-50 rounded-lg p-3 flex justify-between items-center">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-lg">🎯</span>
+                                        <span class="font-medium text-gray-700 text-sm">Matches</span>
                                     </div>
-                                    <span id="totalMatchesLeft" class="font-bold text-green-600 text-xs">0</span>
+                                    <span id="totalMatchesLeft" class="font-bold text-green-600 text-lg">0</span>
                                 </div>
                                 
-                                <div class="bg-purple-50 rounded p-2 flex justify-between items-center">
-                                    <div class="flex items-center space-x-1">
-                                        <span class="text-sm">⭐</span>
-                                        <span class="font-medium text-gray-700 text-xs">Best Score</span>
+                                <div class="bg-purple-50 rounded-lg p-3 flex justify-between items-center">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-lg">⭐</span>
+                                        <span class="font-medium text-gray-700 text-sm">Best Score</span>
                                     </div>
-                                    <span id="bestScoreLeft" class="font-bold text-purple-600 text-xs">0</span>
+                                    <span id="bestScoreLeft" class="font-bold text-purple-600 text-lg">0</span>
                                 </div>
                             </div>
                             
                             <!-- Logout Button -->
                             <button 
                                 id="logoutBtnLeft" 
-                                class="w-full bg-red-600 hover:bg-red-700 text-white text-xs py-1 rounded hidden"
+                                class="w-full bg-red-600 hover:bg-red-700 text-white text-sm py-2 rounded-lg hidden transition-colors"
                             >
-                                Logout
+                                🚪 Logout
                             </button>
                         </div>
                     </div>
@@ -936,12 +953,12 @@
         <!-- Leaderboard Panel (top-right) -->
         <div class="fixed top-4 right-4 z-100">
             <!-- Leaderboard Panel (4x4) -->
-            <div class="panel-wrapper leaderboard-panel" style="width: 320px; height: 320px;">
+            <div class="panel-wrapper leaderboard-panel">
                 <div class="panel-button" id="leaderboardToggle">
                     <div class="icon">🏆</div>
                     <div class="label">Leaderboard</div>
                 </div>
-                <div class="panel-content hidden" id="leaderboardPanel">
+                <div class="panel-content hidden" id="leaderboardPanel" style="width: 400px; height: 400px;">
                     <div class="panel-header">
                         <div class="panel-title">🏆 Leaderboard</div>
                         <button class="panel-close" id="leaderboardClose">×</button>
@@ -963,18 +980,18 @@
         <!-- Chat Panel (bottom-right) -->
         <div class="fixed bottom-4 right-4 z-100">
             <!-- Chat Panel (4x4) -->
-            <div class="panel-wrapper chat-panel" style="width: 320px; height: 320px;">
+            <div class="panel-wrapper chat-panel">
                 <div class="panel-button" id="chatToggle">
                     <div class="icon">💬</div>
                     <div class="label">Chat</div>
                 </div>
-                <div class="panel-content hidden" id="chatPanelNew">
+                <div class="panel-content hidden" id="chatPanelNew" style="width: 450px; height: 450px;">
                     <div class="panel-header">
                         <div class="panel-title">💬 Chat</div>
                         <button class="panel-close" id="chatClose">×</button>
                     </div>
                     <div class="panel-body">
-                        <div id="chatMessages" class="h-48 overflow-y-auto space-y-2 mb-4 text-sm bg-gray-800 rounded p-2">
+                        <div id="chatMessages" class="h-72 overflow-y-auto space-y-2 mb-4 text-sm bg-gray-800 rounded p-2">
                             <!-- Chat messages will be populated here -->
                         </div>
                         <div class="flex">
@@ -1000,24 +1017,37 @@
         <!-- Controls Panel (bottom-left) -->
         <div class="fixed bottom-4 left-4 z-100">
             <!-- Controls Panel (3x2) -->
-            <div class="panel-wrapper controls-panel" style="width: 240px; height: 160px;">
+            <div class="panel-wrapper controls-panel">
                 <div class="panel-button" id="controlsToggle">
                     <div class="icon">🎮</div>
                     <div class="label">Controls</div>
                 </div>
-                <div class="panel-content hidden" id="controlsPanel">
+                <div class="panel-content hidden" id="controlsPanel" style="width: 320px; height: 250px;">
                     <div class="panel-header">
                         <div class="panel-title">🎮 Controls</div>
                         <button class="panel-close" id="controlsClose">×</button>
                     </div>
                     <div class="panel-body">
-                        <div class="text-xs space-y-1">
-                            <p>🖱️ Move: WASD or Arrow Keys</p>
-                            <p>🪙 Collect coins to increase score</p>
-                            <p>💬 Chat with other players</p>
-                            <p>🍽️ Eat smaller players to grow</p>
-                            <p>⚡ Bigger size = slower movement</p>
-                            <p>🎯 Strategy: Balance size vs speed</p>
+                        <div class="text-sm space-y-2">
+                            <div class="border-b border-gray-600 pb-2 mb-2">
+                                <h4 class="font-bold text-green-400">🎮 Movement</h4>
+                                <p class="text-xs">🖱️ WASD or Arrow Keys to move</p>
+                                <p class="text-xs">🏃 Speed depends on your size</p>
+                            </div>
+                            
+                            <div class="border-b border-gray-600 pb-2 mb-2">
+                                <h4 class="font-bold text-yellow-400">🪙 Gameplay</h4>
+                                <p class="text-xs">🪙 Collect coins to increase score</p>
+                                <p class="text-xs">🍽️ Eat smaller players to grow</p>
+                                <p class="text-xs">⚡ Bigger size = slower movement</p>
+                            </div>
+                            
+                            <div>
+                                <h4 class="font-bold text-blue-400">💡 Strategy Tips</h4>
+                                <p class="text-xs">🎯 Balance size vs speed</p>
+                                <p class="text-xs">🛡️ Stay mobile to survive</p>
+                                <p class="text-xs">💬 Use chat to communicate</p>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -130,6 +130,23 @@ class HybridAuthSystem {
             throw new Error('Nickname already exists');
         }
 
+        // Check Firestore for existing users (more thorough)
+        if (this.isOnline && window.firebaseDb) {
+            console.log('🔍 Checking Firestore for existing users...');
+            
+            const nicknameExists = await this.nicknameExists(normalizedNickname);
+            if (nicknameExists) {
+                throw new Error('Nickname already exists in cloud database');
+            }
+
+            const emailExists = await this.emailExists(normalizedEmail);
+            if (emailExists) {
+                throw new Error('Email already registered in cloud database');
+            }
+            
+            console.log('✅ No conflicts found in Firestore');
+        }
+
         // Create new user
         const newUser = {
             email: normalizedEmail,
@@ -153,12 +170,21 @@ class HybridAuthSystem {
         // Sync to Firestore (when online)
         if (this.isOnline && window.firebaseDb) {
             try {
+                console.log('🔄 Attempting to save user to Firestore:', normalizedNickname);
                 await this.saveUserToFirestore(normalizedNickname, newUser);
-                console.log('✅ User synced to Firestore:', normalizedNickname);
+                console.log('✅ User successfully saved to Firestore:', normalizedNickname);
+                
+                // Verify the save by reading it back
+                const savedUser = await this.loadUserFromFirestore(normalizedNickname);
+                console.log('🔍 Verification - User retrieved from Firestore:', savedUser ? 'SUCCESS' : 'FAILED');
+                
             } catch (error) {
+                console.error('❌ Firestore save failed:', error);
                 console.warn('⚠️ Firestore sync failed (will retry later):', error.message);
                 // User is still registered locally, sync will happen later
             }
+        } else {
+            console.warn('⚠️ Firestore not available for saving user. Online:', this.isOnline, 'FirebaseDb:', !!window.firebaseDb);
         }
 
         return newUser;
@@ -1354,12 +1380,20 @@ function setupUIHandlers() {
                 
                 // Show success message with sync status
                 const syncStatus = navigator.onLine && window.firebaseDb ? 
-                    'Account created and synced to cloud!' : 
-                    'Account created locally (will sync when online)!';
+                    '✅ Account created and saved to cloud database!' : 
+                    '⚠️ Account created locally (will sync when online)!';
                 alert(`${syncStatus} Please sign in with your new account.`);
                 
             } catch (error) {
-                alert('Registration failed: ' + error.message);
+                console.error('❌ Registration failed:', error);
+                
+                // Show user-friendly error message
+                let errorMessage = error.message;
+                if (error.message.includes('Firestore')) {
+                    errorMessage += '\n\nNote: Account was created locally but may not be synced to cloud. Please try again when online.';
+                }
+                
+                alert('Registration failed: ' + errorMessage);
             }
         });
     }
@@ -2745,6 +2779,8 @@ class PanelManager {
                 const totalCoinsElement = document.querySelector('#userinfoLeftPanel #totalCoinsLeft');
                 const totalMatchesElement = document.querySelector('#userinfoLeftPanel #totalMatchesLeft');
                 const bestScoreElement = document.querySelector('#userinfoLeftPanel #bestScoreLeft');
+                const currentGameScoreElement = document.querySelector('#userinfoLeftPanel #currentGameScore');
+                const currentGameSizeElement = document.querySelector('#userinfoLeftPanel #currentGameSize');
                 const logoutBtn = document.querySelector('#userinfoLeftPanel #logoutBtnLeft');
                 
                 if (nameElement) nameElement.textContent = currentUser.nickname || 'Guest';
@@ -2752,6 +2788,15 @@ class PanelManager {
                 if (totalCoinsElement) totalCoinsElement.textContent = currentUser.stats?.totalScore || 0;
                 if (totalMatchesElement) totalMatchesElement.textContent = currentUser.stats?.gamesPlayed || 0;
                 if (bestScoreElement) bestScoreElement.textContent = currentUser.stats?.bestScore || 0;
+                
+                // Update current game stats
+                if (window.localPlayer) {
+                    if (currentGameScoreElement) currentGameScoreElement.textContent = window.localPlayer.score || 0;
+                    if (currentGameSizeElement) currentGameSizeElement.textContent = Math.round(window.localPlayer.size || 20);
+                } else {
+                    if (currentGameScoreElement) currentGameScoreElement.textContent = '0';
+                    if (currentGameSizeElement) currentGameSizeElement.textContent = '20';
+                }
                 
                 if (logoutBtn) {
                     if (currentUser.nickname) {
