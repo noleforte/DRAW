@@ -5,9 +5,10 @@
 The Firestore security rules have been updated to support the `users` collection used by the nickname-based authentication system.
 
 ### Updated Rules Summary:
-- Added support for `/userId/{nickname}` collection (matches existing Firestore structure)
+- Updated `/players/{playerId}` collection to support nickname-based authentication
 - Allows read/write access for user registration and data management  
-- Maintains existing rules for `/players/{userId}` and `/matches/{matchId}`
+- Maintains existing rules for `/matches/{matchId}`
+- Single collection `/players` now supports both nickname and Firebase Auth UIDs
 
 ### Deployment Steps:
 
@@ -43,11 +44,14 @@ The Firestore security rules have been updated to support the `users` collection
 ### New Rules Added:
 
 ```javascript
-// Правила для коллекции пользователей (nickname-based authentication)
-match /userId/{nickname} {
-  // Разрешить чтение и запись всем (для nickname-based системы)
-  // В будущем можно добавить более строгие правила
-  allow read, write: if true;
+// Правила для коллекции игроков (supports both nickname-based and Firebase Auth)
+match /players/{playerId} {
+  // Разрешить чтение всем (для лидерборда и nickname-based системы)
+  allow read: if true;
+  // Разрешить запись всем (для nickname-based регистрации)
+  allow write: if true;
+  // В будущем можно добавить более строгие правила для Firebase Auth:
+  // allow write: if request.auth != null && request.auth.uid == playerId;
 }
 ```
 
@@ -58,7 +62,7 @@ After deployment, test the "Create New Account" functionality:
 2. Click "Create New Account"
 3. Fill in email, nickname, password
 4. Check browser console for Firestore save confirmation
-5. Verify user appears in Firebase Console → Firestore → userId collection
+5. Verify user appears in Firebase Console → Firestore → players collection
 
 ### Troubleshooting:
 

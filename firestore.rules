@@ -1,19 +1,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Правила для коллекции пользователей (nickname-based authentication)
-    match /userId/{nickname} {
-      // Разрешить чтение и запись всем (для nickname-based системы)
-      // В будущем можно добавить более строгие правила
-      allow read, write: if true;
-    }
-    
-    // Правила для коллекции игроков (Firebase Auth based)
-    match /players/{userId} {
-      // Пользователи могут читать и писать только свои документы
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      // Разрешить чтение всем для лидерборда (но не личные данные)
+    // Правила для коллекции игроков (supports both nickname-based and Firebase Auth)
+    match /players/{playerId} {
+      // Разрешить чтение всем (для лидерборда и nickname-based системы)
       allow read: if true;
+      // Разрешить запись всем (для nickname-based регистрации)
+      allow write: if true;
+      // В будущем можно добавить более строгие правила для Firebase Auth:
+      // allow write: if request.auth != null && request.auth.uid == playerId;
     }
     
     // Правила для коллекции матчей
