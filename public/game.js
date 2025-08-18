@@ -413,8 +413,10 @@ function init() {
     // Setup input handlers
     setupInputHandlers();
     
-    // Setup UI handlers
-    setupUIHandlers();
+    // Setup UI handlers with delay to ensure DOM is ready
+    setTimeout(() => {
+        setupUIHandlers();
+    }, 100);
     
     // Start game loop
     gameLoop();
@@ -562,6 +564,34 @@ function setupSocketListeners() {
                 // Update user stats in localStorage
                 await nicknameAuth.updateUserStats(currentUser.nickname, newStats);
                 
+                // Also save game session to Firebase if authenticated
+                if (window.authSystem && window.authSystem.currentUser) {
+                    try {
+                        const response = await fetch(`/api/player/${window.authSystem.currentUser.uid}/session`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                playerName: currentUser.nickname,
+                                score: currentGameScore,
+                                walletAddress: currentUser.wallet || ''
+                            })
+                        });
+                        if (response.ok) {
+                            console.log('💾 Game session saved to Firebase');
+                            // Reload stats from Firebase to get updated data
+                            setTimeout(async () => {
+                                if (window.authSystem) {
+                                    await window.authSystem.reloadPlayerStats();
+                                }
+                            }, 1000); // Wait 1 second for database to update
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Failed to save game session to Firebase:', error);
+                    }
+                }
+                
                 console.log('📊 Game stats saved:', newStats);
                 console.log('🎮 Final score:', currentGameScore);
                 
@@ -699,19 +729,32 @@ function setupInputHandlers() {
 function setupUIHandlers() {
     // Color picker setup
     const colorOptions = document.querySelectorAll('.color-option');
-    colorOptions.forEach(option => {
+    console.log(`🎨 Found ${colorOptions.length} color options`);
+    
+    colorOptions.forEach((option, index) => {
         option.addEventListener('click', () => {
+            console.log(`🎨 Color option clicked: ${option.dataset.color}`);
             // Remove previous selection
-            colorOptions.forEach(opt => opt.classList.remove('border-white'));
+            colorOptions.forEach(opt => {
+                opt.classList.remove('border-white', 'selected');
+            });
             // Add selection to clicked option
-            option.classList.add('border-white');
+            option.classList.add('border-white', 'selected');
             selectedColor = parseInt(option.dataset.color);
+            console.log(`🎨 Selected color updated to: ${selectedColor}`);
         });
+        
+        // Log available options
+        console.log(`🎨 Color option ${index}: data-color="${option.dataset.color}"`);
     });
     
     // Set default color selection
     if (colorOptions.length > 0) {
-        colorOptions[0].classList.add('border-white');
+        colorOptions[0].classList.add('border-white', 'selected');
+        selectedColor = parseInt(colorOptions[0].dataset.color) || 0;
+        console.log(`🎨 Default color set to: ${selectedColor}`);
+    } else {
+        console.warn('⚠️ No color options found!');
     }
     
     // Game over modal close button
@@ -850,12 +893,15 @@ function setupUIHandlers() {
         console.log('🆔 Player ID:', playerId);
         console.log('🔗 Socket connected:', socket.connected);
         
-        socket.emit('joinGame', { 
+        const gameData = { 
             name: playerName, 
             wallet: wallet, 
             color: selectedColor,
             playerId: playerId 
-        });
+        };
+        
+        console.log('📤 Sending joinGame data:', gameData);
+        socket.emit('joinGame', gameData);
         
         console.log('📤 joinGame event sent to server');
         
@@ -1882,6 +1928,7 @@ function showGameOverModal(finalResults) {
 
 let gameLoopCounter = 0;
 let lastStatsUpdate = 0;
+let lastBestScoreSave = 0; // Track when we last saved best score
 
 function gameLoop() {
     if (gameEnded) {
@@ -1905,6 +1952,32 @@ function gameLoop() {
             updatePlayerInfoPanelStats(localPlayer);
             lastStatsUpdate = now;
         }
+        
+        // Save best score to Firebase every 30 seconds as backup
+        if (now - lastBestScoreSave > 30000 && localPlayer && localPlayer.score > 0) {
+            const currentUser = nicknameAuth.getCurrentUser();
+            if (currentUser && window.authSystem?.currentUser) {
+                const savedBestScore = currentUser.stats.bestScore || 0;
+                if (localPlayer.score > savedBestScore) {
+                    // Save new best score
+                    fetch(`/api/player/${window.authSystem.currentUser.uid}/best-score`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ score: localPlayer.score })
+                    }).then(response => {
+                        if (response.ok) {
+                            console.log(`🏆 Periodic best score backup saved: ${localPlayer.score}`);
+                            currentUser.stats.bestScore = localPlayer.score;
+                        }
+                    }).catch(error => {
+                        console.warn('⚠️ Failed to save periodic best score:', error);
+                    });
+                }
+            }
+            lastBestScoreSave = now;
+        }
     }
     
     updateCamera();
@@ -1920,6 +1993,57 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Load saved player data
     loadSavedPlayerData();
+});
+
+// Save game session when user leaves the page
+window.addEventListener('beforeunload', async (event) => {
+    // Only save if user is authenticated and has a score
+    const currentUser = nicknameAuth.getCurrentUser();
+    if (currentUser && localPlayer && localPlayer.score > 0 && window.authSystem?.currentUser) {
+        try {
+            // Use sendBeacon for better reliability during page unload
+            const sessionData = {
+                playerName: currentUser.nickname,
+                score: localPlayer.score,
+                walletAddress: currentUser.wallet || ''
+            };
+            
+            const blob = new Blob([JSON.stringify(sessionData)], { type: 'application/json' });
+            navigator.sendBeacon(`/api/player/${window.authSystem.currentUser.uid}/session`, blob);
+            
+            console.log(`💾 Saving session on page unload: ${localPlayer.score} coins`);
+        } catch (error) {
+            console.warn('⚠️ Failed to save session on page unload:', error);
+        }
+    }
+});
+
+// Also save session when switching tabs (visibility change)
+document.addEventListener('visibilitychange', async () => {
+    if (document.hidden) {
+        // User switched to another tab or minimized
+        const currentUser = nicknameAuth.getCurrentUser();
+        if (currentUser && localPlayer && localPlayer.score > 0 && window.authSystem?.currentUser) {
+            try {
+                const response = await fetch(`/api/player/${window.authSystem.currentUser.uid}/session`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        playerName: currentUser.nickname,
+                        score: localPlayer.score,
+                        walletAddress: currentUser.wallet || ''
+                    })
+                });
+                if (response.ok) {
+                    console.log(`💾 Session saved on visibility change: ${localPlayer.score} coins`);
+                }
+            } catch (error) {
+                console.warn('⚠️ Failed to save session on visibility change:', error);
+            }
+        }
+    }
 });
 
 function updatePlayerInfoPanel(nickname, status) {
@@ -2053,6 +2177,25 @@ async function updatePlayerInfoPanelStats(player) {
         if (currentGameScore > savedBestScore) {
             currentUser.stats.bestScore = currentGameScore;
             await nicknameAuth.updateUserStats(currentUser.nickname, currentUser.stats);
+            
+            // Also update in Firebase via server API if we have Firebase ID
+            if (window.authSystem && window.authSystem.currentUser) {
+                try {
+                    const response = await fetch(`/api/player/${window.authSystem.currentUser.uid}/best-score`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ score: currentGameScore })
+                    });
+                    if (response.ok) {
+                        console.log('🏆 Best score updated in Firebase:', currentGameScore);
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Failed to update best score in Firebase:', error);
+                }
+            }
+            
             console.log('🏆 New best score recorded:', currentGameScore);
         }
     }

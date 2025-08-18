@@ -24,6 +24,7 @@ const io = socketIo(server, {
 
 app.use(cors());
 app.use(express.json());
+app.use(express.raw({ type: 'application/json' })); // For sendBeacon support
 app.use(express.static(path.join(__dirname, 'public')));
 
 // API endpoint for global leaderboard
@@ -63,6 +64,46 @@ app.get('/api/player/:playerId/coins', async (req, res) => {
   } catch (error) {
     console.error('Error fetching player total coins:', error);
     res.status(500).json({ error: 'Failed to fetch player total coins' });
+  }
+});
+
+// API endpoint for updating player's best score
+app.post('/api/player/:playerId/best-score', async (req, res) => {
+  try {
+    const playerId = req.params.playerId;
+    const { score } = req.body;
+    
+    if (typeof score !== 'number' || score < 0) {
+      return res.status(400).json({ error: 'Invalid score value' });
+    }
+    
+    const updated = await GameDataService.updateBestScore(playerId, score);
+    res.json({ updated, score });
+  } catch (error) {
+    console.error('Error updating player best score:', error);
+    res.status(500).json({ error: 'Failed to update best score' });
+  }
+});
+
+// API endpoint for saving completed game session
+app.post('/api/player/:playerId/session', async (req, res) => {
+  try {
+    const playerId = req.params.playerId;
+    
+    // Handle both regular JSON and sendBeacon requests
+    let sessionData;
+    if (Buffer.isBuffer(req.body)) {
+      sessionData = JSON.parse(req.body.toString());
+    } else {
+      sessionData = req.body;
+    }
+    
+    const success = await GameDataService.saveGameSession(playerId, sessionData);
+    console.log(`💾 Game session saved for player ${playerId}: score ${sessionData.score}`);
+    res.json({ success });
+  } catch (error) {
+    console.error('Error saving game session:', error);
+    res.status(500).json({ error: 'Failed to save game session' });
   }
 });
 
@@ -690,6 +731,18 @@ io.on('connection', (socket) => {
     // Save player state for potential reconnection (5 minutes)
     const player = gameState.players.get(socket.id);
     if (player && player.firebaseId) {
+      // Save game session when player disconnects
+      if (player.score > 0) {
+        GameDataService.saveGameSession(player.firebaseId, {
+          playerName: player.name,
+          score: player.score,
+          walletAddress: player.wallet || ''
+        }).catch(error => {
+          console.error('Error saving game session on disconnect:', error);
+        });
+        console.log(`💾 Saved game session for disconnecting player ${player.name} (score: ${player.score})`);
+      }
+      
       disconnectedPlayers.set(player.firebaseId, player);
       setTimeout(() => {
         if (disconnectedPlayers.has(player.firebaseId)) {

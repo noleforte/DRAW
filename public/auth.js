@@ -661,6 +661,26 @@ class AuthSystem {
         }
     }
 
+    // Reload player statistics from Firestore
+    async reloadPlayerStats() {
+        if (!this.currentUser) return;
+
+        try {
+            console.log('🔄 Reloading player stats from Firebase...');
+            const doc = await firebaseDb.collection('players').doc(this.currentUser.uid).get();
+            if (doc.exists) {
+                this.playerStats = doc.data();
+                // Update UI with fresh stats
+                this.updatePlayerInfoPanel();
+                console.log('✅ Player stats reloaded:', this.playerStats);
+                return this.playerStats;
+            }
+        } catch (error) {
+            console.error('Error reloading player stats:', error);
+        }
+        return null;
+    }
+
     // Show coin notification
     showCoinNotification(coinAmount) {
         const notification = document.createElement('div');
@@ -700,7 +720,7 @@ const authSystem = new AuthSystem();
 window.authSystem = authSystem;
 
 // Function to initialize player info panel for all users
-function initializePlayerInfoPanel() {
+async function initializePlayerInfoPanel() {
     console.log('🔄 Initializing player info panel...');
     
     // Ensure panel is always visible
@@ -717,7 +737,7 @@ function initializePlayerInfoPanel() {
         if (currentUser) {
             console.log('👤 Found user in nickname auth system:', currentUser.nickname);
             // Update with nickname auth user data
-            updatePlayerInfoWithNicknameAuth(currentUser);
+            await updatePlayerInfoWithNicknameAuth(currentUser);
             return;
         }
     }
@@ -744,7 +764,7 @@ function initializePlayerInfoPanel() {
 }
 
 // Update player info panel with nickname auth user data
-function updatePlayerInfoWithNicknameAuth(user) {
+async function updatePlayerInfoWithNicknameAuth(user) {
     console.log('🔄 Updating player info with nickname auth user:', user);
     
     const playerInfoName = document.getElementById('playerInfoName');
@@ -764,22 +784,39 @@ function updatePlayerInfoWithNicknameAuth(user) {
         console.log('✅ Updated playerInfoStatus to: Authenticated');
     }
     
+    // Try to get fresh stats from Firebase first
+    let firebaseStats = null;
+    if (window.authSystem && window.authSystem.currentUser) {
+        try {
+            const response = await fetch(`/api/player/${window.authSystem.currentUser.uid}`);
+            if (response.ok) {
+                firebaseStats = await response.json();
+                console.log('📊 Loaded fresh stats from Firebase:', firebaseStats);
+            }
+        } catch (error) {
+            console.warn('⚠️ Failed to load stats from Firebase, using local data');
+        }
+    }
+    
+    // Use Firebase stats if available, otherwise use local stats
+    const stats = firebaseStats || user.stats;
+    
     // Update stats if available
-    if (user.stats) {
+    if (stats) {
         if (totalCoins) {
-            totalCoins.textContent = user.stats.totalScore || 0;
-            console.log('💰 Updated totalCoins to:', user.stats.totalScore);
+            totalCoins.textContent = stats.totalScore || 0;
+            console.log('💰 Updated totalCoins to:', stats.totalScore);
         }
         if (matchesPlayed) {
             // If user is currently in game, show +1 for active match
-            const baseMatches = user.stats.gamesPlayed || 0;
+            const baseMatches = stats.gamesPlayed || 0;
             const isInGame = window.socket && window.socket.connected && window.localPlayer;
             matchesPlayed.textContent = isInGame ? baseMatches + 1 : baseMatches;
             console.log('🎮 Updated matchesPlayed to:', matchesPlayed.textContent);
         }
         if (bestScore) {
             // Show current game score if it's higher than saved best
-            const savedBest = user.stats.bestScore || 0;
+            const savedBest = stats.bestScore || 0;
             const currentScore = window.localPlayer ? window.localPlayer.score || 0 : 0;
             const displayScore = Math.max(savedBest, currentScore);
             bestScore.textContent = displayScore;

@@ -192,6 +192,79 @@ class GameDataService {
             return false;
         }
     }
+
+    // Update player's best score if current score is higher
+    async updateBestScore(playerId, currentScore) {
+        try {
+            const playerRef = db.collection('players').doc(playerId);
+            const playerDoc = await playerRef.get();
+            
+            if (playerDoc.exists) {
+                const currentStats = playerDoc.data();
+                const currentBest = currentStats.bestScore || 0;
+                
+                if (currentScore > currentBest) {
+                    await playerRef.update({
+                        bestScore: currentScore,
+                        lastPlayed: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                    console.log(`🏆 Updated best score for player ${playerId}: ${currentBest} → ${currentScore}`);
+                    return true;
+                }
+            } else {
+                // Create new player if doesn't exist
+                await playerRef.set({
+                    playerName: `Player_${playerId}`,
+                    walletAddress: '',
+                    totalScore: 0,
+                    gamesPlayed: 0,
+                    bestScore: currentScore,
+                    firstPlayed: admin.firestore.FieldValue.serverTimestamp(),
+                    lastPlayed: admin.firestore.FieldValue.serverTimestamp()
+                });
+                console.log(`🆕 Created new player ${playerId} with best score: ${currentScore}`);
+                return true;
+            }
+            
+            return false; // No update needed
+        } catch (error) {
+            console.error('Error updating best score:', error);
+            return false;
+        }
+    }
+
+    // Save completed game session (only called when player finishes a session)
+    async saveGameSession(playerId, sessionData) {
+        try {
+            const playerRef = db.collection('players').doc(playerId);
+            const playerDoc = await playerRef.get();
+            
+            if (playerDoc.exists) {
+                const currentStats = playerDoc.data();
+                await playerRef.update({
+                    gamesPlayed: (currentStats.gamesPlayed || 0) + 1,
+                    bestScore: Math.max(currentStats.bestScore || 0, sessionData.score),
+                    lastPlayed: admin.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                await playerRef.set({
+                    playerName: sessionData.playerName,
+                    walletAddress: sessionData.walletAddress || '',
+                    totalScore: 0, // Total coins are tracked separately
+                    gamesPlayed: 1,
+                    bestScore: sessionData.score,
+                    firstPlayed: admin.firestore.FieldValue.serverTimestamp(),
+                    lastPlayed: admin.firestore.FieldValue.serverTimestamp()
+                });
+            }
+            
+            console.log(`🎮 Saved game session for player ${playerId}: score ${sessionData.score}`);
+            return true;
+        } catch (error) {
+            console.error('Error saving game session:', error);
+            return false;
+        }
+    }
 }
 
 module.exports = {

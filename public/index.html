@@ -139,8 +139,24 @@
         }
         
         /* Color options */
-        .color-option { width: 2rem; height: 2rem; border-radius: 9999px; cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s ease-in-out; }
-        .color-option:hover { border-color: white; }
+        .color-option { 
+            border-radius: 9999px; 
+            cursor: pointer; 
+            border: 3px solid transparent; 
+            transition: border-color 0.15s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+            min-width: 1.5rem;
+            min-height: 1.5rem;
+        }
+        .color-option:hover { 
+            border-color: rgba(255, 255, 255, 0.7); 
+        }
+        .color-option.selected,
+        .color-option.border-white { 
+            border-color: white !important; 
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+        }
         
         /* Buttons */
         button, input[type="button"] {
@@ -413,7 +429,7 @@
 </head>
 <body class="bg-gray-900 text-white overflow-hidden">
     <!-- Player Info Panel (Always Visible) -->
-    <div id="playerInfoPanel" class="fixed left-8 top-1/2 transform -translate-y-1/2 bg-gray-800 p-6 rounded-lg w-64 max-h-screen overflow-y-auto z-50" style="margin-top: 9%; display: block !important; visibility: visible !important;">
+    <div id="playerInfoPanel" class="fixed left-8 top-1/2 transform -translate-y-1/2 bg-gray-800 p-6 rounded-lg w-128 max-h-screen overflow-y-auto z-50" style="margin-top: 9%; display: block !important; visibility: visible !important; width: 8%;">
         <!-- Header -->
         <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white rounded-lg mb-4">
             <div class="flex items-center justify-between">
@@ -512,7 +528,7 @@
                     <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
                          style="background-color: #74b9ff" data-color="270"></div>
                     <div class="color-option w-6 h-6 rounded-full cursor-pointer border-2 border-transparent hover:border-white transition-colors" 
-                         style="background-color: #5f27cd" data-color="270"></div>
+                         style="background-color: #5f27cd" data-color="315"></div>
                 </div>
             </div>
             
