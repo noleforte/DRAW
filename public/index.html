@@ -48,6 +48,197 @@
         .text-center { text-align: center; }
         .text-left { text-align: left; }
         .text-sm { font-size: 0.875rem; }
+        
+        /* Grid Panel System */
+        .game-panels-grid {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: grid;
+            grid-template-columns: repeat(4, 80px);
+            grid-template-rows: repeat(4, 80px);
+            gap: 10px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        
+        .panel-wrapper {
+            position: relative;
+            pointer-events: all;
+        }
+        
+        /* Panel sizes */
+        .panel-4x4 {
+            grid-column: span 4;
+            grid-row: span 4;
+        }
+        
+        .panel-3x3 {
+            grid-column: span 3;
+            grid-row: span 3;
+        }
+        
+        .panel-3x2 {
+            grid-column: span 3;
+            grid-row: span 2;
+        }
+        
+        /* Collapsed button styles */
+        .panel-button {
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #374151;
+            border-radius: 12px;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            padding: 8px;
+        }
+        
+        .panel-button:hover {
+            background: rgba(0, 0, 0, 0.9);
+            border-color: #60a5fa;
+            transform: scale(1.05);
+        }
+        
+        .panel-button .icon {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+        
+        .panel-button .label {
+            font-size: 10px;
+            line-height: 1.2;
+        }
+        
+        /* Expanded panel styles */
+        .panel-content {
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #374151;
+            border-radius: 12px;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #374151;
+        }
+        
+        .panel-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .panel-close {
+            background: none;
+            border: none;
+            color: #9ca3af;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .panel-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .panel-body {
+            height: calc(100% - 40px);
+            overflow-y: auto;
+        }
+        
+        /* Specific panel styles */
+        .leaderboard-panel .panel-button {
+            border-color: #facc15;
+        }
+        
+        .leaderboard-panel .panel-content {
+            border-color: #facc15;
+        }
+        
+        .chat-panel .panel-button {
+            border-color: #60a5fa;
+        }
+        
+        .chat-panel .panel-content {
+            border-color: #60a5fa;
+        }
+        
+        .controls-panel .panel-button {
+            border-color: #16a34a;
+        }
+        
+        .controls-panel .panel-content {
+            border-color: #16a34a;
+        }
+        
+        .userinfo-panel .panel-button {
+            border-color: #a855f7;
+        }
+        
+        .userinfo-panel .panel-content {
+            border-color: #a855f7;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .game-panels-grid {
+                top: 10px;
+                right: 10px;
+                grid-template-columns: repeat(3, 60px);
+                grid-template-rows: repeat(3, 60px);
+                gap: 8px;
+            }
+            
+            .panel-4x4 {
+                grid-column: span 3;
+                grid-row: span 3;
+            }
+            
+            .panel-3x3 {
+                grid-column: span 3;
+                grid-row: span 3;
+            }
+            
+            .panel-3x2 {
+                grid-column: span 3;
+                grid-row: span 2;
+            }
+            
+            .panel-button .icon {
+                font-size: 16px;
+            }
+            
+            .panel-button .label {
+                font-size: 8px;
+            }
+        }
         .text-lg { font-size: 1.125rem; }
         .text-xl { font-size: 1.25rem; }
         .text-2xl { font-size: 1.5rem; }
@@ -428,8 +619,8 @@
     </style>
 </head>
 <body class="bg-gray-900 text-white overflow-hidden">
-    <!-- Player Info Panel (Always Visible) -->
-    <div id="playerInfoPanel" class="fixed left-8 top-1/2 transform -translate-y-1/2 bg-gray-800 p-6 rounded-lg w-128 max-h-screen overflow-y-auto z-50" style="margin-top: 9%; display: block !important; visibility: visible !important; width: 8%;">
+    <!-- Player Info Panel (Always Visible) - HIDDEN -->
+    <div id="playerInfoPanel" class="fixed left-8 top-1/2 transform -translate-y-1/2 bg-gray-800 p-6 rounded-lg w-128 max-h-screen overflow-y-auto z-50 hidden" style="margin-top: 9%; display: none !important; visibility: hidden !important; width: 8%;">
         <!-- Header -->
         <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white rounded-lg mb-4">
             <div class="flex items-center justify-between">
@@ -671,57 +862,170 @@
         <!-- Game Canvas -->
         <canvas id="gameCanvas" class="absolute inset-0"></canvas>
         
-        <!-- Leaderboard -->
-        <div id="leaderboard" class="absolute top-4 right-4 bg-black bg-opacity-70 rounded-lg p-4 min-w-48 z-10" style="
-        min-width: 14%;
-        height: 16%;
-    ">
-            <div class="flex justify-between items-center mb-2">
-                <h3 class="text-lg font-bold text-yellow-400">🏆 Leaderboard</h3>
-                <button id="toggleLeaderboardType" class="text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600">
-                    Match
-                </button>
-            </div>
-            <div id="leaderboardList" class="space-y-1">
-                <!-- Leaderboard entries will be populated here -->
+        <!-- New Grid Panel System -->
+        <div class="game-panels-grid" style="grid-template-areas: 'leaderboard leaderboard leaderboard leaderboard' 'chat chat chat chat' 'chat chat chat chat' 'controls controls controls userinfo';">
+            <!-- Note: CSS Grid layout - positions panels automatically -->
+        </div>
+        
+        <!-- Left side User Info Panel -->
+        <div class="fixed left-4 top-4 z-100">
+            <div class="panel-wrapper panel-3x3 userinfo-panel">
+                <div class="panel-button" id="userinfoToggleLeft">
+                    <div class="icon">👤</div>
+                    <div class="label">Player Info</div>
+                </div>
+                <div class="panel-content hidden" id="userinfoLeftPanel">
+                    <div class="panel-header">
+                        <div class="panel-title">👤 Player Info</div>
+                        <button class="panel-close" id="userinfoLeftClose">×</button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="space-y-2">
+                            <!-- Player Identity -->
+                            <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded text-xs">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div id="playerInfoNameLeft" class="font-bold text-xs">Guest</div>
+                                        <div id="playerInfoStatusLeft" class="text-xs opacity-90">Not signed in</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Stats -->
+                            <div class="space-y-1">
+                                <div class="bg-yellow-50 rounded p-2 flex justify-between items-center">
+                                    <div class="flex items-center space-x-1">
+                                        <span class="text-sm">🪙</span>
+                                        <span class="font-medium text-gray-700 text-xs">Total Coins</span>
+                                    </div>
+                                    <span id="totalCoinsLeft" class="font-bold text-yellow-600 text-xs">0</span>
+                                </div>
+                                
+                                <div class="bg-green-50 rounded p-2 flex justify-between items-center">
+                                    <div class="flex items-center space-x-1">
+                                        <span class="text-sm">🎯</span>
+                                        <span class="font-medium text-gray-700 text-xs">Matches</span>
+                                    </div>
+                                    <span id="totalMatchesLeft" class="font-bold text-green-600 text-xs">0</span>
+                                </div>
+                                
+                                <div class="bg-purple-50 rounded p-2 flex justify-between items-center">
+                                    <div class="flex items-center space-x-1">
+                                        <span class="text-sm">⭐</span>
+                                        <span class="font-medium text-gray-700 text-xs">Best Score</span>
+                                    </div>
+                                    <span id="bestScoreLeft" class="font-bold text-purple-600 text-xs">0</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Logout Button -->
+                            <button 
+                                id="logoutBtnLeft" 
+                                class="w-full bg-red-600 hover:bg-red-700 text-white text-xs py-1 rounded hidden"
+                            >
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
-        <!-- Chat Panel (Desktop) -->
-        <div id="chatPanel" class="absolute right-4 bottom-4 w-80 bg-black bg-opacity-70 rounded-lg p-4 hidden lg:flex flex-col z-10 transition-all duration-300">
-            <div class="flex justify-between items-center mb-2" style="
-            min-width: 19%;
-            height: 35%;
-        ">
-                <h3 class="text-lg font-bold text-blue-400">💬 Chat</h3>
-                <button id="chatToggleBtn" class="text-white hover:text-gray-300 text-xl">−</button>
-            </div>
-            <div id="chatContent" class="flex flex-col transition-all duration-300">
-                <div id="chatMessages" class="h-64 overflow-y-auto space-y-2 mb-4 text-sm">
-                    <!-- Chat messages will be populated here -->
+        <!-- Right side panels grid -->
+            <!-- Leaderboard Panel (4x4) -->
+            <div class="panel-wrapper panel-4x4 leaderboard-panel">
+                <div class="panel-button" id="leaderboardToggle">
+                    <div class="icon">🏆</div>
+                    <div class="label">Leaderboard</div>
                 </div>
-                <div class="flex">
-                    <input 
-                        type="text" 
-                        id="chatInput" 
-                        placeholder="Type a message..." 
-                        class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                        maxlength="100"
-                    >
-                    <button 
-                        id="sendChatBtn" 
-                        class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-r-lg transition-colors"
-                    >
-                        Send
-                    </button>
+                <div class="panel-content hidden" id="leaderboardPanel">
+                    <div class="panel-header">
+                        <div class="panel-title">🏆 Leaderboard</div>
+                        <button class="panel-close" id="leaderboardClose">×</button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="mb-2">
+                            <button id="toggleLeaderboardType" class="text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600 w-full">
+                                Match
+                            </button>
+                        </div>
+                        <div id="leaderboardList" class="space-y-1">
+                            <!-- Leaderboard entries will be populated here -->
+                        </div>
+                    </div>
                 </div>
             </div>
+            
+            <!-- Chat Panel (4x4) -->
+            <div class="panel-wrapper panel-4x4 chat-panel">
+                <div class="panel-button" id="chatToggle">
+                    <div class="icon">💬</div>
+                    <div class="label">Chat</div>
+                </div>
+                <div class="panel-content hidden" id="chatPanelNew">
+                    <div class="panel-header">
+                        <div class="panel-title">💬 Chat</div>
+                        <button class="panel-close" id="chatClose">×</button>
+                    </div>
+                    <div class="panel-body">
+                        <div id="chatMessages" class="h-48 overflow-y-auto space-y-2 mb-4 text-sm bg-gray-800 rounded p-2">
+                            <!-- Chat messages will be populated here -->
+                        </div>
+                        <div class="flex">
+                            <input 
+                                type="text" 
+                                id="chatInput" 
+                                placeholder="Type a message..." 
+                                class="flex-1 px-2 py-1 bg-gray-700 border border-gray-600 rounded-l text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                maxlength="100"
+                            >
+                            <button 
+                                id="sendChatBtn" 
+                                class="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-r text-xs transition-colors"
+                            >
+                                Send
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Controls Panel (3x2) -->
+            <div class="panel-wrapper panel-3x2 controls-panel">
+                <div class="panel-button" id="controlsToggle">
+                    <div class="icon">🎮</div>
+                    <div class="label">Controls</div>
+                </div>
+                <div class="panel-content hidden" id="controlsPanel">
+                    <div class="panel-header">
+                        <div class="panel-title">🎮 Controls</div>
+                        <button class="panel-close" id="controlsClose">×</button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="text-xs space-y-1">
+                            <p>🖱️ Move: WASD or Arrow Keys</p>
+                            <p>🪙 Collect coins to increase score</p>
+                            <p>💬 Chat with other players</p>
+                            <p>🍽️ Eat smaller players to grow</p>
+                            <p>⚡ Bigger size = slower movement</p>
+                            <p>🎯 Strategy: Balance size vs speed</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+
         </div>
         
-        <!-- Mobile Chat Toggle -->
+        <!-- Mobile Chat Toggle - HIDDEN (replaced by new panel system) -->
         <button 
             id="mobileChatToggle" 
-            class="lg:hidden fixed bottom-4 right-4 bg-blue-600 hover:bg-blue-700 p-3 rounded-full shadow-lg z-20"
+            class="lg:hidden fixed bottom-4 right-4 bg-blue-600 hover:bg-blue-700 p-3 rounded-full shadow-lg z-20 hidden"
         >
             💬
         </button>
@@ -761,8 +1065,8 @@
             </div>
         </div>
         
-        <!-- Game Instructions -->
-        <div id="gameInstructions" class="absolute bottom-4 left-4 bg-black bg-opacity-70 rounded-lg p-4 text-sm max-w-64 z-10 lg:block hidden">
+        <!-- Game Instructions - HIDDEN (replaced by new panel system) -->
+        <div id="gameInstructions" class="absolute bottom-4 left-4 bg-black bg-opacity-70 rounded-lg p-4 text-sm max-w-64 z-10 hidden">
             <h4 class="font-bold mb-2">🎮 Controls</h4>
             <p class="mb-1">🖱️ Move: WASD or Arrow Keys</p>
             <p class="mb-1">🪙 Collect coins to increase score</p>
@@ -771,7 +1075,10 @@
         
         <!-- Speed Indicator -->
         <div id="speedIndicator" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 rounded-lg px-4 py-2 text-sm z-10">
-            Speed: <span id="speedValue">0</span>
+            🏃 Speed: <span id="speedValue">0</span> / <span id="maxSpeedValue">200</span>
+            <div class="text-xs text-gray-300 mt-1">
+                Size: <span id="playerSizeValue">20</span> (bigger = slower)
+            </div>
         </div>
         
         <!-- Match Timer -->

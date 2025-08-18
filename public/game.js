@@ -644,6 +644,56 @@ function setupSocketListeners() {
         showSpeechBubble(data);
     });
     
+    socket.on('playerEaten', (data) => {
+        // Handle when our player gets eaten
+        if (localPlayer && localPlayer.id === data.victimId) {
+            console.log(`💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! Lost ${data.coinsLost} coins`);
+            
+            // Show death message
+            addChatMessage({
+                playerName: 'System',
+                message: `💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! Lost ${data.coinsLost} coins`,
+                timestamp: Date.now()
+            });
+            
+            // Show death notification
+            showServerMessage(`💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! Lost ${data.coinsLost} coins. Returning to main menu in 3 seconds...`, 'error');
+            
+            // Disconnect from game and return to main menu after a short delay
+            setTimeout(() => {
+                // Disconnect socket
+                if (socket) {
+                    socket.disconnect();
+                }
+                
+                // Reset game state
+                gameEnded = true;
+                localPlayer = null;
+                window.localPlayer = null;
+                
+                // Hide game canvas
+                const canvas = document.getElementById('gameCanvas');
+                if (canvas) {
+                    canvas.style.display = 'none';
+                }
+                
+                // Show main menu
+                const nameModal = document.getElementById('nameModal');
+                if (nameModal) {
+                    nameModal.style.display = 'flex';
+                }
+                
+                // Clear leaderboard
+                const leaderboardList = document.getElementById('leaderboardList');
+                if (leaderboardList) {
+                    leaderboardList.innerHTML = '';
+                }
+                
+                console.log('🔄 Returned to main menu after being eaten');
+            }, 3000); // 3 second delay to show message
+        }
+    });
+    
     socket.on('matchStarted', (data) => {
         matchTimeLeft = data.timeLeft;
         gameEnded = false;
@@ -1035,7 +1085,31 @@ function setupUIHandlers() {
         const playerId = window.authSystem ? window.authSystem.getCurrentUserId() : `guest_${Date.now()}_${Math.random()}`;
         
         console.log('🆔 Player ID:', playerId);
-        console.log('🔗 Socket connected:', socket.connected);
+        console.log('🔗 Socket connected:', socket?.connected);
+        
+        // Check if socket is disconnected and reconnect if needed
+        if (!socket || !socket.connected) {
+            console.log('🔌 Socket disconnected, reconnecting...');
+            
+            // Recreate socket connection
+            const isProduction = window.location.hostname !== 'localhost';
+            const socketUrl = isProduction ? 'https://draw-e67b.onrender.com' : 'http://localhost:3001';
+            
+            socket = io(socketUrl, {
+                path: '/socket.io',
+                transports: ['websocket', 'polling']
+            });
+            window.socket = socket;
+            setupSocketListeners();
+            
+            // Wait for connection
+            await new Promise((resolve) => {
+                socket.on('connect', () => {
+                    console.log('✅ Socket reconnected successfully');
+                    resolve();
+                });
+            });
+        }
         
         const gameData = { 
             name: playerName, 
@@ -1052,6 +1126,11 @@ function setupUIHandlers() {
         nameModal.style.display = 'none';
         
         console.log('🎯 Name modal hidden, game should start...');
+        
+        // Reset game state for new game
+        gameEnded = false;
+        localPlayer = null;
+        window.localPlayer = null;
         
         // Force canvas visibility and test rendering
         if (canvas) {
@@ -1488,10 +1567,38 @@ function updateCamera() {
     const targetZoom = Math.max(0.8, 1.2 - speed * 0.1);
     camera.zoom += (targetZoom - camera.zoom) * 0.05;
     
+    // Calculate speed multiplier based on size (same logic as server)
+    function calculateSpeedMultiplier(size) {
+        const minSize = 20;
+        const maxSize = 50;
+        const minSpeedMultiplier = 0.4; // 40% of base speed for maximum size
+        const maxSpeedMultiplier = 1.0; // 100% of base speed for minimum size
+        
+        const clampedSize = Math.max(minSize, Math.min(maxSize, size));
+        const sizeProgress = (clampedSize - minSize) / (maxSize - minSize);
+        const speedMultiplier = maxSpeedMultiplier - (sizeProgress * (maxSpeedMultiplier - minSpeedMultiplier));
+        
+        return speedMultiplier;
+    }
+    
     // Update speed indicator (with safety check)
     const speedElement = document.getElementById('speedValue');
+    const maxSpeedElement = document.getElementById('maxSpeedValue');
+    const playerSizeElement = document.getElementById('playerSizeValue');
+    
     if (speedElement) {
         speedElement.textContent = isNaN(speed) ? '0.0' : (Math.round(speed * 10) / 10).toString();
+    }
+    
+    if (maxSpeedElement && localPlayer) {
+        const baseSpeed = 200;
+        const sizeMultiplier = calculateSpeedMultiplier(localPlayer.size || 20);
+        const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
+        maxSpeedElement.textContent = maxSpeed.toString();
+    }
+    
+    if (playerSizeElement && localPlayer) {
+        playerSizeElement.textContent = Math.round(localPlayer.size || 20).toString();
     }
 }
 
@@ -2550,3 +2657,136 @@ function debugUIElements() {
     
     return elements;
 }
+
+// Panel Management System
+class PanelManager {
+    constructor() {
+        this.panels = {
+            leaderboard: {
+                toggle: document.getElementById('leaderboardToggle'),
+                panel: document.getElementById('leaderboardPanel'),
+                close: document.getElementById('leaderboardClose')
+            },
+            chat: {
+                toggle: document.getElementById('chatToggle'),
+                panel: document.getElementById('chatPanelNew'),
+                close: document.getElementById('chatClose')
+            },
+            controls: {
+                toggle: document.getElementById('controlsToggle'),
+                panel: document.getElementById('controlsPanel'),
+                close: document.getElementById('controlsClose')
+            },
+            userinfoLeft: {
+                toggle: document.getElementById('userinfoToggleLeft'),
+                panel: document.getElementById('userinfoLeftPanel'),
+                close: document.getElementById('userinfoLeftClose')
+            }
+        };
+        
+        this.init();
+    }
+    
+    init() {
+        // Add event listeners for each panel
+        Object.entries(this.panels).forEach(([name, elements]) => {
+            if (elements.toggle && elements.panel && elements.close) {
+                // Open panel
+                elements.toggle.addEventListener('click', () => {
+                    this.openPanel(name);
+                });
+                
+                // Close panel
+                elements.close.addEventListener('click', () => {
+                    this.closePanel(name);
+                });
+            } else {
+                console.warn(`⚠️ Panel ${name} missing elements:`, elements);
+            }
+        });
+        
+        console.log('🎛️ Panel Manager initialized');
+    }
+    
+    openPanel(panelName) {
+        const panel = this.panels[panelName];
+        if (panel && panel.toggle && panel.panel) {
+            // Hide button, show panel
+            panel.toggle.style.display = 'none';
+            panel.panel.classList.remove('hidden');
+            
+            console.log(`📂 Opened panel: ${panelName}`);
+            
+            // Special handling for different panels
+            if (panelName === 'userinfoLeft') {
+                this.updateUserInfoPanel();
+            }
+        }
+    }
+    
+    closePanel(panelName) {
+        const panel = this.panels[panelName];
+        if (panel && panel.toggle && panel.panel) {
+            // Show button, hide panel
+            panel.toggle.style.display = 'flex';
+            panel.panel.classList.add('hidden');
+            
+            console.log(`📁 Closed panel: ${panelName}`);
+        }
+    }
+    
+    updateUserInfoPanel() {
+        // Update user info when panel opens
+        if (window.nicknameAuth) {
+            const currentUser = window.nicknameAuth.getCurrentUserSync();
+            if (currentUser) {
+                const nameElement = document.querySelector('#userinfoLeftPanel #playerInfoNameLeft');
+                const statusElement = document.querySelector('#userinfoLeftPanel #playerInfoStatusLeft');
+                const totalCoinsElement = document.querySelector('#userinfoLeftPanel #totalCoinsLeft');
+                const totalMatchesElement = document.querySelector('#userinfoLeftPanel #totalMatchesLeft');
+                const bestScoreElement = document.querySelector('#userinfoLeftPanel #bestScoreLeft');
+                const logoutBtn = document.querySelector('#userinfoLeftPanel #logoutBtnLeft');
+                
+                if (nameElement) nameElement.textContent = currentUser.nickname || 'Guest';
+                if (statusElement) statusElement.textContent = currentUser.nickname ? 'Signed in' : 'Not signed in';
+                if (totalCoinsElement) totalCoinsElement.textContent = currentUser.stats?.totalScore || 0;
+                if (totalMatchesElement) totalMatchesElement.textContent = currentUser.stats?.gamesPlayed || 0;
+                if (bestScoreElement) bestScoreElement.textContent = currentUser.stats?.bestScore || 0;
+                
+                if (logoutBtn) {
+                    if (currentUser.nickname) {
+                        logoutBtn.classList.remove('hidden');
+                        logoutBtn.onclick = () => {
+                            window.nicknameAuth.logout();
+                            this.updateUserInfoPanel();
+                        };
+                    } else {
+                        logoutBtn.classList.add('hidden');
+                    }
+                }
+            }
+        }
+    }
+    
+    // Auto-refresh user info periodically
+    startAutoRefresh() {
+        setInterval(() => {
+            if (!this.panels.userinfoLeft.panel.classList.contains('hidden')) {
+                this.updateUserInfoPanel();
+            }
+        }, 5000); // Refresh every 5 seconds if panel is open
+    }
+}
+
+// Initialize panel manager when DOM is ready
+let panelManager;
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        panelManager = new PanelManager();
+        panelManager.startAutoRefresh();
+        console.log('🚀 Panel system ready');
+    }, 500); // Delay to ensure all elements are loaded
+});
+
+// Make panel manager globally accessible
+window.panelManager = panelManager;

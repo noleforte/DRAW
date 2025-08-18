@@ -551,8 +551,24 @@ function updateMovement() {
         }
     }
     
-    // Update player position
-    const speed = 3;
+    // Calculate speed based on player size (bigger = slower)
+    function calculateSpeedMultiplier(size) {
+        const minSize = 20;
+        const maxSize = 50;
+        const minSpeedMultiplier = 0.4; // 40% of base speed for maximum size
+        const maxSpeedMultiplier = 1.0; // 100% of base speed for minimum size
+        
+        const clampedSize = Math.max(minSize, Math.min(maxSize, size));
+        const sizeProgress = (clampedSize - minSize) / (maxSize - minSize);
+        const speedMultiplier = maxSpeedMultiplier - (sizeProgress * (maxSpeedMultiplier - minSpeedMultiplier));
+        
+        return speedMultiplier;
+    }
+    
+    // Update player position with size-based speed
+    const baseSpeed = 3;
+    const sizeSpeedMultiplier = calculateSpeedMultiplier(localPlayer.size || 20);
+    const speed = baseSpeed * sizeSpeedMultiplier;
     localPlayer.vx = movement.x * speed;
     localPlayer.vy = movement.y * speed;
     localPlayer.x += localPlayer.vx;

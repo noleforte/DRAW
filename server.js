@@ -117,6 +117,25 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Calculate speed multiplier based on size (bigger = slower)
+function calculateSpeedMultiplier(size) {
+  // Size ranges from 20 (minimum) to 50 (maximum)
+  // Speed multiplier ranges from 1.0 (fastest, small size) to 0.4 (slowest, max size)
+  const minSize = 20;
+  const maxSize = 50;
+  const minSpeedMultiplier = 0.4; // 40% of base speed for maximum size
+  const maxSpeedMultiplier = 1.0; // 100% of base speed for minimum size
+  
+  // Clamp size to valid range
+  const clampedSize = Math.max(minSize, Math.min(maxSize, size));
+  
+  // Linear interpolation from max speed (small size) to min speed (large size)
+  const sizeProgress = (clampedSize - minSize) / (maxSize - minSize);
+  const speedMultiplier = maxSpeedMultiplier - (sizeProgress * (maxSpeedMultiplier - minSpeedMultiplier));
+  
+  return speedMultiplier;
+}
+
 // Game state
 const gameState = {
   players: new Map(),
@@ -276,8 +295,10 @@ function updateBots() {
       if (distance > 0) {
         const baseSpeed = 2;
         // Bots move faster when chasing targets to eat
-        const speedMultiplier = bestTarget ? 1.3 : 1.0;
-        const speed = baseSpeed * bot.speedVariation * speedMultiplier;
+        const huntingMultiplier = bestTarget ? 1.3 : 1.0;
+        // Apply size-based speed reduction
+        const sizeSpeedMultiplier = calculateSpeedMultiplier(bot.size);
+        const speed = baseSpeed * bot.speedVariation * huntingMultiplier * sizeSpeedMultiplier;
         bot.vx = (dx / distance) * speed;
         bot.vy = (dy / distance) * speed;
       }
@@ -863,7 +884,11 @@ io.on('connection', (socket) => {
   socket.on('playerMove', (movement) => {
     const player = gameState.players.get(socket.id);
     if (player && gameState.gameStarted && !gameState.gameEnded) {
-      const speed = 200; // pixels per second for 60fps smooth movement
+      // Calculate speed based on player size (bigger = slower)
+      const baseSpeed = 200; // base pixels per second
+      const sizeSpeedMultiplier = calculateSpeedMultiplier(player.size);
+      const speed = baseSpeed * sizeSpeedMultiplier;
+      
       // Set target velocity instead of instant position update
       player.targetVx = movement.x * speed;
       player.targetVy = movement.y * speed;
