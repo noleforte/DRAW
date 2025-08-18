@@ -674,7 +674,10 @@ function setupSocketListeners() {
         gameState = data;
         localPlayer = gameState.players.find(p => p.id === data.playerId);
         window.localPlayer = localPlayer; // Update global reference
+        
+        // DEBUG: Log player info
         if (localPlayer) {
+            console.log('🎮 gameState received - Player score:', localPlayer.score, 'size:', localPlayer.size, 'playerId:', data.playerId);
             camera.x = localPlayer.x;
             camera.y = localPlayer.y;
             
@@ -682,6 +685,8 @@ function setupSocketListeners() {
             if (window.panelManager) {
                 window.panelManager.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
             }
+        } else {
+            console.log('⚠️ gameState received but no localPlayer found. PlayerId:', data.playerId, 'Available players:', gameState.players.map(p => p.id));
         }
     });
     
@@ -1241,10 +1246,23 @@ function setupUIHandlers() {
                     console.log('🔍 DEBUG: Firestore doc exists:', testDoc.exists);
                     if (testDoc.exists) {
                         console.log('🔍 DEBUG: Firestore doc data:', testDoc.data());
+                    } else {
+                        console.log('🔍 DEBUG: No document found, attempting to create test entry');
+                        await window.firebaseDb.collection('players').doc(playerId).set({
+                            playerName: playerName,
+                            totalScore: 1,
+                            gamesPlayed: 0,
+                            bestScore: 0,
+                            testEntry: true,
+                            timestamp: new Date()
+                        });
+                        console.log('🔍 DEBUG: Test entry created successfully');
                     }
                 } catch (error) {
                     console.error('🔍 DEBUG: Firestore test failed:', error);
                 }
+            } else {
+                console.log('🔍 DEBUG: Cannot test Firestore - firebaseDb:', !!window.firebaseDb, 'playerId:', playerId);
             }
         }, 5000); // Test after 5 seconds
         
@@ -2909,16 +2927,13 @@ class PanelManager {
             // Try to get fresh data from Firestore occasionally  
             let currentUser;
             try {
-                // Force sync more frequently for debugging (every 5 seconds)
-                if (Date.now() - (window.lastPanelFirestoreRefresh || 0) > 5000) { 
-                    console.log('🔄 PanelManager: Attempting Firestore sync...');
-                    currentUser = await window.nicknameAuth.syncUserStatsFromFirestore();
-                    window.lastPanelFirestoreRefresh = Date.now();
-                    console.log('🔥 PanelManager: Synced fresh data from Firestore');
-                } else {
-                    currentUser = window.nicknameAuth.getCurrentUserSync();
-                    console.log('💾 PanelManager: Using cached data');
-                }
+                // ALWAYS sync for debugging (remove caching)
+                console.log('🔄 PanelManager: ALWAYS attempting Firestore sync for debugging...');
+                console.log('🔍 PanelManager: window.firebaseDb exists:', !!window.firebaseDb);
+                console.log('🔍 PanelManager: isOnline:', window.nicknameAuth.isOnline);
+                
+                currentUser = await window.nicknameAuth.syncUserStatsFromFirestore();
+                console.log('🔥 PanelManager: Completed sync attempt');
             } catch (error) {
                 console.warn('⚠️ PanelManager: Failed to sync, using cache:', error);
                 currentUser = window.nicknameAuth.getCurrentUserSync();
