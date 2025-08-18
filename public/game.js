@@ -1365,13 +1365,6 @@ function setupUIHandlers() {
         
         nameModal.style.display = 'none';
         
-        // Show fixed chat input when game starts
-        const fixedChatInput = document.getElementById('fixedChatInput');
-        if (fixedChatInput) {
-            fixedChatInput.style.display = 'block';
-            console.log('💬 Fixed chat input shown for game');
-        }
-        
         console.log('🎯 Name modal hidden, game should start...');
         
         // Reset game state for new game
@@ -1442,66 +1435,7 @@ function setupUIHandlers() {
         });
     }
     
-    // Fixed chat input toggle handler
-    const toggleChatBtn = document.getElementById('toggleChatBtn');
-    const fixedChatInput = document.getElementById('fixedChatInput');
-    let chatMinimized = false;
-    
-    if (toggleChatBtn && fixedChatInput) {
-        toggleChatBtn.addEventListener('click', () => {
-            chatMinimized = !chatMinimized;
-            
-            if (chatMinimized) {
-                // Minimize to just the toggle button
-                fixedChatInput.innerHTML = `
-                    <button 
-                        id="toggleChatBtn" 
-                        class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg text-sm transition-colors text-white"
-                        title="Show Chat Input"
-                    >
-                        💬 ▲
-                    </button>
-                `;
-                console.log('💬 Chat input minimized');
-            } else {
-                // Restore full chat input
-                fixedChatInput.innerHTML = `
-                    <div class="flex bg-gray-900 bg-opacity-90 rounded-lg border border-gray-600 shadow-lg backdrop-blur-sm">
-                        <input 
-                            type="text" 
-                            id="chatInput" 
-                            placeholder="Type a message..." 
-                            class="w-64 px-3 py-2 bg-transparent text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
-                            maxlength="100"
-                        >
-                        <button 
-                            id="sendChatBtn" 
-                            class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-r-lg text-sm transition-colors text-white flex items-center justify-center"
-                        >
-                            💬
-                        </button>
-                        <button 
-                            id="toggleChatBtn" 
-                            class="bg-gray-600 hover:bg-gray-500 px-2 py-2 text-sm transition-colors text-white border-l border-gray-500"
-                            title="Hide/Show Chat Input"
-                        >
-                            ▼
-                        </button>
-                    </div>
-                `;
-                
-                // Re-attach event listeners after recreating elements
-                setupChatEventListeners();
-                console.log('💬 Chat input restored');
-            }
-            
-            // Re-attach toggle listener
-            const newToggleBtn = document.getElementById('toggleChatBtn');
-            if (newToggleBtn) {
-                newToggleBtn.addEventListener('click', arguments.callee);
-            }
-        });
-    }
+    // Chat panel handlers will be managed by PanelManager
     
     // Mobile chat toggle
     const mobileChatToggle = document.getElementById('mobileChatToggle');
@@ -2264,10 +2198,13 @@ function addChatMessage(messageData) {
     
     chatMessagesDiv.appendChild(messageDiv);
     
-    // Smooth scroll to bottom
+    // Force scroll to bottom immediately and smoothly
+    chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+    
+    // Also ensure scroll after a brief delay (for dynamic content)
     setTimeout(() => {
         chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
-    }, 50);
+    }, 10);
     
     // Remove old messages from DOM
     while (chatMessagesDiv.children.length > 50) {
@@ -2306,6 +2243,15 @@ function syncChatMessages() {
     });
     
     mobileChatMessagesDiv.scrollTop = mobileChatMessagesDiv.scrollHeight;
+}
+
+// Force scroll chat to bottom
+function scrollChatToBottom() {
+    const chatMessages = document.getElementById('chatMessages');
+    if (chatMessages) {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        console.log('💬 Forced chat scroll to bottom');
+    }
 }
 
 // Setup chat event listeners (used when recreating chat elements)
@@ -3096,6 +3042,11 @@ class PanelManager {
                 // Immediately update user info when panel opens
                 this.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
                 console.log('👤 User info panel opened, refreshing data');
+            } else if (panelName === 'chat') {
+                // Auto-scroll chat to bottom when opened
+                setTimeout(() => {
+                    scrollChatToBottom();
+                }, 100);
             }
         }
     }
