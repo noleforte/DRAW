@@ -1118,7 +1118,20 @@ function setupUIHandlers() {
         console.log('💰 Wallet:', wallet);
         console.log('🎨 Selected Color:', selectedColor);
         
-        const playerId = window.authSystem ? window.authSystem.getCurrentUserId() : `guest_${Date.now()}_${Math.random()}`;
+        // Get player ID from the authentication system that was used
+        let playerId;
+        if (window.authSystem) {
+            // Firebase Auth system
+            playerId = window.authSystem.getCurrentUserId();
+        } else {
+            // Nickname-based auth system
+            const currentUser = nicknameAuth.getCurrentUserSync();
+            if (currentUser) {
+                playerId = currentUser.nickname; // Use nickname as player ID
+            } else {
+                playerId = `guest_${Date.now()}_${Math.random()}`; // Fallback to guest
+            }
+        }
         
         console.log('🆔 Player ID:', playerId);
         console.log('🔗 Socket connected:', socket?.connected);
@@ -2490,7 +2503,18 @@ async function updatePlayerInfoPanelStats(player) {
     console.log('👤 Current user:', currentUser?.nickname, 'stats:', currentUser?.stats);
     
     if (!currentUser) {
-        console.log('❌ No current user found');
+        console.log('⚠️ No authenticated user found - player is in guest mode. Stats will not be saved.');
+        // For guest players, we can still update the UI with current game stats
+        // but we won't have persistent total stats to display
+        const totalCoinsElement = document.getElementById('totalCoins');
+        const totalMatchesElement = document.getElementById('totalMatches');
+        const bestScoreElement = document.getElementById('bestScore');
+        
+        if (totalCoinsElement) totalCoinsElement.textContent = '0 (Guest)';
+        if (totalMatchesElement) totalMatchesElement.textContent = '0 (Guest)';
+        if (bestScoreElement) bestScoreElement.textContent = player.score || '0';
+        
+        console.log('📊 Updated UI for guest player with current score:', player.score);
         return;
     }
     
@@ -2792,10 +2816,10 @@ class PanelManager {
         if (window.nicknameAuth) {
             const currentUser = window.nicknameAuth.getCurrentUserSync();
             if (currentUser) {
-                // Debug logging (can be removed later)
+                // Debug logging
                 const playerScore = window.localPlayer?.score || 0;
                 const playerSize = window.localPlayer?.size || 20;
-                console.log('📊 Updating user info panel - Current game:', playerScore, 'size:', Math.round(playerSize));
+                console.log('📊 PanelManager: Updating user info panel - User:', currentUser.nickname, 'Current game:', playerScore, 'size:', Math.round(playerSize));
                 const nameElement = document.querySelector('#userinfoLeftPanel #playerInfoNameLeft');
                 const statusElement = document.querySelector('#userinfoLeftPanel #playerInfoStatusLeft');
                 const totalCoinsElement = document.querySelector('#userinfoLeftPanel #totalCoinsLeft');
@@ -2831,6 +2855,22 @@ class PanelManager {
                         logoutBtn.classList.add('hidden');
                     }
                 }
+            } else {
+                console.log('⚠️ PanelManager: No authenticated user found for panel update');
+                // Update panel to show guest state
+                const nameElement = document.querySelector('#userinfoLeftPanel #playerInfoNameLeft');
+                const statusElement = document.querySelector('#userinfoLeftPanel #playerInfoStatusLeft');
+                const totalCoinsElement = document.querySelector('#userinfoLeftPanel #totalCoinsLeft');
+                const totalMatchesElement = document.querySelector('#userinfoLeftPanel #totalMatchesLeft');
+                const bestScoreElement = document.querySelector('#userinfoLeftPanel #bestScoreLeft');
+                const logoutBtn = document.querySelector('#userinfoLeftPanel #logoutBtnLeft');
+                
+                if (nameElement) nameElement.textContent = 'Guest';
+                if (statusElement) statusElement.textContent = 'Not signed in';
+                if (totalCoinsElement) totalCoinsElement.textContent = '0';
+                if (totalMatchesElement) totalMatchesElement.textContent = '0';
+                if (bestScoreElement) bestScoreElement.textContent = window.localPlayer?.score || '0';
+                if (logoutBtn) logoutBtn.classList.add('hidden');
             }
         }
     }
