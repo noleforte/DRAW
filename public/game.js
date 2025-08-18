@@ -251,6 +251,9 @@ class HybridAuthSystem {
             }
         }
 
+        // Set as current user
+        this.setCurrentUser(user);
+        
         console.log('✅ User logged in successfully:', user.nickname, 'stats:', user.stats);
         return user;
     }
@@ -1087,12 +1090,21 @@ function setupUIHandlers() {
             return;
         }
         
+        // Debug: Check if user exists locally
+        const localUsers = JSON.parse(localStorage.getItem('registeredUsers') || '{}');
+        const normalizedNickname = nickname.toLowerCase().trim();
+        console.log('🔍 Debug - Available local users:', Object.keys(localUsers));
+        console.log('🔍 Debug - Looking for user:', normalizedNickname);
+        console.log('🔍 Debug - User exists locally:', !!localUsers[normalizedNickname]);
+        
         // Variables for authenticated user data
         let playerName, wallet;
         
         // Try to authenticate the user
         try {
+            console.log('🔐 Attempting login for nickname:', nickname);
             const user = await nicknameAuth.login(nickname, password);
+            console.log('✅ Login successful for user:', user.nickname);
             
             // Update player info panel with authenticated user
             updatePlayerInfoPanelWithStats(user);
@@ -1104,11 +1116,16 @@ function setupUIHandlers() {
             nicknameAuth.refreshCurrentUser();
             console.log('🔄 Forced refresh of user data after login');
             
+            // Verify user is set in localStorage
+            const savedUser = nicknameAuth.getCurrentUserSync();
+            console.log('🔍 Verification - Current user after login:', savedUser?.nickname);
+            
             // Use authenticated user's data
             playerName = user.nickname;
             wallet = user.wallet || '';
             
         } catch (error) {
+            console.error('❌ Login failed:', error.message);
             alert('Invalid nickname or password. Please try again or create a new account.');
             return;
         }
@@ -2499,6 +2516,10 @@ async function updatePlayerInfoPanelStats(player) {
         console.warn('⚠️ Failed to get fresh user data, using cache:', error);
         currentUser = nicknameAuth.getCurrentUserSync();
     }
+    
+    // Debug localStorage state
+    const currentUserFromStorage = localStorage.getItem('currentUser');
+    console.log('🔍 Debug - currentUser in localStorage:', currentUserFromStorage ? JSON.parse(currentUserFromStorage).nickname : 'none');
     
     console.log('👤 Current user:', currentUser?.nickname, 'stats:', currentUser?.stats);
     
