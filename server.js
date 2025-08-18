@@ -215,6 +215,129 @@ function createBot(id) {
   return bot;
 }
 
+// Calculate safe flee target that avoids world boundaries
+function calculateSafeFleeTarget(bot, threat, worldSize) {
+  const halfWorld = worldSize / 2;
+  const safeMargin = 100; // Stay 100 pixels away from edges
+  const minX = -halfWorld + safeMargin;
+  const maxX = halfWorld - safeMargin;
+  const minY = -halfWorld + safeMargin;
+  const maxY = halfWorld - safeMargin;
+  
+  // Calculate primary flee direction (away from threat)
+  const dx = bot.x - threat.x;
+  const dy = bot.y - threat.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  
+  if (distance === 0) {
+    // If threat is at same position, pick random safe direction
+    return {
+      x: Math.max(minX, Math.min(maxX, bot.x + (Math.random() - 0.5) * 400)),
+      y: Math.max(minY, Math.min(maxY, bot.y + (Math.random() - 0.5) * 400))
+    };
+  }
+  
+  // Normalize flee direction
+  const fleeDirectionX = dx / distance;
+  const fleeDirectionY = dy / distance;
+  
+  // Try different flee distances to find safe position
+  const fleeDistances = [200, 150, 300, 100, 250];
+  
+  for (const fleeDistance of fleeDistances) {
+    const candidateX = bot.x + fleeDirectionX * fleeDistance;
+    const candidateY = bot.y + fleeDirectionY * fleeDistance;
+    
+    // Check if candidate position is within safe boundaries
+    if (candidateX >= minX && candidateX <= maxX && 
+        candidateY >= minY && candidateY <= maxY) {
+      return { x: candidateX, y: candidateY };
+    }
+  }
+  
+  // If no safe position found in primary direction, try alternative directions
+  const alternativeDirections = [
+    { x: fleeDirectionY, y: -fleeDirectionX },  // Perpendicular right
+    { x: -fleeDirectionY, y: fleeDirectionX },  // Perpendicular left
+    { x: -fleeDirectionX, y: -fleeDirectionY }, // Towards threat (last resort)
+  ];
+  
+  for (const direction of alternativeDirections) {
+    for (const fleeDistance of fleeDistances) {
+      const candidateX = bot.x + direction.x * fleeDistance;
+      const candidateY = bot.y + direction.y * fleeDistance;
+      
+      if (candidateX >= minX && candidateX <= maxX && 
+          candidateY >= minY && candidateY <= maxY) {
+        console.log(`🔄 Bot ${bot.name} using alternative flee direction`);
+        return { x: candidateX, y: candidateY };
+      }
+    }
+  }
+  
+  // Emergency fallback: move towards center of map
+  const centerX = Math.max(minX, Math.min(maxX, 0));
+  const centerY = Math.max(minY, Math.min(maxY, 0));
+  console.log(`🆘 Bot ${bot.name} emergency flee to center`);
+  
+  return { x: centerX, y: centerY };
+}
+
+// Check if target position is safe from world boundaries
+function isTargetSafeFromBoundaries(bot, target, worldSize) {
+  const halfWorld = worldSize / 2;
+  const safeMargin = 150; // Stay 150 pixels away from edges when planning movement
+  
+  // Check if target itself is too close to boundaries
+  if (target.x < -halfWorld + safeMargin || target.x > halfWorld - safeMargin ||
+      target.y < -halfWorld + safeMargin || target.y > halfWorld - safeMargin) {
+    return false;
+  }
+  
+  // Check if bot would get too close to boundaries while moving to target
+  const dx = target.x - bot.x;
+  const dy = target.y - bot.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  
+  if (distance > 0) {
+    // Simulate movement towards target to check intermediate positions
+    const steps = Math.ceil(distance / 50); // Check every 50 pixels
+    for (let i = 1; i <= steps; i++) {
+      const progress = i / steps;
+      const checkX = bot.x + dx * progress;
+      const checkY = bot.y + dy * progress;
+      
+      if (checkX < -halfWorld + safeMargin || checkX > halfWorld - safeMargin ||
+          checkY < -halfWorld + safeMargin || checkY > halfWorld - safeMargin) {
+        return false;
+      }
+    }
+  }
+  
+  return true;
+}
+
+// Find a coin target that's safe from boundaries
+function findSafeCoinTarget(bot, coins, worldSize) {
+  const coinsArray = Array.from(coins.values());
+  
+  // Sort coins by distance from bot
+  coinsArray.sort((a, b) => {
+    const distA = Math.sqrt((a.x - bot.x) ** 2 + (a.y - bot.y) ** 2);
+    const distB = Math.sqrt((b.x - bot.x) ** 2 + (b.y - bot.y) ** 2);
+    return distA - distB;
+  });
+  
+  // Find first safe coin
+  for (const coin of coinsArray) {
+    if (isTargetSafeFromBoundaries(bot, coin, worldSize)) {
+      return coin;
+    }
+  }
+  
+  return null; // No safe coins found
+}
+
 // AI bot logic
 function updateBots() {
   if (!gameState.gameStarted || gameState.gameEnded) return;
@@ -250,15 +373,15 @@ function updateBots() {
       const distance = Math.sqrt(dx * dx + dy * dy);
       
       if (distance > 0) {
-        // Flee to a point away from the threat
-        const fleeDistance = 200; // How far to flee
-        targetX = bot.x + (dx / distance) * fleeDistance;
-        targetY = bot.y + (dy / distance) * fleeDistance;
+        // Calculate safe flee target considering world boundaries
+        const fleeTarget = calculateSafeFleeTarget(bot, nearestThreat, gameState.worldSize);
+        targetX = fleeTarget.x;
+        targetY = fleeTarget.y;
         targetFound = true;
         isFleeingFromThreat = true;
         
         // Console logging for debugging  
-        console.log(`🏃 Bot ${bot.name} (${bot.score} coins) fleeing from ${nearestThreat.name || nearestThreat.id} (${nearestThreat.score} coins) at distance ${Math.round(nearestThreatDistance)}`);
+        console.log(`🏃 Bot ${bot.name} (${bot.score} coins) fleeing from ${nearestThreat.name || nearestThreat.id} (${nearestThreat.score} coins) at distance ${Math.round(nearestThreatDistance)} to safe position (${Math.round(targetX)}, ${Math.round(targetY)})`);
         
         // Occasionally send flee message
         const now = Date.now();
@@ -313,9 +436,16 @@ function updateBots() {
       
       // If we found a good target to eat, go for it
       if (bestTarget) {
-        targetX = bestTarget.x;
-        targetY = bestTarget.y;
-        targetFound = true;
+        // Check if hunting target is safe from boundaries
+        const huntingSafe = isTargetSafeFromBoundaries(bot, bestTarget, gameState.worldSize);
+        if (huntingSafe) {
+          targetX = bestTarget.x;
+          targetY = bestTarget.y;
+          targetFound = true;
+        } else {
+          console.log(`🔄 Bot ${bot.name} avoiding boundary while hunting, looking for coins instead`);
+          bestTarget = null; // Don't hunt if it's unsafe, fall back to coin collection
+        }
         
         // Occasionally taunt the target
         const now = Date.now();
@@ -344,9 +474,28 @@ function updateBots() {
         });
 
         if (nearestCoin) {
-          targetX = nearestCoin.x;
-          targetY = nearestCoin.y;
-          targetFound = true;
+          // Check if coin target would lead bot too close to boundaries
+          const targetSafe = isTargetSafeFromBoundaries(bot, nearestCoin, gameState.worldSize);
+          if (targetSafe) {
+            targetX = nearestCoin.x;
+            targetY = nearestCoin.y;
+            targetFound = true;
+          } else {
+            // If nearest coin is unsafe, try to find a safer coin or move towards center
+            const safeCoin = findSafeCoinTarget(bot, gameState.coins, gameState.worldSize);
+            if (safeCoin) {
+              targetX = safeCoin.x;
+              targetY = safeCoin.y;
+              targetFound = true;
+              console.log(`🔄 Bot ${bot.name} avoiding boundary, targeting safer coin`);
+            } else {
+              // Move towards center as fallback
+              targetX = 0;
+              targetY = 0;
+              targetFound = true;
+              console.log(`🔄 Bot ${bot.name} moving to center to avoid boundaries`);
+            }
+          }
         }
       }
     }

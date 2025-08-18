@@ -628,6 +628,7 @@ function init() {
     // Setup UI handlers with delay to ensure DOM is ready
     setTimeout(() => {
         setupUIHandlers();
+        setupChatEventListeners(); // Setup initial chat listeners
     }, 100);
     
     // Start game loop
@@ -644,6 +645,12 @@ function init() {
     
     // Start client timer for real-time updates
     startClientTimer();
+    
+    // Load saved player data after Firebase initializes
+    setTimeout(async () => {
+        console.log('🔄 Loading player data after Firebase initialization...');
+        await loadSavedPlayerData();
+    }, 3000); // Wait 3 seconds for Firebase to initialize
 }
 
 function loadBackgroundImage() {
@@ -703,6 +710,12 @@ async function sendCoinsToFirestore(coinsGained) {
         setTimeout(async () => {
             await window.nicknameAuth.syncUserStatsFromFirestore();
             console.log('🔄 Stats refreshed after coin save');
+            
+            // Also force update Player Info panel
+            if (window.panelManager) {
+                await window.panelManager.updateUserInfoPanel();
+                console.log('🔄 Player Info panel updated after coin save');
+            }
         }, 1000);
         
     } catch (error) {
@@ -985,8 +998,17 @@ function setupInputHandlers() {
                 const chatInput = document.getElementById('chatInput');
                 if (document.activeElement === chatInput) {
                     sendChatMessage();
-                } else {
+                } else if (chatInput) {
                     chatInput.focus();
+                }
+            }
+            
+            // Escape key to blur chat input
+            if (e.code === 'Escape') {
+                const chatInput = document.getElementById('chatInput');
+                if (chatInput && document.activeElement === chatInput) {
+                    chatInput.blur();
+                    e.preventDefault();
                 }
             }
             
@@ -1293,38 +1315,62 @@ function setupUIHandlers() {
         console.log('📤 Sending joinGame data:', gameData);
         socket.emit('joinGame', gameData);
         
-        // DEBUG: Test Firestore connection immediately after joining
+                // DEBUG: Test Firestore connection and ensure player document exists
         setTimeout(async () => {
             if (window.firebaseDb && playerId) {
                 try {
                     console.log('🔍 DEBUG: Testing Firestore connection for player:', playerId);
                     const testDoc = await window.firebaseDb.collection('players').doc(playerId).get();
                     console.log('🔍 DEBUG: Firestore doc exists:', testDoc.exists);
+                    
                     if (testDoc.exists) {
-                        console.log('🔍 DEBUG: Firestore doc data:', testDoc.data());
-                                    } else {
-                    console.log('🔍 DEBUG: No document found, attempting to create initial entry');
-                    await window.firebaseDb.collection('players').doc(playerId).set({
-                        playerName: playerName,
-                        totalScore: 0,
-                        gamesPlayed: 0,
-                        bestScore: 0,
-                        firstPlayed: window.firebase.firestore.FieldValue.serverTimestamp(),
-                        lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    console.log('🔍 DEBUG: Initial player entry created successfully');
-                }
+                        const docData = testDoc.data();
+                        console.log('🔍 DEBUG: Firestore doc data:', JSON.stringify(docData, null, 2));
+                        
+                        // Force update local stats with Firestore data
+                        await window.nicknameAuth.syncUserStatsFromFirestore();
+                        console.log('🔄 DEBUG: Forced stats sync after game start');
+                    } else {
+                        console.log('🔍 DEBUG: No document found, attempting to create initial entry');
+                        await window.firebaseDb.collection('players').doc(playerId).set({
+                            playerName: playerName,
+                            totalScore: 0,
+                            gamesPlayed: 0,
+                            bestScore: 0,
+                            firstPlayed: window.firebase.firestore.FieldValue.serverTimestamp(),
+                            lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        console.log('🔍 DEBUG: Initial player entry created successfully');
+                        
+                        // Sync after creating
+                        await window.nicknameAuth.syncUserStatsFromFirestore();
+                        console.log('🔄 DEBUG: Synced stats after creating new document');
+                    }
+                    
+                    // Force update Player Info panel
+                    if (window.panelManager) {
+                        await window.panelManager.updateUserInfoPanel();
+                        console.log('🔄 DEBUG: Forced Player Info panel update');
+                    }
+                    
                 } catch (error) {
                     console.error('🔍 DEBUG: Firestore test failed:', error);
                 }
             } else {
                 console.log('🔍 DEBUG: Cannot test Firestore - firebaseDb:', !!window.firebaseDb, 'playerId:', playerId);
             }
-        }, 5000); // Test after 5 seconds
+        }, 3000); // Test after 3 seconds
         
         console.log('📤 joinGame event sent to server');
         
         nameModal.style.display = 'none';
+        
+        // Show fixed chat input when game starts
+        const fixedChatInput = document.getElementById('fixedChatInput');
+        if (fixedChatInput) {
+            fixedChatInput.style.display = 'block';
+            console.log('💬 Fixed chat input shown for game');
+        }
         
         console.log('🎯 Name modal hidden, game should start...');
         
@@ -1392,6 +1438,67 @@ function setupUIHandlers() {
         mobileChatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 sendMobileChatMessage();
+            }
+        });
+    }
+    
+    // Fixed chat input toggle handler
+    const toggleChatBtn = document.getElementById('toggleChatBtn');
+    const fixedChatInput = document.getElementById('fixedChatInput');
+    let chatMinimized = false;
+    
+    if (toggleChatBtn && fixedChatInput) {
+        toggleChatBtn.addEventListener('click', () => {
+            chatMinimized = !chatMinimized;
+            
+            if (chatMinimized) {
+                // Minimize to just the toggle button
+                fixedChatInput.innerHTML = `
+                    <button 
+                        id="toggleChatBtn" 
+                        class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg text-sm transition-colors text-white"
+                        title="Show Chat Input"
+                    >
+                        💬 ▲
+                    </button>
+                `;
+                console.log('💬 Chat input minimized');
+            } else {
+                // Restore full chat input
+                fixedChatInput.innerHTML = `
+                    <div class="flex bg-gray-900 bg-opacity-90 rounded-lg border border-gray-600 shadow-lg backdrop-blur-sm">
+                        <input 
+                            type="text" 
+                            id="chatInput" 
+                            placeholder="Type a message..." 
+                            class="w-64 px-3 py-2 bg-transparent text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
+                            maxlength="100"
+                        >
+                        <button 
+                            id="sendChatBtn" 
+                            class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-r-lg text-sm transition-colors text-white flex items-center justify-center"
+                        >
+                            💬
+                        </button>
+                        <button 
+                            id="toggleChatBtn" 
+                            class="bg-gray-600 hover:bg-gray-500 px-2 py-2 text-sm transition-colors text-white border-l border-gray-500"
+                            title="Hide/Show Chat Input"
+                        >
+                            ▼
+                        </button>
+                    </div>
+                `;
+                
+                // Re-attach event listeners after recreating elements
+                setupChatEventListeners();
+                console.log('💬 Chat input restored');
+            }
+            
+            // Re-attach toggle listener
+            const newToggleBtn = document.getElementById('toggleChatBtn');
+            if (newToggleBtn) {
+                newToggleBtn.addEventListener('click', arguments.callee);
             }
         });
     }
@@ -2156,7 +2263,11 @@ function addChatMessage(messageData) {
     }
     
     chatMessagesDiv.appendChild(messageDiv);
-    chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+    
+    // Smooth scroll to bottom
+    setTimeout(() => {
+        chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+    }, 50);
     
     // Remove old messages from DOM
     while (chatMessagesDiv.children.length > 50) {
@@ -2195,6 +2306,24 @@ function syncChatMessages() {
     });
     
     mobileChatMessagesDiv.scrollTop = mobileChatMessagesDiv.scrollHeight;
+}
+
+// Setup chat event listeners (used when recreating chat elements)
+function setupChatEventListeners() {
+    const chatInput = document.getElementById('chatInput');
+    const sendChatBtn = document.getElementById('sendChatBtn');
+    
+    if (sendChatBtn) {
+        sendChatBtn.addEventListener('click', sendChatMessage);
+    }
+    
+    if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+    }
 }
 
 function sendChatMessage() {
@@ -2753,36 +2882,41 @@ async function updatePlayerInfoPanelStats(player) {
 }
 
 async function loadSavedPlayerData() {
+    console.log('📂 loadSavedPlayerData called - checking authentication...');
+    
     // Check if user is authenticated and get fresh data from Firestore
     let currentUser = await nicknameAuth.getCurrentUser();
     if (currentUser) {
         console.log('🔄 Loading saved player data for:', currentUser.nickname);
+        console.log('📊 Current user stats before sync:', currentUser.stats);
         
-        // Load latest user data from Firestore/localStorage
+        // Force sync with Firestore FIRST to get latest data
+        if (nicknameAuth.isOnline && window.firebaseDb) {
+            try {
+                console.log('🔄 Force syncing with Firestore for latest data...');
+                const freshUser = await nicknameAuth.syncUserStatsFromFirestore();
+                if (freshUser) {
+                    currentUser = freshUser;
+                    console.log('📊 User stats after Firestore sync:', currentUser.stats);
+                }
+            } catch (error) {
+                console.warn('⚠️ Failed to sync with Firestore:', error.message);
+            }
+        }
+        
+        // Load latest user data into UI
         updatePlayerInfoPanelWithStats(currentUser);
         
         // Also update the main player info panel
         updateMainPlayerInfoPanel(currentUser);
         
-        // Try to sync with Firestore to get latest data
-        if (nicknameAuth.isOnline && window.firebaseDb) {
-            setTimeout(async () => {
-                try {
-                    console.log('🔄 Syncing with Firestore for latest data...');
-                    await nicknameAuth.syncWithFirestore();
-                    
-                    // Reload user data after sync
-                    const updatedUser = await nicknameAuth.getCurrentUser();
-                    if (updatedUser) {
-                        updatePlayerInfoPanelWithStats(updatedUser);
-                        updateMainPlayerInfoPanel(updatedUser);
-                        console.log('✅ Player data updated from Firestore');
-                    }
-                } catch (error) {
-                    console.warn('⚠️ Failed to sync with Firestore:', error.message);
-                }
-            }, 2000); // Wait 2 seconds for Firebase to initialize
+        // Force update Player Info panel
+        if (window.panelManager) {
+            await window.panelManager.updateUserInfoPanel();
+            console.log('🔄 Forced Player Info panel update in loadSavedPlayerData');
         }
+        
+        console.log('✅ Player data loading completed');
     } else {
         console.log('ℹ️ No saved user data found');
     }

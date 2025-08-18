@@ -132,6 +132,34 @@
             transition: all 0.3s ease;
         }
         
+        /* Chat specific styles */
+        #chatMessages {
+            scroll-behavior: smooth;
+            scrollbar-width: thin;
+            scrollbar-color: #4B5563 transparent;
+        }
+        
+        #chatMessages::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #chatMessages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        #chatMessages::-webkit-scrollbar-thumb {
+            background-color: #4B5563;
+            border-radius: 3px;
+        }
+        
+        #fixedChatInput {
+            transition: all 0.3s ease;
+        }
+        
+        #fixedChatInput:hover {
+            transform: translate(-50%, -2px);
+        }
+        
         .panel-header {
             display: flex;
             justify-content: space-between;
@@ -991,26 +1019,37 @@
                         <button class="panel-close" id="chatClose">×</button>
                     </div>
                     <div class="panel-body">
-                        <div id="chatMessages" class="h-72 overflow-y-auto space-y-2 mb-4 text-sm bg-gray-800 rounded p-2">
+                        <div id="chatMessages" class="h-80 overflow-y-auto space-y-2 text-sm bg-gray-800 rounded p-2">
                             <!-- Chat messages will be populated here -->
-                        </div>
-                        <div class="flex">
-                            <input 
-                                type="text" 
-                                id="chatInput" 
-                                placeholder="Type a message..." 
-                                class="flex-1 px-2 py-1 bg-gray-700 border border-gray-600 rounded-l text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                maxlength="100"
-                            >
-                            <button 
-                                id="sendChatBtn" 
-                                class="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-r text-xs transition-colors"
-                            >
-                                Send
-                            </button>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Fixed Chat Input (always visible) -->
+        <div id="fixedChatInput" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50" style="display: none;">
+            <div class="flex bg-gray-900 bg-opacity-90 rounded-lg border border-gray-600 shadow-lg backdrop-blur-sm">
+                <input 
+                    type="text" 
+                    id="chatInput" 
+                    placeholder="Type a message..." 
+                    class="w-64 px-3 py-2 bg-transparent text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
+                    maxlength="100"
+                >
+                <button 
+                    id="sendChatBtn" 
+                    class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-r-lg text-sm transition-colors text-white flex items-center justify-center"
+                >
+                    💬
+                </button>
+                <button 
+                    id="toggleChatBtn" 
+                    class="bg-gray-600 hover:bg-gray-500 px-2 py-2 text-sm transition-colors text-white border-l border-gray-500"
+                    title="Hide/Show Chat Input"
+                >
+                    ▼
+                </button>
             </div>
         </div>
         
