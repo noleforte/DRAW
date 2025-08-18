@@ -442,16 +442,24 @@ class HybridAuthSystem {
     // Sync user stats from Firestore and update localStorage
     async syncUserStatsFromFirestore() {
         const currentUser = this.getCurrentUserSync();
+        console.log('🔍 syncUserStatsFromFirestore - currentUser:', currentUser?.nickname);
+        console.log('🔍 syncUserStatsFromFirestore - isOnline:', this.isOnline);
+        console.log('🔍 syncUserStatsFromFirestore - firebaseDb:', !!window.firebaseDb);
+        
         if (!currentUser || !this.isOnline || !window.firebaseDb) {
+            console.log('⚠️ Cannot sync - missing requirements');
             return currentUser;
         }
 
         try {
             const normalizedNickname = currentUser.nickname.toLowerCase().trim();
+            console.log('🔍 Fetching from Firestore collection players, doc:', normalizedNickname);
             const doc = await window.firebaseDb.collection('players').doc(normalizedNickname).get();
             
+            console.log('🔍 Firestore doc exists:', doc.exists);
             if (doc.exists) {
                 const firestoreData = doc.data();
+                console.log('🔍 Firestore data:', firestoreData);
                 
                 // Update localStorage user stats with Firestore data
                 currentUser.stats = {
@@ -466,6 +474,8 @@ class HybridAuthSystem {
                 console.log('🔄 Synced user stats from Firestore:', currentUser.stats);
                 
                 return currentUser;
+            } else {
+                console.log('⚠️ No Firestore document found for user:', normalizedNickname);
             }
         } catch (error) {
             console.error('❌ Failed to sync stats from Firestore:', error);
@@ -1221,6 +1231,22 @@ function setupUIHandlers() {
         
         console.log('📤 Sending joinGame data:', gameData);
         socket.emit('joinGame', gameData);
+        
+        // DEBUG: Test Firestore connection immediately after joining
+        setTimeout(async () => {
+            if (window.firebaseDb && playerId) {
+                try {
+                    console.log('🔍 DEBUG: Testing Firestore connection for player:', playerId);
+                    const testDoc = await window.firebaseDb.collection('players').doc(playerId).get();
+                    console.log('🔍 DEBUG: Firestore doc exists:', testDoc.exists);
+                    if (testDoc.exists) {
+                        console.log('🔍 DEBUG: Firestore doc data:', testDoc.data());
+                    }
+                } catch (error) {
+                    console.error('🔍 DEBUG: Firestore test failed:', error);
+                }
+            }
+        }, 5000); // Test after 5 seconds
         
         console.log('📤 joinGame event sent to server');
         
@@ -2880,10 +2906,12 @@ class PanelManager {
     async updateUserInfoPanel() {
         // Update user info panel with real-time data
         if (window.nicknameAuth) {
-            // Try to get fresh data from Firestore occasionally
+            // Try to get fresh data from Firestore occasionally  
             let currentUser;
             try {
-                if (Date.now() - (window.lastPanelFirestoreRefresh || 0) > 10000) { // Every 10 seconds for panel
+                // Force sync more frequently for debugging (every 5 seconds)
+                if (Date.now() - (window.lastPanelFirestoreRefresh || 0) > 5000) { 
+                    console.log('🔄 PanelManager: Attempting Firestore sync...');
                     currentUser = await window.nicknameAuth.syncUserStatsFromFirestore();
                     window.lastPanelFirestoreRefresh = Date.now();
                     console.log('🔥 PanelManager: Synced fresh data from Firestore');
