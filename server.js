@@ -1134,6 +1134,7 @@ io.on('connection', (socket) => {
       };
       
       console.log(`👤 New player joined: ${player.name} (Socket: ${socket.id}, PlayerID: ${playerId})`);
+      console.log(`🎨 Player color: ${player.color} (hue: ${colorHue})`);
     }
     
     gameState.players.set(socket.id, player);

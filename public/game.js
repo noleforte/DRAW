@@ -1433,6 +1433,7 @@ function setupUIHandlers() {
         };
         
         console.log('📤 Sending joinGame data:', gameData);
+        console.log(`🎨 Color will be rendered as: hsl(${selectedColor}, 70%, 50%)`);
         socket.emit('joinGame', gameData);
         
                 // DEBUG: Test Firestore connection and ensure player document exists
