@@ -461,13 +461,21 @@ class HybridAuthSystem {
                 const firestoreData = doc.data();
                 console.log('🔍 Firestore data:', JSON.stringify(firestoreData, null, 2));
                 
-                // Update localStorage user stats with Firestore data
-                currentUser.stats = {
-                    totalScore: firestoreData.totalScore || 0,
-                    gamesPlayed: firestoreData.gamesPlayed || 0,
-                    bestScore: firestoreData.bestScore || 0,
-                    wins: firestoreData.wins || 0
+                // Extract stats from Firestore (check both nested and root locations)
+                const extractedStats = {
+                    totalScore: firestoreData.stats?.totalScore || firestoreData.totalScore || 0,
+                    gamesPlayed: firestoreData.stats?.gamesPlayed || firestoreData.gamesPlayed || 0,
+                    bestScore: firestoreData.stats?.bestScore || firestoreData.bestScore || 0,
+                    wins: firestoreData.stats?.wins || firestoreData.wins || 0
                 };
+                
+                console.log('📊 Extracted stats from Firestore:', extractedStats);
+                console.log('👤 Current user stats before update:', currentUser.stats);
+                
+                // Update localStorage user stats with Firestore data
+                currentUser.stats = extractedStats;
+                
+                console.log('👤 Current user stats after assignment:', currentUser.stats);
                 
                 // Save updated user back to localStorage
                 this.setCurrentUser(currentUser);
@@ -486,7 +494,7 @@ class HybridAuthSystem {
 
     // Set current logged in user
     setCurrentUser(user) {
-        // Ensure the user has proper stats structure
+        // Ensure the user has proper stats structure, but preserve existing values
         if (!user.stats) {
             user.stats = {
                 totalScore: 0,
@@ -494,6 +502,12 @@ class HybridAuthSystem {
                 bestScore: 0,
                 wins: 0
             };
+        } else {
+            // Ensure all required fields exist, but don't overwrite existing values
+            user.stats.totalScore = user.stats.totalScore || 0;
+            user.stats.gamesPlayed = user.stats.gamesPlayed || 0;
+            user.stats.bestScore = user.stats.bestScore || 0;
+            user.stats.wins = user.stats.wins || 0;
         }
         
         localStorage.setItem('currentUser', JSON.stringify(user));
