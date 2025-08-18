@@ -2675,23 +2675,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Save game session when user leaves the page
 window.addEventListener('beforeunload', async (event) => {
-    // Only save if user is authenticated and has a score
+    // Save if user is authenticated and in game (regardless of score)
     const currentUser = nicknameAuth.getCurrentUserSync();
-    if (currentUser && localPlayer && localPlayer.score > 0 && window.authSystem?.currentUser) {
+    if (currentUser && localPlayer) {
         try {
             // Use sendBeacon for better reliability during page unload
             const sessionData = {
                 playerName: currentUser.nickname,
-                score: localPlayer.score,
+                score: localPlayer.score || 0,
                 walletAddress: currentUser.wallet || ''
             };
             
             const blob = new Blob([JSON.stringify(sessionData)], { type: 'application/json' });
-            navigator.sendBeacon(`/api/player/${window.authSystem.currentUser.uid}/session`, blob);
+            navigator.sendBeacon(`/api/player/${currentUser.nickname}/session`, blob);
             
-            console.log(`💾 Saving session on page unload: ${localPlayer.score} coins`);
+            console.log(`💾 Saving match on page unload: ${localPlayer.score || 0} coins`);
         } catch (error) {
-            console.warn('⚠️ Failed to save session on page unload:', error);
+            console.warn('⚠️ Failed to save match on page unload:', error);
         }
     }
 });
@@ -2701,21 +2701,21 @@ document.addEventListener('visibilitychange', async () => {
     if (document.hidden) {
         // User switched to another tab or minimized
         const currentUser = nicknameAuth.getCurrentUserSync();
-        if (currentUser && localPlayer && localPlayer.score > 0 && window.authSystem?.currentUser) {
+        if (currentUser && localPlayer) {
             try {
-                const response = await fetch(`/api/player/${window.authSystem.currentUser.uid}/session`, {
+                const response = await fetch(`/api/player/${currentUser.nickname}/session`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         playerName: currentUser.nickname,
-                        score: localPlayer.score,
+                        score: localPlayer.score || 0,
                         walletAddress: currentUser.wallet || ''
                     })
                 });
                 if (response.ok) {
-                    console.log(`💾 Session saved on visibility change: ${localPlayer.score} coins`);
+                    console.log(`💾 Match saved on visibility change: ${localPlayer.score || 0} coins`);
                 }
             } catch (error) {
                 console.warn('⚠️ Failed to save session on visibility change:', error);

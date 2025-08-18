@@ -609,6 +609,20 @@ function updateBots() {
             });
         }
         
+        // Save game session (match) when player dies to bot
+        if ((target.firebaseId || target.playerId)) {
+          const playerIdForSave = target.firebaseId || target.playerId;
+          GameDataService.saveGameSession(playerIdForSave, {
+            playerName: target.name,
+            score: target.score,
+            walletAddress: target.wallet || ''
+          }).then(() => {
+            console.log(`🎮 Saved match for player ${target.name} who died to bot (score: ${target.score})`);
+          }).catch((error) => {
+            console.error('❌ Failed to save match after death to bot:', error);
+          });
+        }
+        
         gameState.players.delete(target.id);
         // If it was a player, send them a death message
         io.emit('playerEaten', {
@@ -772,6 +786,20 @@ function updatePlayers(deltaTime) {
             .catch((error) => {
               console.error('❌ Failed to save coins before death:', error);
             });
+        }
+        
+        // Save game session (match) when player dies to player
+        if ((target.firebaseId || target.playerId)) {
+          const playerIdForSave = target.firebaseId || target.playerId;
+          GameDataService.saveGameSession(playerIdForSave, {
+            playerName: target.name,
+            score: target.score,
+            walletAddress: target.wallet || ''
+          }).then(() => {
+            console.log(`🎮 Saved match for player ${target.name} who died to player (score: ${target.score})`);
+          }).catch((error) => {
+            console.error('❌ Failed to save match after death to player:', error);
+          });
         }
         
         gameState.players.delete(target.id);
@@ -1173,17 +1201,16 @@ io.on('connection', (socket) => {
     // Save player state for potential reconnection (5 minutes)
     const player = gameState.players.get(socket.id);
     if (player && player.firebaseId) {
-      // Save game session when player disconnects
-      if (player.score > 0) {
-        GameDataService.saveGameSession(player.firebaseId, {
-          playerName: player.name,
-          score: player.score,
-          walletAddress: player.wallet || ''
-        }).catch(error => {
-          console.error('Error saving game session on disconnect:', error);
-        });
+      // Save game session when player disconnects (regardless of score)
+      GameDataService.saveGameSession(player.firebaseId, {
+        playerName: player.name,
+        score: player.score,
+        walletAddress: player.wallet || ''
+      }).then(() => {
         console.log(`💾 Saved game session for disconnecting player ${player.name} (score: ${player.score})`);
-      }
+      }).catch(error => {
+        console.error('Error saving game session on disconnect:', error);
+      });
       
       disconnectedPlayers.set(player.firebaseId, player);
       setTimeout(() => {
