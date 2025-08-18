@@ -819,17 +819,32 @@ function setupSocketListeners() {
     socket.on('playerEaten', (data) => {
         // Handle when our player gets eaten
         if (localPlayer && localPlayer.id === data.victimId) {
-            console.log(`💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! Saved ${data.coinsLost} coins to your balance.`);
-            
-            // Show death message
-            addChatMessage({
-                playerName: 'System',
-                message: `💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! 💰 ${data.coinsLost} coins saved to your Total Coins!`,
-                timestamp: Date.now()
-            });
-            
-            // Show death notification
-            showServerMessage(`💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! 💰 ${data.coinsLost} coins saved to your Total Coins! Returning to main menu in 3 seconds...`, 'success');
+            // Handle AFK kick differently
+            if (data.afkKick) {
+                console.log(`⏰ You were kicked for being AFK! Saved ${data.coinsLost} coins to your balance.`);
+                
+                // Show AFK kick message
+                addChatMessage({
+                    playerName: 'System',
+                    message: `⏰ You were kicked for being inactive! 💰 ${data.coinsLost} coins saved to your Total Coins!`,
+                    timestamp: Date.now()
+                });
+                
+                // Show AFK kick notification
+                showServerMessage(`⏰ You were kicked for being inactive for 2 minutes! 💰 ${data.coinsLost} coins saved to your Total Coins! Returning to main menu in 3 seconds...`, 'warning');
+            } else {
+                console.log(`💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! Saved ${data.coinsLost} coins to your balance.`);
+                
+                // Show death message
+                addChatMessage({
+                    playerName: 'System',
+                    message: `💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! 💰 ${data.coinsLost} coins saved to your Total Coins!`,
+                    timestamp: Date.now()
+                });
+                
+                // Show death notification
+                showServerMessage(`💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! 💰 ${data.coinsLost} coins saved to your Total Coins! Returning to main menu in 3 seconds...`, 'success');
+            }
             
             // Force refresh Total Coins from Firestore to show the updated balance
             setTimeout(async () => {

@@ -136,6 +136,70 @@ function calculateSpeedMultiplier(size) {
   return speedMultiplier;
 }
 
+// Check for AFK players and kick them
+function checkAFKPlayers() {
+  const now = Date.now();
+  const afkTimeLimit = 2 * 60 * 1000; // 2 minutes in milliseconds
+  const playersToKick = [];
+
+  gameState.players.forEach((player, socketId) => {
+    if (player.isBot) return; // Skip bots
+    
+    const timeSinceLastActivity = now - player.lastActivity;
+    
+    // Check if player has been inactive for more than 2 minutes
+    if (timeSinceLastActivity > afkTimeLimit) {
+      console.log(`⏰ Player ${player.name} has been AFK for ${Math.round(timeSinceLastActivity / 1000)}s - kicking`);
+      playersToKick.push({ player, socketId });
+    }
+  });
+
+  // Kick AFK players
+  playersToKick.forEach(({ player, socketId }) => {
+    // Save player's coins before kicking (same as death)
+    if (player.score > 0 && (player.firebaseId || player.playerId)) {
+      const playerIdForSave = player.firebaseId || player.playerId;
+      GameDataService.savePlayerCoin(playerIdForSave, player.score)
+        .then(() => {
+          console.log(`💰 Saved ${player.score} coins for AFK player ${player.name}`);
+        })
+        .catch((error) => {
+          console.error('❌ Failed to save coins for AFK player:', error);
+        });
+    }
+    
+    // Save game session (match) for AFK player
+    if ((player.firebaseId || player.playerId)) {
+      const playerIdForSave = player.firebaseId || player.playerId;
+      GameDataService.saveGameSession(playerIdForSave, {
+        playerName: player.name,
+        score: player.score,
+        walletAddress: player.wallet || ''
+      }).then(() => {
+        console.log(`🎮 Saved match for AFK player ${player.name} (score: ${player.score})`);
+      }).catch((error) => {
+        console.error('❌ Failed to save match for AFK player:', error);
+      });
+    }
+
+    // Send AFK kick message to player
+    const socket = io.sockets.sockets.get(socketId);
+    if (socket) {
+      socket.emit('playerEaten', {
+        victimId: socketId,
+        eatenByBot: 'AFK System',
+        coinsLost: player.score,
+        coinsSaved: player.score,
+        afkKick: true // Special flag for AFK kick
+      });
+    }
+
+    // Remove player from game
+    gameState.players.delete(socketId);
+    console.log(`🚪 Kicked AFK player ${player.name} after 2 minutes of inactivity`);
+  });
+}
+
 // Game state
 const gameState = {
   players: new Map(),
@@ -678,6 +742,9 @@ function updatePlayers(deltaTime) {
         player.score += coin.value;
         coinsToDelete.push(coin.id);
         
+        // Update activity when player collects coin
+        player.lastActivity = Date.now();
+        
         // Queue coin for Firebase saving
         const playerIdForFirebase = player.firebaseId || player.playerId || player.id;
         if (playerIdForFirebase) {
@@ -1130,8 +1197,13 @@ io.on('connection', (socket) => {
         score: 0,
         size: 20,
         color: `hsl(${colorHue}, 70%, 50%)`,
-        isBot: false
+        isBot: false,
+        lastActivity: Date.now(), // Track last activity for AFK detection
+        lastPosition: { x: 0, y: 0 } // Track last position to detect movement
       };
+      
+      // Initialize last position
+      player.lastPosition = { x: player.x, y: player.y };
       
       console.log(`👤 New player joined: ${player.name} (Socket: ${socket.id}, PlayerID: ${playerId})`);
       console.log(`🎨 Player color: ${player.color} (hue: ${colorHue})`);
@@ -1168,6 +1240,11 @@ io.on('connection', (socket) => {
   socket.on('playerMove', (movement) => {
     const player = gameState.players.get(socket.id);
     if (player && gameState.gameStarted && !gameState.gameEnded) {
+      // Update activity when player sends movement input
+      if (movement.x !== 0 || movement.y !== 0) {
+        player.lastActivity = Date.now();
+      }
+      
       // Calculate speed based on player size (bigger = slower)
       const baseSpeed = 200; // base pixels per second
       const sizeSpeedMultiplier = calculateSpeedMultiplier(player.size);
@@ -1182,6 +1259,9 @@ io.on('connection', (socket) => {
   socket.on('chatMessage', (data) => {
     const player = gameState.players.get(socket.id);
     if (player && data.message && data.message.trim().length > 0) {
+      // Update activity when player sends chat message
+      player.lastActivity = Date.now();
+      
       io.emit('chatMessage', {
         playerId: socket.id,
         playerName: player.name,
@@ -1228,6 +1308,7 @@ io.on('connection', (socket) => {
 // Game loop variables
 let lastUpdate = Date.now();
 let updateCounter = 0;
+let lastAFKCheck = Date.now();
 
 // Game loop (optimized)
 setInterval(() => {
@@ -1238,6 +1319,12 @@ setInterval(() => {
   // Update game logic with deltaTime for smooth 60fps movement
   updatePlayers(deltaTime);
   updateBots();
+  
+  // Check for AFK players every 30 seconds (reduce server load)
+  if (now - lastAFKCheck > 30000) {
+    checkAFKPlayers();
+    lastAFKCheck = now;
+  }
   
   // Only broadcast every 3rd frame (20 FPS instead of 60)
   updateCounter++;
