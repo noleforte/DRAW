@@ -629,6 +629,11 @@ function setupSocketListeners() {
         if (localPlayer) {
             camera.x = localPlayer.x;
             camera.y = localPlayer.y;
+            
+            // Update user info panel with fresh game data
+            if (window.panelManager) {
+                window.panelManager.updateUserInfoPanel();
+            }
         }
     });
     
@@ -659,6 +664,11 @@ function setupSocketListeners() {
             const currentUser = nicknameAuth.getCurrentUserSync();
             if (currentUser) {
                 updateMainPlayerInfoPanel(currentUser);
+            }
+            
+            // Update user info panel with real-time game data
+            if (window.panelManager) {
+                window.panelManager.updateUserInfoPanel();
             }
         }
         
@@ -2239,6 +2249,12 @@ function gameLoop() {
             updatePlayerInfoPanelStats(localPlayer);
             // Also force update display immediately
             forceUpdateGameStatsDisplay(localPlayer);
+            
+            // Update player info panel if it exists and is open
+            if (window.panelManager) {
+                window.panelManager.updateUserInfoPanel();
+            }
+            
             lastStatsUpdate = now;
         }
         
@@ -2753,7 +2769,9 @@ class PanelManager {
             
             // Special handling for different panels
             if (panelName === 'userinfoLeft') {
+                // Immediately update user info when panel opens
                 this.updateUserInfoPanel();
+                console.log('👤 User info panel opened, refreshing data');
             }
         }
     }
@@ -2770,10 +2788,14 @@ class PanelManager {
     }
     
     updateUserInfoPanel() {
-        // Update user info when panel opens
+        // Update user info panel with real-time data
         if (window.nicknameAuth) {
             const currentUser = window.nicknameAuth.getCurrentUserSync();
             if (currentUser) {
+                // Debug logging (can be removed later)
+                const playerScore = window.localPlayer?.score || 0;
+                const playerSize = window.localPlayer?.size || 20;
+                console.log('📊 Updating user info panel - Current game:', playerScore, 'size:', Math.round(playerSize));
                 const nameElement = document.querySelector('#userinfoLeftPanel #playerInfoNameLeft');
                 const statusElement = document.querySelector('#userinfoLeftPanel #playerInfoStatusLeft');
                 const totalCoinsElement = document.querySelector('#userinfoLeftPanel #totalCoinsLeft');
@@ -2815,11 +2837,18 @@ class PanelManager {
     
     // Auto-refresh user info periodically
     startAutoRefresh() {
+        // Update user info panel more frequently when open
         setInterval(() => {
             if (!this.panels.userinfoLeft.panel.classList.contains('hidden')) {
                 this.updateUserInfoPanel();
             }
-        }, 5000); // Refresh every 5 seconds if panel is open
+        }, 1000); // Refresh every 1 second when panel is open
+        
+        // Also update data in background every 5 seconds (for when panel opens)
+        setInterval(() => {
+            // Always keep data fresh, even when panel is closed
+            this.updateUserInfoPanel();
+        }, 5000); // Background refresh every 5 seconds
     }
 }
 
@@ -2828,10 +2857,8 @@ let panelManager;
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         panelManager = new PanelManager();
+        window.panelManager = panelManager; // Make globally accessible immediately
         panelManager.startAutoRefresh();
-        console.log('🚀 Panel system ready');
+        console.log('🚀 Panel system ready and globally accessible');
     }, 500); // Delay to ensure all elements are loaded
 });
-
-// Make panel manager globally accessible
-window.panelManager = panelManager;
