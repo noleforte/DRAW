@@ -439,6 +439,41 @@ class HybridAuthSystem {
         return null;
     }
 
+    // Sync user stats from Firestore and update localStorage
+    async syncUserStatsFromFirestore() {
+        const currentUser = this.getCurrentUserSync();
+        if (!currentUser || !this.isOnline || !window.firebaseDb) {
+            return currentUser;
+        }
+
+        try {
+            const normalizedNickname = currentUser.nickname.toLowerCase().trim();
+            const doc = await window.firebaseDb.collection('players').doc(normalizedNickname).get();
+            
+            if (doc.exists) {
+                const firestoreData = doc.data();
+                
+                // Update localStorage user stats with Firestore data
+                currentUser.stats = {
+                    totalScore: firestoreData.totalScore || 0,
+                    gamesPlayed: firestoreData.gamesPlayed || 0,
+                    bestScore: firestoreData.bestScore || 0,
+                    wins: firestoreData.wins || 0
+                };
+                
+                // Save updated user back to localStorage
+                this.setCurrentUser(currentUser);
+                console.log('🔄 Synced user stats from Firestore:', currentUser.stats);
+                
+                return currentUser;
+            }
+        } catch (error) {
+            console.error('❌ Failed to sync stats from Firestore:', error);
+        }
+        
+        return currentUser;
+    }
+
     // Set current logged in user
     setCurrentUser(user) {
         // Ensure the user has proper stats structure
@@ -2504,16 +2539,16 @@ async function updatePlayerInfoPanelStats(player) {
     let currentUser = null;
     try {
         // Only fetch fresh data occasionally to avoid too many requests
-        if (Date.now() - (window.lastFirestoreRefresh || 0) > 30000) { // 30 seconds
-            currentUser = await nicknameAuth.getCurrentUser();
+        if (Date.now() - (window.lastFirestoreRefresh || 0) > 15000) { // 15 seconds (more frequent)
+            currentUser = await nicknameAuth.syncUserStatsFromFirestore();
             window.lastFirestoreRefresh = Date.now();
-            console.log('🔥 Fetched fresh user data from Firestore');
+            console.log('🔥 Synced user stats from Firestore');
         } else {
             currentUser = nicknameAuth.getCurrentUserSync();
             console.log('💾 Using cached user data');
         }
     } catch (error) {
-        console.warn('⚠️ Failed to get fresh user data, using cache:', error);
+        console.warn('⚠️ Failed to sync stats from Firestore, using cache:', error);
         currentUser = nicknameAuth.getCurrentUserSync();
     }
     
@@ -2556,6 +2591,16 @@ async function updatePlayerInfoPanelStats(player) {
     }
     
     console.log('✅ Proceeding with stats update');
+    
+    // Update total coins from Firestore data
+    const totalCoinsElement = document.getElementById('totalCoins');
+    if (totalCoinsElement) {
+        const totalCoins = currentUser.stats.totalScore || 0;
+        totalCoinsElement.textContent = totalCoins;
+        console.log('💰 Updated total coins to:', totalCoins);
+    } else {
+        console.log('❌ totalCoinsElement not found');
+    }
     
     // Update matches played to show current game is active
     const matchesPlayedElement = document.getElementById('matchesPlayed');

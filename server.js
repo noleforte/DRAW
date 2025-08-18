@@ -503,8 +503,12 @@ function updatePlayers(deltaTime) {
         coinsToDelete.push(coin.id);
         
         // Queue coin for Firebase saving
-        if (player.firebaseId) {
-          coinsToSave.push({ playerId: player.firebaseId, value: coin.value, playerName: player.name });
+        const playerIdForFirebase = player.firebaseId || player.playerId || player.id;
+        if (playerIdForFirebase) {
+          coinsToSave.push({ playerId: playerIdForFirebase, value: coin.value, playerName: player.name });
+          console.log(`🪙 Queuing coin save for player: ${player.name} (ID: ${playerIdForFirebase})`);
+        } else {
+          console.warn(`⚠️ No player ID found for coin save: ${player.name}`);
         }
         
         // Player growth based on score (Agar.io style)
@@ -912,6 +916,7 @@ io.on('connection', (socket) => {
       player = {
         id: socket.id,
         firebaseId: playerId, // Store Firebase user ID separately from socket ID
+        playerId: playerId, // Also store as playerId for consistency
         name: name || `Player${Math.floor(Math.random() * 1000)}`,
         wallet: wallet,
         ...getRandomPosition(),
@@ -924,6 +929,8 @@ io.on('connection', (socket) => {
         color: `hsl(${colorHue}, 70%, 50%)`,
         isBot: false
       };
+      
+      console.log(`👤 New player joined: ${player.name} (Socket: ${socket.id}, PlayerID: ${playerId})`);
     }
     
     gameState.players.set(socket.id, player);
