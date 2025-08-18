@@ -42,96 +42,29 @@ let joystickCenter = { x: 0, y: 0 };
 let lastMovementSent = 0;
 const MOVEMENT_SEND_INTERVAL = 1000 / 30; // Send movement at 30fps max
 
-// Server-based authentication using Firebase only
-// HybridAuthSystem removed - using Firebase AuthSystem from auth.js
-
-// Using Firebase AuthSystem exclusively
-// window.authSystem is initialized in auth.js
-
-// Simple wrapper for Firebase AuthSystem to maintain compatibility
-const nicknameAuth = {
-    // Login wrapper
-    async login(nickname, password) {
-        if (!window.authSystem) {
-            throw new Error('Authentication system not ready');
-        }
+// Enhanced hybrid authentication system using localStorage + Firestore
+class HybridAuthSystem {
+    constructor() {
+        this.localUsers = this.loadLocalUsers();
+        this.syncInProgress = false;
+        this.isOnline = navigator.onLine;
         
-        // Use Firebase authentication instead
-        try {
-            await window.authSystem.signInWithEmailAndPassword(nickname + '@royaleball.com', password);
-            return { nickname: nickname, stats: {} }; // Simplified user object
-        } catch (error) {
-            throw new Error('Login failed: ' + error.message);
-        }
-    },
-    
-    // Register wrapper  
-    async register(email, nickname, password, wallet = '') {
-        if (!window.authSystem) {
-            throw new Error('Authentication system not ready');
-        }
+        // Monitor online status
+        window.addEventListener('online', () => {
+            this.isOnline = true;
+            this.syncWithFirestore();
+        });
         
-        try {
-            await window.authSystem.createUserWithEmailAndPassword(email, password);
-            return { nickname: nickname, email: email, wallet: wallet, stats: {} };
-        } catch (error) {
-            throw new Error('Registration failed: ' + error.message);
-        }
-    },
-    
-    // Get current user (sync)
-    getCurrentUserSync() {
-        if (window.authSystem && window.authSystem.currentUser) {
-            return {
-                nickname: window.authSystem.currentUser.email?.replace('@royaleball.com', '') || 'User',
-                stats: window.authSystem.playerStats || { totalScore: 0, gamesPlayed: 0, bestScore: 0, wins: 0 }
-            };
-        }
-        return null;
-    },
-    
-    // Get current user (async)
-    async getCurrentUser() {
-        return this.getCurrentUserSync();
-    },
-    
-    // Set current user
-    setCurrentUser(user) {
-        // Firebase handles this automatically
-    },
-    
-    // Update user stats
-    async updateUserStats(nickname, stats) {
-        // This will be handled by the existing Firebase system
-        console.log('Stats update delegated to Firebase system');
-    },
-    
-    // Logout
-    logout() {
-        if (window.authSystem) {
-            window.authSystem.signOut();
-        }
-    },
-    
-    // Refresh functions
-    refreshCurrentUser() {
-        return this.getCurrentUserSync();
-    },
-    
-    async refreshCurrentUserFromFirestore() {
-        return this.getCurrentUserSync();
-    },
-    
-    // Online status
-    get isOnline() {
-        return navigator.onLine;
+        window.addEventListener('offline', () => {
+            this.isOnline = false;
+        });
+        
+        // Auto-sync when Firebase is ready
+        this.waitForFirebase();
     }
-};
 
-window.nicknameAuth = nicknameAuth; // Make it globally available
-
-// Initialize game
-function init() {
+    // Wait for Firebase to be ready, then sync
+    async waitForFirebase() {
         if (window.firebaseReady && window.firebaseDb) {
             console.log('🔥 Firebase ready, starting sync...');
             await this.syncWithFirestore();
@@ -461,27 +394,19 @@ function init() {
     // Synchronous version for immediate use (uses cache)
     getCurrentUserSync() {
         const currentUser = localStorage.getItem('currentUser');
-        
         if (currentUser) {
-            try {
-                const user = JSON.parse(currentUser);
-                
-                // Ensure stats object exists
-                if (!user.stats) {
-                    user.stats = {
-                        totalScore: 0,
-                        gamesPlayed: 0,
-                        bestScore: 0,
-                        wins: 0
-                    };
-                }
-                return user;
-            } catch (error) {
-                console.error('❌ Error parsing currentUser from localStorage:', error);
-                return null;
+            const user = JSON.parse(currentUser);
+            // Ensure stats object exists
+            if (!user.stats) {
+                user.stats = {
+                    totalScore: 0,
+                    gamesPlayed: 0,
+                    bestScore: 0,
+                    wins: 0
+                };
             }
+            return user;
         }
-        
         return null;
     }
 
@@ -717,31 +642,6 @@ function setupSocketListeners() {
     socket.on('chatMessage', (data) => {
         addChatMessage(data);
         showSpeechBubble(data);
-    });
-    
-    socket.on('playerEaten', (data) => {
-        // Handle when our player gets eaten
-        if (localPlayer && localPlayer.id === data.victimId) {
-            console.log(`💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! Lost ${data.coinsLost} coins`);
-            
-            // Show death message
-            addChatMessage({
-                playerName: 'System',
-                message: `💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! Lost ${data.coinsLost} coins`,
-                timestamp: Date.now()
-            });
-            
-            // Reset player position and score
-            if (localPlayer) {
-                localPlayer.score = 0;
-                localPlayer.size = 20; // Reset to starting size
-                // Respawn at random position
-                localPlayer.x = Math.random() * 3000 - 1500;
-                localPlayer.y = Math.random() * 3000 - 1500;
-                
-                console.log('🔄 Respawned at new position');
-            }
-        }
     });
     
     socket.on('matchStarted', (data) => {
@@ -1037,14 +937,14 @@ function setupUIHandlers() {
                 window.nicknameAuth.logout();
             }
             
-            // Reset player info panel to default state
+            // Reset player info panel to guest state
             const playerInfoName = document.getElementById('playerInfoName');
             const playerInfoStatus = document.getElementById('playerInfoStatus');
             const totalCoins = document.getElementById('totalCoins');
             const matchesPlayed = document.getElementById('matchesPlayed');
             const bestScore = document.getElementById('bestScore');
             
-            if (playerInfoName) playerInfoName.textContent = 'Please Sign In';
+            if (playerInfoName) playerInfoName.textContent = 'Guest';
             if (playerInfoStatus) playerInfoStatus.textContent = 'Not signed in';
             if (totalCoins) totalCoins.textContent = '0';
             if (matchesPlayed) matchesPlayed.textContent = '0';
@@ -1057,7 +957,11 @@ function setupUIHandlers() {
         });
     }
     
-    // Guest mode removed - all players must authenticate
+    // Continue as Guest Button
+    const mainGuestPlayBtn = document.getElementById('mainGuestPlayBtn');
+    if (mainGuestPlayBtn) {
+        mainGuestPlayBtn.addEventListener('click', startGame);
+    }
     
     // Event delegation fallback
     document.addEventListener('click', (e) => {
@@ -1233,7 +1137,7 @@ function setupUIHandlers() {
     // Auth Modal handlers
     const closeAuthModalBtn = document.getElementById('closeAuthModalBtn');
     const googleSignInBtn = document.getElementById('googleSignInBtn');
-    // Guest mode removed - button no longer exists
+    const guestPlayBtn = document.getElementById('guestPlayBtn');
     const signInBtn = document.getElementById('signInBtn');
     const showRegistrationBtn = document.getElementById('showRegistrationBtn');
     const authNicknameInput = document.getElementById('authNicknameInput');
@@ -1422,7 +1326,21 @@ function setupUIHandlers() {
         });
     }
     
-    // Guest mode removed - all players must authenticate
+    if (guestPlayBtn) {
+        guestPlayBtn.addEventListener('click', async () => {
+            if (window.authSystem) {
+                try {
+                    await window.authSystem.signInAnonymously();
+                    // Close auth modal on success
+                    document.getElementById('authModal').classList.add('hidden');
+                    document.getElementById('nameModal').style.display = 'flex';
+                } catch (error) {
+                    // Handle error silently or show user-friendly message
+                    alert('Guest sign in failed. Please try again.');
+                }
+            }
+        });
+    }
 
     // Logout button handler
     const logoutBtn = document.getElementById('logoutBtn');
@@ -1438,7 +1356,7 @@ function setupUIHandlers() {
                 if (mainWalletInput) mainWalletInput.value = '';
                 
                 // Update player info panel
-                updatePlayerInfoPanel('Please Sign In', 'Not signed in');
+                updatePlayerInfoPanel('Guest', 'Not signed in');
                 
                 alert('Logged out successfully!');
             }
@@ -1495,7 +1413,25 @@ function handleMoreSignInOptions() {
     }
 }
 
-// Guest mode removed - function deleted
+async function handleGuestPlay() {
+    console.log('👤 Handling Guest Play');
+    if (window.authSystem) {
+        try {
+            await window.authSystem.signInAnonymously();
+            console.log('✅ Anonymous sign-in successful');
+        } catch (error) {
+            console.error('❌ Anonymous sign-in failed:', error);
+            if (window.authSystem.showError) {
+                window.authSystem.showError('Guest Access Failed', error.message);
+            } else {
+                alert('Guest Access Failed: ' + error.message);
+            }
+        }
+    } else {
+        console.error('❌ AuthSystem not available');
+        alert('Authentication system not ready. Please refresh and try again.');
+    }
+}
 
 function updateMovement() {
     // Check if user is typing in an input field
@@ -1769,26 +1705,9 @@ function drawEntity(entity) {
     ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
     ctx.fill();
     
-    // Entity border with eating indicators
-    let borderColor = 'rgba(255, 255, 255, 0.3)';
-    let borderWidth = 2 * camera.zoom;
-    
-    if (entity.id === gameState.playerId) {
-        borderColor = '#FFFFFF';
-        borderWidth = 3 * camera.zoom;
-    } else if (localPlayer) {
-        // Color-code based on eating ability
-        if (localPlayer.score > entity.score) {
-            borderColor = '#00FF00'; // Green - can eat this entity
-            borderWidth = 2.5 * camera.zoom;
-        } else if (entity.score > localPlayer.score) {
-            borderColor = '#FF0000'; // Red - this entity can eat you
-            borderWidth = 2.5 * camera.zoom;
-        }
-    }
-    
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = borderWidth;
+    // Entity border
+    ctx.strokeStyle = entity.id === gameState.playerId ? '#FFFFFF' : 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = (entity.id === gameState.playerId ? 3 : 2) * camera.zoom;
     ctx.beginPath();
     ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
     ctx.stroke();
@@ -1800,15 +1719,14 @@ function drawEntity(entity) {
     ctx.textBaseline = 'middle';
     
     // Name background
-    const nameWithSize = `${entity.name} (${Math.round(entity.size || 20)})`;
-    const nameWidth = ctx.measureText(nameWithSize).width + 8;
+    const nameWidth = ctx.measureText(entity.name).width + 8;
     const nameHeight = 20 * camera.zoom;
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
     ctx.fillRect(screenPos.x - nameWidth / 2, screenPos.y - radius - nameHeight - 5, nameWidth, nameHeight);
     
-    // Name text with size indicator
+    // Name text
     ctx.fillStyle = 'white';
-    ctx.fillText(nameWithSize, screenPos.x, screenPos.y - radius - nameHeight / 2 - 5);
+    ctx.fillText(entity.name, screenPos.x, screenPos.y - radius - nameHeight / 2 - 5);
     
     // Score
     ctx.fillStyle = 'yellow';
@@ -2006,7 +1924,6 @@ function updateLeaderboard() {
         
         entryDiv.innerHTML = `
             <span class="flex-1 truncate">${rankEmoji} ${entity.name}${botIndicator}</span>
-            <span class="text-gray-400 text-xs">Size: ${Math.round(entity.size || 20)}</span>
             <span class="text-yellow-400 font-bold">${entity.score}</span>
         `;
         
@@ -2296,7 +2213,7 @@ function updatePlayerInfoPanel(nickname, status) {
     const logoutBtn = document.getElementById('logoutBtn');
     
     if (playerInfoName) {
-        playerInfoName.textContent = nickname || 'Please Sign In';
+        playerInfoName.textContent = nickname || 'Guest';
     }
     
     if (playerInfoStatus) {
@@ -2327,7 +2244,7 @@ async function updatePlayerInfoPanelWithStats(user) {
     });
 
     if (playerInfoName) {
-        playerInfoName.textContent = user.nickname || 'Please Sign In';
+        playerInfoName.textContent = user.nickname || 'Guest';
         console.log('✅ Updated playerInfoName to:', user.nickname);
     } else {
         console.log('❌ playerInfoName element not found!');
@@ -2416,7 +2333,7 @@ async function updatePlayerInfoPanelStats(player) {
     console.log('👤 Current user:', currentUser?.nickname, 'stats:', currentUser?.stats);
     
     if (!currentUser) {
-        console.log('❌ No authenticated user found - stats update skipped. All players must login first.');
+        console.log('❌ No current user found');
         return;
     }
     
@@ -2432,8 +2349,7 @@ async function updatePlayerInfoPanelStats(player) {
     }
     
     if (player.name !== currentUser.nickname) {
-        console.log('❌ Player name mismatch - currentUser:', currentUser?.nickname, 'player:', player?.name);
-        console.log('ℹ️ This might happen if you are playing with a different nickname than registered');
+        console.log('❌ User check failed - currentUser:', currentUser?.nickname, 'player:', player?.name);
         return; // Only update for authenticated current user
     }
     
