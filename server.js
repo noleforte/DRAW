@@ -149,6 +149,14 @@ const botMessages = [
   "Speed is key!", "Catch me if you can!", "Shiny things everywhere!"
 ];
 
+// Bot hunting messages
+const botHuntingMessages = [
+  "Looking for a snack!", "Time to hunt!", "I see you...",
+  "Come here little one!", "You look tasty!", "Fresh meat!",
+  "I have more coins than you!", "Easy target spotted!", "Dinner time!",
+  "You can't hide!", "I'm coming for you!", "Coin count matters!"
+];
+
 // Generate random position within world bounds
 function getRandomPosition() {
   return {
@@ -193,27 +201,83 @@ function updateBots() {
   if (!gameState.gameStarted || gameState.gameEnded) return;
   
   gameState.bots.forEach(bot => {
-    // Find nearest coin (simple and smooth like before)
-    let nearestCoin = null;
-    let nearestDistance = Infinity;
+    let targetFound = false;
+    let targetX = 0, targetY = 0;
     
-    gameState.coins.forEach(coin => {
-      const distance = Math.sqrt((coin.x - bot.x) ** 2 + (coin.y - bot.y) ** 2);
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestCoin = coin;
+    // First, look for targets to eat (more rewarding than coins)
+    let bestTarget = null;
+    let bestTargetDistance = Infinity;
+    let bestTargetReward = 0;
+    
+         // Check all entities for potential targets
+     const potentialTargets = [...gameState.players.values(), ...gameState.bots.values()];
+    potentialTargets.forEach(target => {
+      if (target.id !== bot.id) {
+        const distance = Math.sqrt((target.x - bot.x) ** 2 + (target.y - bot.y) ** 2);
+        const sizeRatio = bot.size / target.size;
+        
+                 // Only consider targets we can eat (have more coins) and that are worth pursuing
+         if (bot.score > target.score && target.score > 5 && distance < 400) { // 400 pixel pursuit range
+          const reward = target.score / Math.max(distance, 1); // Score per distance unit
+          if (reward > bestTargetReward) {
+            bestTarget = target;
+            bestTargetDistance = distance;
+            bestTargetReward = reward;
+          }
+        }
       }
     });
+    
+         // If we found a good target to eat, go for it
+     if (bestTarget) {
+       targetX = bestTarget.x;
+       targetY = bestTarget.y;
+       targetFound = true;
+       
+       // Occasionally taunt the target
+       const now = Date.now();
+       if (now - bot.lastMessageTime > 30000 && Math.random() < 0.1) { // 10% chance every 30 seconds
+         const huntMessage = botHuntingMessages[Math.floor(Math.random() * botHuntingMessages.length)];
+         bot.lastMessageTime = now;
+         
+         io.emit('chatMessage', {
+           playerId: bot.id,
+           playerName: bot.name,
+           message: huntMessage,
+           timestamp: now
+         });
+       }
+    } else {
+      // Otherwise, find nearest coin
+      let nearestCoin = null;
+      let nearestDistance = Infinity;
+      
+      gameState.coins.forEach(coin => {
+        const distance = Math.sqrt((coin.x - bot.x) ** 2 + (coin.y - bot.y) ** 2);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestCoin = coin;
+        }
+      });
 
-    // Move towards nearest coin with individual speed variation
-    if (nearestCoin) {
-      const dx = nearestCoin.x - bot.x;
-      const dy = nearestCoin.y - bot.y;
+      if (nearestCoin) {
+        targetX = nearestCoin.x;
+        targetY = nearestCoin.y;
+        targetFound = true;
+      }
+    }
+
+    // Move towards target with individual speed variation
+    if (targetFound) {
+      const dx = targetX - bot.x;
+      const dy = targetY - bot.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
       if (distance > 0) {
         const baseSpeed = 2;
-        const speed = baseSpeed * bot.speedVariation; // Use individual speed
+        // Bots move faster when chasing targets to eat
+        const speedMultiplier = bestTarget ? 1.3 : 1.0;
+        const speed = baseSpeed * bot.speedVariation * speedMultiplier;
         bot.vx = (dx / distance) * speed;
         bot.vy = (dy / distance) * speed;
       }
@@ -241,8 +305,64 @@ function updateBots() {
           value: 1
         };
         gameState.coins.set(newCoin.id, newCoin);
+        
+        // Player growth based on score (Agar.io style)
+        bot.size = Math.min(50, 20 + Math.sqrt(bot.score) * 2);
       }
     });
+
+    // Check eating other players/bots (Agar.io mechanics for bots)
+    const eatableEntities = [...gameState.players.values(), ...gameState.bots.values()];
+    const entitiesToRemove = [];
+    
+    eatableEntities.forEach(target => {
+             if (target.id !== bot.id) { // Don't eat yourself
+         const distance = Math.sqrt((target.x - bot.x) ** 2 + (target.y - bot.y) ** 2);
+         
+         // Can eat if you have more coins and touching
+         if (bot.score > target.score && distance < (bot.size + target.size) * 0.7) {
+          // Transfer victim's score to bot
+          bot.score += target.score;
+          bot.size = Math.min(50, 20 + Math.sqrt(bot.score) * 2);
+          
+          // Mark entity for removal
+          entitiesToRemove.push(target);
+          
+                     // Send eating message
+           io.emit('chatMessage', {
+             playerId: bot.id,
+             playerName: bot.name,
+             message: `Ate ${target.name}! (+${target.score} coins) [Size: ${Math.round(bot.size)}]`,
+             timestamp: Date.now()
+           });
+           
+           console.log(`🤖 Bot ${bot.name} (${bot.score} coins, size ${Math.round(bot.size)}) ate ${target.name} (${target.score} coins, size ${Math.round(target.size)})`);
+        }
+      }
+    });
+    
+         // Remove eaten entities
+     entitiesToRemove.forEach(target => {
+       if (target.isBot) {
+         gameState.bots.delete(target.id);
+         // Respawn a new bot after a delay to maintain population
+         setTimeout(() => {
+           if (gameState.bots.size < 15) { // Maintain bot population
+             const newBot = createBot(gameState.nextBotId++);
+             gameState.bots.set(newBot.id, newBot);
+             console.log(`🤖 Respawned new bot: ${newBot.name}`);
+           }
+         }, 5000 + Math.random() * 10000); // 5-15 seconds delay
+       } else {
+         gameState.players.delete(target.id);
+         // If it was a player, send them a death message
+         io.emit('playerEaten', {
+           victimId: target.id,
+           eatenByBot: bot.name,
+           coinsLost: target.score
+         });
+       }
+     });
 
     // Occasionally send chat messages (reduced frequency)
     const now = Date.now();
@@ -328,27 +448,69 @@ function updatePlayers(deltaTime) {
     
     // Check eating other players/bots (Agar.io mechanics)
     const allEntities = [...gameState.players.values(), ...gameState.bots.values()];
+    const entitiesToRemove = [];
+    
     allEntities.forEach(target => {
-      if (target.id !== player.id && !target.isBot !== !player.isBot) {
-        const distance = Math.sqrt((target.x - player.x) ** 2 + (target.y - player.y) ** 2);
-        const sizeRatio = player.size / target.size;
-        
-        // Can eat if 15% larger and touching
-        if (sizeRatio > 1.15 && distance < (player.size + target.size) * 0.7) {
-          player.score += target.score;
+             if (target.id !== player.id) { // Can eat anyone except yourself
+         const distance = Math.sqrt((target.x - player.x) ** 2 + (target.y - player.y) ** 2);
+         
+         // Can eat if you have more coins and touching
+         if (player.score > target.score && distance < (player.size + target.size) * 0.7) {
+          // Transfer victim's score to player
+          const coinsGained = target.score;
+          player.score += coinsGained;
           player.size = Math.min(50, 20 + Math.sqrt(player.score) * 2);
           
-          // Remove eaten entity
-          if (target.isBot) {
-            gameState.bots.delete(target.id);
-          } else {
-            gameState.players.delete(target.id);
+          // Mark entity for removal
+          entitiesToRemove.push(target);
+          
+          // Save gained coins to Firebase if player is authenticated
+          if (player.firebaseId && coinsGained > 0) {
+            setTimeout(async () => {
+              try {
+                await GameDataService.savePlayerCoin(player.firebaseId, coinsGained);
+                console.log(`💾 Saved ${coinsGained} eating coins to Firestore for player ${player.name}`);
+              } catch (error) {
+                console.error('Error saving eating coins to Firestore:', error);
+              }
+            }, 0);
           }
           
-          // Silent eating - no logs
+                     // Send eating notification
+           io.emit('chatMessage', {
+             playerId: player.id,
+             playerName: player.name,
+             message: `Ate ${target.name}! (+${coinsGained} coins) [Size: ${Math.round(player.size)}]`,
+             timestamp: Date.now()
+           });
+           
+           console.log(`👤 Player ${player.name} (${player.score} coins, size ${Math.round(player.size)}) ate ${target.name} (${target.score} coins, size ${Math.round(target.size)})`);
         }
       }
     });
+    
+         // Remove eaten entities
+     entitiesToRemove.forEach(target => {
+       if (target.isBot) {
+         gameState.bots.delete(target.id);
+         // Respawn a new bot after a delay to maintain population
+         setTimeout(() => {
+           if (gameState.bots.size < 15) { // Maintain bot population
+             const newBot = createBot(gameState.nextBotId++);
+             gameState.bots.set(newBot.id, newBot);
+             console.log(`🤖 Respawned new bot: ${newBot.name} (eaten by player)`);
+           }
+         }, 5000 + Math.random() * 10000); // 5-15 seconds delay
+       } else {
+         gameState.players.delete(target.id);
+         // If it was a player, send them a death message
+         io.emit('playerEaten', {
+           victimId: target.id,
+           eatenByPlayer: player.name,
+           coinsLost: target.score
+         });
+       }
+     });
   });
 }
 

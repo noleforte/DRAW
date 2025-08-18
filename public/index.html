@@ -595,15 +595,7 @@
                 </div>
             </div>
             
-            <!-- Guest Option -->
-            <div class="text-center">
-                <button 
-                    id="guestPlayBtn" 
-                    class="text-gray-400 hover:text-gray-300 text-sm underline"
-                >
-                    Continue as Guest
-                </button>
-            </div>
+            <!-- Guest mode removed - all players must authenticate -->
             
             <!-- Close Button -->
             <button 
@@ -680,7 +672,10 @@
         <canvas id="gameCanvas" class="absolute inset-0"></canvas>
         
         <!-- Leaderboard -->
-        <div id="leaderboard" class="absolute top-4 right-4 bg-black bg-opacity-70 rounded-lg p-4 min-w-48 z-10">
+        <div id="leaderboard" class="absolute top-4 right-4 bg-black bg-opacity-70 rounded-lg p-4 min-w-48 z-10" style="
+        min-width: 14%;
+        height: 16%;
+    ">
             <div class="flex justify-between items-center mb-2">
                 <h3 class="text-lg font-bold text-yellow-400">🏆 Leaderboard</h3>
                 <button id="toggleLeaderboardType" class="text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600">
@@ -694,7 +689,10 @@
         
         <!-- Chat Panel (Desktop) -->
         <div id="chatPanel" class="absolute right-4 bottom-4 w-80 bg-black bg-opacity-70 rounded-lg p-4 hidden lg:flex flex-col z-10 transition-all duration-300">
-            <div class="flex justify-between items-center mb-2">
+            <div class="flex justify-between items-center mb-2" style="
+            min-width: 19%;
+            height: 35%;
+        ">
                 <h3 class="text-lg font-bold text-blue-400">💬 Chat</h3>
                 <button id="chatToggleBtn" class="text-white hover:text-gray-300 text-xl">−</button>
             </div>
