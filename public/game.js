@@ -670,7 +670,7 @@ function setupSocketListeners() {
             
             // Update user info panel with fresh game data
             if (window.panelManager) {
-                window.panelManager.updateUserInfoPanel();
+                window.panelManager.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
             }
         }
     });
@@ -706,7 +706,7 @@ function setupSocketListeners() {
             
             // Update user info panel with real-time game data
             if (window.panelManager) {
-                window.panelManager.updateUserInfoPanel();
+                window.panelManager.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
             }
         }
         
@@ -2317,7 +2317,7 @@ function gameLoop() {
             
             // Update player info panel if it exists and is open
             if (window.panelManager) {
-                window.panelManager.updateUserInfoPanel();
+                window.panelManager.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
             }
             
             lastStatsUpdate = now;
@@ -2860,7 +2860,7 @@ class PanelManager {
             // Special handling for different panels
             if (panelName === 'userinfoLeft') {
                 // Immediately update user info when panel opens
-                this.updateUserInfoPanel();
+                this.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
                 console.log('👤 User info panel opened, refreshing data');
             }
         }
@@ -2877,15 +2877,30 @@ class PanelManager {
         }
     }
     
-    updateUserInfoPanel() {
+    async updateUserInfoPanel() {
         // Update user info panel with real-time data
         if (window.nicknameAuth) {
-            const currentUser = window.nicknameAuth.getCurrentUserSync();
+            // Try to get fresh data from Firestore occasionally
+            let currentUser;
+            try {
+                if (Date.now() - (window.lastPanelFirestoreRefresh || 0) > 10000) { // Every 10 seconds for panel
+                    currentUser = await window.nicknameAuth.syncUserStatsFromFirestore();
+                    window.lastPanelFirestoreRefresh = Date.now();
+                    console.log('🔥 PanelManager: Synced fresh data from Firestore');
+                } else {
+                    currentUser = window.nicknameAuth.getCurrentUserSync();
+                    console.log('💾 PanelManager: Using cached data');
+                }
+            } catch (error) {
+                console.warn('⚠️ PanelManager: Failed to sync, using cache:', error);
+                currentUser = window.nicknameAuth.getCurrentUserSync();
+            }
+            
             if (currentUser) {
                 // Debug logging
                 const playerScore = window.localPlayer?.score || 0;
                 const playerSize = window.localPlayer?.size || 20;
-                console.log('📊 PanelManager: Updating user info panel - User:', currentUser.nickname, 'Current game:', playerScore, 'size:', Math.round(playerSize));
+                console.log('📊 PanelManager: Updating user info panel - User:', currentUser.nickname, 'Stats:', currentUser.stats, 'Current game:', playerScore, 'size:', Math.round(playerSize));
                 const nameElement = document.querySelector('#userinfoLeftPanel #playerInfoNameLeft');
                 const statusElement = document.querySelector('#userinfoLeftPanel #playerInfoStatusLeft');
                 const totalCoinsElement = document.querySelector('#userinfoLeftPanel #totalCoinsLeft');
@@ -2897,9 +2912,21 @@ class PanelManager {
                 
                 if (nameElement) nameElement.textContent = currentUser.nickname || 'Guest';
                 if (statusElement) statusElement.textContent = currentUser.nickname ? 'Signed in' : 'Not signed in';
-                if (totalCoinsElement) totalCoinsElement.textContent = currentUser.stats?.totalScore || 0;
-                if (totalMatchesElement) totalMatchesElement.textContent = currentUser.stats?.gamesPlayed || 0;
-                if (bestScoreElement) bestScoreElement.textContent = currentUser.stats?.bestScore || 0;
+                if (totalCoinsElement) {
+                    const totalCoins = currentUser.stats?.totalScore || 0;
+                    totalCoinsElement.textContent = totalCoins;
+                    console.log('🪙 PanelManager: Updated total coins to:', totalCoins);
+                }
+                if (totalMatchesElement) {
+                    const totalMatches = currentUser.stats?.gamesPlayed || 0;
+                    totalMatchesElement.textContent = totalMatches;
+                    console.log('🎮 PanelManager: Updated total matches to:', totalMatches);
+                }
+                if (bestScoreElement) {
+                    const bestScore = currentUser.stats?.bestScore || 0;
+                    bestScoreElement.textContent = bestScore;
+                    console.log('🏆 PanelManager: Updated best score to:', bestScore);
+                }
                 
                 // Update current game stats
                 if (window.localPlayer) {
@@ -2915,7 +2942,7 @@ class PanelManager {
                         logoutBtn.classList.remove('hidden');
                         logoutBtn.onclick = () => {
                             window.nicknameAuth.logout();
-                            this.updateUserInfoPanel();
+                            this.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
                         };
                     } else {
                         logoutBtn.classList.add('hidden');
@@ -2946,14 +2973,14 @@ class PanelManager {
         // Update user info panel more frequently when open
         setInterval(() => {
             if (!this.panels.userinfoLeft.panel.classList.contains('hidden')) {
-                this.updateUserInfoPanel();
+                this.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
             }
         }, 1000); // Refresh every 1 second when panel is open
         
         // Also update data in background every 5 seconds (for when panel opens)
         setInterval(() => {
             // Always keep data fresh, even when panel is closed
-            this.updateUserInfoPanel();
+            this.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
         }, 5000); // Background refresh every 5 seconds
     }
 }
