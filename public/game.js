@@ -164,25 +164,31 @@ class HybridAuthSystem {
         return newUser;
     }
 
-    // Login user
+    // Login user (Firestore first, localStorage as fallback)
     async login(nickname, password) {
         const normalizedNickname = nickname.toLowerCase().trim();
+        let user = null;
         
-        // First check localStorage (fast)
-        let user = this.localUsers[normalizedNickname];
-        
-        // If not found locally and online, check Firestore
-        if (!user && this.isOnline && window.firebaseDb) {
+        // First try Firestore (authoritative source)
+        if (this.isOnline && window.firebaseDb) {
             try {
                 user = await this.loadUserFromFirestore(normalizedNickname);
                 if (user) {
-                    // Cache in localStorage for future fast access
+                    // Update local cache
                     this.localUsers[normalizedNickname] = user;
                     this.saveLocalUsers();
-                    console.log('📥 User loaded from Firestore and cached locally');
+                    console.log('🔥 User loaded from Firestore (primary source)');
                 }
             } catch (error) {
-                console.warn('⚠️ Firestore load failed:', error.message);
+                console.warn('⚠️ Firestore load failed, trying localStorage:', error.message);
+            }
+        }
+        
+        // Fallback to localStorage cache if Firestore failed
+        if (!user) {
+            user = this.localUsers[normalizedNickname];
+            if (user) {
+                console.log('💾 User loaded from localStorage cache');
             }
         }
 
@@ -192,6 +198,17 @@ class HybridAuthSystem {
 
         if (user.passwordHash !== this.hashPassword(password)) {
             throw new Error('Incorrect password');
+        }
+
+        // Ensure user has proper stats structure
+        if (!user.stats) {
+            user.stats = {
+                totalScore: 0,
+                gamesPlayed: 0,
+                bestScore: 0,
+                wins: 0
+            };
+            console.log('🔧 Initialized missing stats for user:', user.nickname);
         }
 
         // Update last login
@@ -208,6 +225,7 @@ class HybridAuthSystem {
             }
         }
 
+        console.log('✅ User logged in successfully:', user.nickname, 'stats:', user.stats);
         return user;
     }
 
@@ -327,50 +345,151 @@ class HybridAuthSystem {
         return false;
     }
 
-    // Get current logged in user
-    getCurrentUser() {
+    // Get current logged in user (Firestore first, localStorage as fallback)
+    async getCurrentUser() {
         const currentUser = localStorage.getItem('currentUser');
-        return currentUser ? JSON.parse(currentUser) : null;
+        if (currentUser) {
+            const user = JSON.parse(currentUser);
+            const normalizedNickname = user.nickname?.toLowerCase().trim();
+            
+            // Always try to get fresh data from Firestore first
+            if (normalizedNickname && this.isOnline && window.firebaseDb) {
+                try {
+                    const freshUserData = await this.loadUserFromFirestore(normalizedNickname);
+                    if (freshUserData) {
+                        // Update both localStorage cache and localUsers
+                        this.localUsers[normalizedNickname] = freshUserData;
+                        this.saveLocalUsers();
+                        localStorage.setItem('currentUser', JSON.stringify(freshUserData));
+                        console.log('🔥 Loaded fresh user data from Firestore:', freshUserData.stats);
+                        return freshUserData;
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Failed to load from Firestore, using cached data:', error.message);
+                }
+            }
+            
+            // Fallback: sync with localUsers cache
+            if (normalizedNickname && this.localUsers[normalizedNickname]) {
+                const latestUserData = this.localUsers[normalizedNickname];
+                user.stats = latestUserData.stats || user.stats;
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                console.log('💾 Using cached localUsers data:', user.stats);
+            }
+            
+            // Ensure stats object exists
+            if (!user.stats) {
+                user.stats = {
+                    totalScore: 0,
+                    gamesPlayed: 0,
+                    bestScore: 0,
+                    wins: 0
+                };
+            }
+            return user;
+        }
+        return null;
+    }
+    
+    // Synchronous version for immediate use (uses cache)
+    getCurrentUserSync() {
+        const currentUser = localStorage.getItem('currentUser');
+        if (currentUser) {
+            const user = JSON.parse(currentUser);
+            // Ensure stats object exists
+            if (!user.stats) {
+                user.stats = {
+                    totalScore: 0,
+                    gamesPlayed: 0,
+                    bestScore: 0,
+                    wins: 0
+                };
+            }
+            return user;
+        }
+        return null;
     }
 
     // Set current logged in user
     setCurrentUser(user) {
+        // Ensure the user has proper stats structure
+        if (!user.stats) {
+            user.stats = {
+                totalScore: 0,
+                gamesPlayed: 0,
+                bestScore: 0,
+                wins: 0
+            };
+        }
+        
         localStorage.setItem('currentUser', JSON.stringify(user));
+        console.log('👤 User set as current:', user.nickname, 'with stats:', user.stats);
     }
 
-    // Update user stats (both local and Firestore)
+    // Update user stats (Firestore first, then cache locally)
     async updateUserStats(nickname, stats) {
         const normalizedNickname = nickname.toLowerCase().trim();
         
+        // Create updated user data
+        const updatedUser = {
+            ...this.localUsers[normalizedNickname],
+            stats: stats,
+            lastLogin: Date.now()
+        };
+        
+        // Save to Firestore first (primary storage)
+        if (this.isOnline && window.firebaseDb) {
+            try {
+                await this.saveUserToFirestore(normalizedNickname, updatedUser);
+                console.log('🔥 Stats saved to Firestore (primary) for:', nickname);
+            } catch (error) {
+                console.error('❌ Failed to save stats to Firestore:', error.message);
+                // Continue to save locally even if Firestore fails
+            }
+        }
+        
+        // Update local cache
         if (this.localUsers[normalizedNickname]) {
-            this.localUsers[normalizedNickname].stats = stats;
-            this.localUsers[normalizedNickname].lastLogin = Date.now();
+            this.localUsers[normalizedNickname] = updatedUser;
             this.saveLocalUsers();
+            console.log('💾 Stats cached locally for:', nickname);
 
             // Update current user if it's the same user
-            const currentUser = this.getCurrentUser();
+            const currentUser = this.getCurrentUserSync();
             if (currentUser && currentUser.nickname === nickname) {
-                currentUser.stats = stats;
-                this.setCurrentUser(currentUser);
-            }
-
-            // Sync to Firestore
-            if (this.isOnline && window.firebaseDb) {
-                try {
-                    await this.saveUserToFirestore(normalizedNickname, this.localUsers[normalizedNickname]);
-                    console.log('📊 Stats synced to Firestore for:', nickname);
-                } catch (error) {
-                    console.warn('⚠️ Stats sync to Firestore failed:', error.message);
-                }
+                this.setCurrentUser(updatedUser);
+                console.log('🔄 Current user updated with new stats');
             }
         }
     }
 
     // Logout
     logout() {
+        const currentUser = this.getCurrentUser();
+        console.log('🚪 Logging out user:', currentUser?.nickname, 'with stats:', currentUser?.stats);
+        
         localStorage.removeItem('currentUser');
         localStorage.removeItem('playerNickname');
         localStorage.removeItem('playerWallet');
+        
+        console.log('✅ Logout completed - currentUser cleared');
+    }
+
+    // Force refresh current user from localUsers (useful after stats updates)
+    refreshCurrentUser() {
+        const currentUser = this.getCurrentUser();
+        if (currentUser) {
+            const normalizedNickname = currentUser.nickname?.toLowerCase().trim();
+            if (normalizedNickname && this.localUsers[normalizedNickname]) {
+                // Get the latest data from localUsers
+                const latestUserData = this.localUsers[normalizedNickname];
+                // Set it as current user to refresh localStorage
+                this.setCurrentUser(latestUserData);
+                console.log('🔄 Current user refreshed from localUsers:', latestUserData.nickname, 'stats:', latestUserData.stats);
+                return latestUserData;
+            }
+        }
+        return null;
     }
 }
 
@@ -488,9 +607,11 @@ function setupSocketListeners() {
         // Update Player Info Panel with current game stats
         if (localPlayer) {
             updatePlayerInfoPanelStats(localPlayer);
+            // Force immediate display update
+            forceUpdateGameStatsDisplay(localPlayer);
             
             // Also update the main player info panel to show active game
-            const currentUser = nicknameAuth.getCurrentUser();
+            const currentUser = nicknameAuth.getCurrentUserSync();
             if (currentUser) {
                 updateMainPlayerInfoPanel(currentUser);
             }
@@ -549,7 +670,7 @@ function setupSocketListeners() {
         stopClientTimer();
         
         // Save game result to localStorage for authenticated users
-        const currentUser = nicknameAuth.getCurrentUser();
+        const currentUser = nicknameAuth.getCurrentUserSync();
         if (currentUser && localPlayer && localPlayer.name === currentUser.nickname) {
             try {
                 // Calculate new stats
@@ -596,7 +717,7 @@ function setupSocketListeners() {
                 console.log('🎮 Final score:', currentGameScore);
                 
                 // Refresh player info panel with updated stats
-                const updatedUser = nicknameAuth.getCurrentUser();
+                const updatedUser = nicknameAuth.getCurrentUserSync();
                 updatePlayerInfoPanelWithStats(updatedUser);
                 
             } catch (error) {
@@ -1949,13 +2070,16 @@ function gameLoop() {
         
         // Update player stats every second during gameplay
         if (now - lastStatsUpdate > 1000 && localPlayer) {
+            console.log('🔄 Updating player stats - Score:', localPlayer.score, 'User:', nicknameAuth.getCurrentUserSync()?.nickname);
             updatePlayerInfoPanelStats(localPlayer);
+            // Also force update display immediately
+            forceUpdateGameStatsDisplay(localPlayer);
             lastStatsUpdate = now;
         }
         
         // Save best score to Firebase every 30 seconds as backup
         if (now - lastBestScoreSave > 30000 && localPlayer && localPlayer.score > 0) {
-            const currentUser = nicknameAuth.getCurrentUser();
+            const currentUser = nicknameAuth.getCurrentUserSync();
             if (currentUser && window.authSystem?.currentUser) {
                 const savedBestScore = currentUser.stats.bestScore || 0;
                 if (localPlayer.score > savedBestScore) {
@@ -1988,17 +2112,17 @@ function gameLoop() {
 }
 
 // Initialize when page loads
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     init();
     
     // Load saved player data
-    loadSavedPlayerData();
+    await loadSavedPlayerData();
 });
 
 // Save game session when user leaves the page
 window.addEventListener('beforeunload', async (event) => {
     // Only save if user is authenticated and has a score
-    const currentUser = nicknameAuth.getCurrentUser();
+    const currentUser = nicknameAuth.getCurrentUserSync();
     if (currentUser && localPlayer && localPlayer.score > 0 && window.authSystem?.currentUser) {
         try {
             // Use sendBeacon for better reliability during page unload
@@ -2022,7 +2146,7 @@ window.addEventListener('beforeunload', async (event) => {
 document.addEventListener('visibilitychange', async () => {
     if (document.hidden) {
         // User switched to another tab or minimized
-        const currentUser = nicknameAuth.getCurrentUser();
+        const currentUser = nicknameAuth.getCurrentUserSync();
         if (currentUser && localPlayer && localPlayer.score > 0 && window.authSystem?.currentUser) {
             try {
                 const response = await fetch(`/api/player/${window.authSystem.currentUser.uid}/session`, {
@@ -2150,17 +2274,44 @@ async function updatePlayerInfoPanelWithStats(user) {
 }
 
 async function updatePlayerInfoPanelStats(player) {
+    console.log('📊 updatePlayerInfoPanelStats called with player:', player?.name, 'score:', player?.score);
+    
     // Only update total accumulated stats, not current game
-    const currentUser = nicknameAuth.getCurrentUser();
-    if (!currentUser || player.name !== currentUser.nickname) {
+    const currentUser = nicknameAuth.getCurrentUserSync(); // Use sync version for real-time updates
+    console.log('👤 Current user:', currentUser?.nickname, 'stats:', currentUser?.stats);
+    
+    if (!currentUser) {
+        console.log('❌ No current user found');
+        return;
+    }
+    
+    // Make sure stats exists
+    if (!currentUser.stats) {
+        currentUser.stats = {
+            totalScore: 0,
+            gamesPlayed: 0,
+            bestScore: 0,
+            wins: 0
+        };
+        console.log('🔧 Initialized missing stats object');
+    }
+    
+    if (player.name !== currentUser.nickname) {
+        console.log('❌ User check failed - currentUser:', currentUser?.nickname, 'player:', player?.name);
         return; // Only update for authenticated current user
     }
+    
+    console.log('✅ Proceeding with stats update');
     
     // Update matches played to show current game is active
     const matchesPlayedElement = document.getElementById('matchesPlayed');
     if (matchesPlayedElement) {
         const baseMatches = currentUser.stats.gamesPlayed || 0;
-        matchesPlayedElement.textContent = baseMatches + 1; // +1 for current active game
+        const newValue = baseMatches + 1; // +1 for current active game
+        matchesPlayedElement.textContent = newValue;
+        console.log('🎮 Updated matches played to:', newValue, '(base:', baseMatches, '+1 active)');
+    } else {
+        console.log('❌ matchesPlayedElement not found');
     }
     
     // Update best score if current score is higher
@@ -2172,6 +2323,7 @@ async function updatePlayerInfoPanelStats(player) {
         // Show the highest between saved best score and current score
         const displayScore = Math.max(savedBestScore, currentGameScore);
         bestScoreElement.textContent = displayScore;
+        console.log('🏆 Best Score updated to:', displayScore, '(saved:', savedBestScore, 'current:', currentGameScore, ')');
         
         // If current score is new best, update in database
         if (currentGameScore > savedBestScore) {
@@ -2201,9 +2353,9 @@ async function updatePlayerInfoPanelStats(player) {
     }
 }
 
-function loadSavedPlayerData() {
-    // Check if user is authenticated
-    const currentUser = nicknameAuth.getCurrentUser();
+async function loadSavedPlayerData() {
+    // Check if user is authenticated and get fresh data from Firestore
+    let currentUser = await nicknameAuth.getCurrentUser();
     if (currentUser) {
         console.log('🔄 Loading saved player data for:', currentUser.nickname);
         
@@ -2221,7 +2373,7 @@ function loadSavedPlayerData() {
                     await nicknameAuth.syncWithFirestore();
                     
                     // Reload user data after sync
-                    const updatedUser = nicknameAuth.getCurrentUser();
+                    const updatedUser = await nicknameAuth.getCurrentUser();
                     if (updatedUser) {
                         updatePlayerInfoPanelWithStats(updatedUser);
                         updateMainPlayerInfoPanel(updatedUser);
@@ -2280,3 +2432,27 @@ function updateMainPlayerInfoPanel(user) {
         console.log('✅ Showed logout button');
     }
 } 
+
+// Simple function to force update panel display with current game state
+function forceUpdateGameStatsDisplay(player) {
+    if (!player) return;
+    
+    const currentUser = nicknameAuth.getCurrentUserSync();
+    if (!currentUser || player.name !== currentUser.nickname) return;
+    
+    // Force update matches display
+    const matchesPlayedElement = document.getElementById('matchesPlayed');
+    if (matchesPlayedElement) {
+        const baseMatches = currentUser.stats?.gamesPlayed || 0;
+        matchesPlayedElement.textContent = baseMatches + 1; // +1 for current active game
+    }
+    
+    // Force update best score display
+    const bestScoreElement = document.getElementById('bestScore');
+    if (bestScoreElement) {
+        const savedBestScore = currentUser.stats?.bestScore || 0;
+        const currentGameScore = player.score || 0;
+        const displayScore = Math.max(savedBestScore, currentGameScore);
+        bestScoreElement.textContent = displayScore;
+    }
+}
