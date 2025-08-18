@@ -259,7 +259,7 @@ class HybridAuthSystem {
     async saveUserToFirestore(nickname, userData) {
         if (!window.firebaseDb) throw new Error('Firestore not available');
         
-        await window.firebaseDb.collection('users').doc(nickname).set({
+        await window.firebaseDb.collection('userId').doc(nickname).set({
             ...userData,
             lastSync: Date.now()
         });
@@ -269,7 +269,7 @@ class HybridAuthSystem {
     async loadUserFromFirestore(nickname) {
         if (!window.firebaseDb) throw new Error('Firestore not available');
         
-        const doc = await window.firebaseDb.collection('users').doc(nickname).get();
+        const doc = await window.firebaseDb.collection('userId').doc(nickname).get();
         if (doc.exists) {
             return doc.data();
         }
@@ -285,7 +285,7 @@ class HybridAuthSystem {
 
         try {
             // Download all users from Firestore
-            const snapshot = await window.firebaseDb.collection('users').get();
+            const snapshot = await window.firebaseDb.collection('userId').get();
             let syncedCount = 0;
 
             snapshot.forEach(doc => {
@@ -303,7 +303,7 @@ class HybridAuthSystem {
             // Upload any local users that aren't in Firestore or are newer
             for (const [nickname, localUser] of Object.entries(this.localUsers)) {
                 try {
-                    const firestoreDoc = await window.firebaseDb.collection('users').doc(nickname).get();
+                    const firestoreDoc = await window.firebaseDb.collection('userId').doc(nickname).get();
                     
                     if (!firestoreDoc.exists || localUser.lastLogin > (firestoreDoc.data().lastLogin || 0)) {
                         await this.saveUserToFirestore(nickname, localUser);
@@ -337,7 +337,7 @@ class HybridAuthSystem {
         // Check Firestore if online
         if (this.isOnline && window.firebaseDb) {
             try {
-                const doc = await window.firebaseDb.collection('users').doc(normalizedNickname).get();
+                const doc = await window.firebaseDb.collection('userId').doc(normalizedNickname).get();
                 return doc.exists;
             } catch (error) {
                 console.warn('⚠️ Firestore nickname check failed:', error.message);
@@ -358,7 +358,7 @@ class HybridAuthSystem {
         // Check Firestore if online
         if (this.isOnline && window.firebaseDb) {
             try {
-                const snapshot = await window.firebaseDb.collection('users')
+                const snapshot = await window.firebaseDb.collection('userId')
                     .where('email', '==', normalizedEmail)
                     .limit(1)
                     .get();
