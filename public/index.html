@@ -862,14 +862,11 @@
         <!-- Game Canvas -->
         <canvas id="gameCanvas" class="absolute inset-0"></canvas>
         
-        <!-- New Grid Panel System -->
-        <div class="game-panels-grid" style="grid-template-areas: 'leaderboard leaderboard leaderboard leaderboard' 'chat chat chat chat' 'chat chat chat chat' 'controls controls controls userinfo';">
-            <!-- Note: CSS Grid layout - positions panels automatically -->
-        </div>
+        <!-- Individual Panel System - positioned correctly -->
         
-        <!-- Left side User Info Panel -->
+        <!-- User Info Panel (top-left) -->
         <div class="fixed left-4 top-4 z-100">
-            <div class="panel-wrapper panel-3x3 userinfo-panel">
+            <div class="panel-wrapper userinfo-panel" style="width: 240px; height: 240px;">
                 <div class="panel-button" id="userinfoToggleLeft">
                     <div class="icon">👤</div>
                     <div class="label">Player Info</div>
@@ -936,9 +933,10 @@
             </div>
         </div>
         
-        <!-- Right side panels grid -->
+        <!-- Leaderboard Panel (top-right) -->
+        <div class="fixed top-4 right-4 z-100">
             <!-- Leaderboard Panel (4x4) -->
-            <div class="panel-wrapper panel-4x4 leaderboard-panel">
+            <div class="panel-wrapper leaderboard-panel" style="width: 320px; height: 320px;">
                 <div class="panel-button" id="leaderboardToggle">
                     <div class="icon">🏆</div>
                     <div class="label">Leaderboard</div>
@@ -960,9 +958,12 @@
                     </div>
                 </div>
             </div>
-            
+        </div>
+        
+        <!-- Chat Panel (bottom-right) -->
+        <div class="fixed bottom-4 right-4 z-100">
             <!-- Chat Panel (4x4) -->
-            <div class="panel-wrapper panel-4x4 chat-panel">
+            <div class="panel-wrapper chat-panel" style="width: 320px; height: 320px;">
                 <div class="panel-button" id="chatToggle">
                     <div class="icon">💬</div>
                     <div class="label">Chat</div>
@@ -994,9 +995,12 @@
                     </div>
                 </div>
             </div>
-            
+        </div>
+        
+        <!-- Controls Panel (bottom-left) -->
+        <div class="fixed bottom-4 left-4 z-100">
             <!-- Controls Panel (3x2) -->
-            <div class="panel-wrapper panel-3x2 controls-panel">
+            <div class="panel-wrapper controls-panel" style="width: 240px; height: 160px;">
                 <div class="panel-button" id="controlsToggle">
                     <div class="icon">🎮</div>
                     <div class="label">Controls</div>
@@ -1018,8 +1022,6 @@
                     </div>
                 </div>
             </div>
-            
-
         </div>
         
         <!-- Mobile Chat Toggle - HIDDEN (replaced by new panel system) -->
@@ -1074,7 +1076,7 @@
         </div>
         
         <!-- Speed Indicator -->
-        <div id="speedIndicator" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 rounded-lg px-4 py-2 text-sm z-10">
+        <div id="speedIndicator" class="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 rounded-lg px-4 py-2 text-sm z-10">
             🏃 Speed: <span id="speedValue">0</span> / <span id="maxSpeedValue">200</span>
             <div class="text-xs text-gray-300 mt-1">
                 Size: <span id="playerSizeValue">20</span> (bigger = slower)
