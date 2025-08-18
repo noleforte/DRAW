@@ -110,6 +110,88 @@ class GameDataService {
             console.error('Error updating player profile:', error);
         }
     }
+
+    // Save single coin to player's total (real-time)
+    async savePlayerCoin(playerId, coinValue = 1) {
+        try {
+            const playerRef = db.collection('players').doc(playerId);
+            const playerDoc = await playerRef.get();
+            
+            if (playerDoc.exists) {
+                // Update existing player's total coins
+                await playerRef.update({
+                    totalScore: admin.firestore.FieldValue.increment(coinValue),
+                    lastPlayed: admin.firestore.FieldValue.serverTimestamp()
+                });
+                console.log(`💰 Added ${coinValue} coin to player ${playerId}`);
+            } else {
+                // Create new player if doesn't exist
+                await playerRef.set({
+                    playerName: `Player_${playerId}`,
+                    walletAddress: '',
+                    totalScore: coinValue,
+                    gamesPlayed: 0,
+                    bestScore: 0,
+                    firstPlayed: admin.firestore.FieldValue.serverTimestamp(),
+                    lastPlayed: admin.firestore.FieldValue.serverTimestamp()
+                });
+                console.log(`🆕 Created new player ${playerId} with ${coinValue} coin`);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Error saving player coin:', error);
+            return false;
+        }
+    }
+
+    // Get player's current total coins
+    async getPlayerTotalCoins(playerId) {
+        try {
+            const playerDoc = await db.collection('players').doc(playerId).get();
+            if (playerDoc.exists) {
+                const data = playerDoc.data();
+                return data.totalScore || 0;
+            }
+            return 0;
+        } catch (error) {
+            console.error('Error getting player total coins:', error);
+            return 0;
+        }
+    }
+
+    // Batch save multiple coins for better performance
+    async savePlayerCoins(playerId, coinCount) {
+        if (coinCount <= 0) return false;
+        
+        try {
+            const playerRef = db.collection('players').doc(playerId);
+            const playerDoc = await playerRef.get();
+            
+            if (playerDoc.exists) {
+                await playerRef.update({
+                    totalScore: admin.firestore.FieldValue.increment(coinCount),
+                    lastPlayed: admin.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                await playerRef.set({
+                    playerName: `Player_${playerId}`,
+                    walletAddress: '',
+                    totalScore: coinCount,
+                    gamesPlayed: 0,
+                    bestScore: 0,
+                    firstPlayed: admin.firestore.FieldValue.serverTimestamp(),
+                    lastPlayed: admin.firestore.FieldValue.serverTimestamp()
+                });
+            }
+            
+            console.log(`💰 Batch saved ${coinCount} coins to player ${playerId}`);
+            return true;
+        } catch (error) {
+            console.error('Error batch saving player coins:', error);
+            return false;
+        }
+    }
 }
 
 module.exports = {

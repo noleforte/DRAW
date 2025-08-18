@@ -54,6 +54,18 @@ app.get('/api/player/:playerId', async (req, res) => {
   }
 });
 
+// API endpoint for player total coins
+app.get('/api/player/:playerId/coins', async (req, res) => {
+  try {
+    const playerId = req.params.playerId;
+    const totalCoins = await GameDataService.getPlayerTotalCoins(playerId);
+    res.json({ totalCoins });
+  } catch (error) {
+    console.error('Error fetching player total coins:', error);
+    res.status(500).json({ error: 'Failed to fetch player total coins' });
+  }
+});
+
 // Health check endpoint for Render
 app.get('/health', (req, res) => {
   res.status(200).json({ 
@@ -226,10 +238,20 @@ function updatePlayers(deltaTime) {
     player.y = Math.max(-gameState.worldSize/2, Math.min(gameState.worldSize/2, player.y));
     
     // Check coin collection
-    gameState.coins.forEach(coin => {
+    gameState.coins.forEach(async (coin) => {
       const distance = Math.sqrt((coin.x - player.x) ** 2 + (coin.y - player.y) ** 2);
       if (distance < player.size) {
         player.score += coin.value;
+        
+        // Save coin to Firebase immediately for real-time persistence
+        if (player.firebaseId) {
+          try {
+            await GameDataService.savePlayerCoin(player.firebaseId, coin.value);
+            console.log(`💾 Saved coin to Firestore for player ${player.name} (${player.firebaseId})`);
+          } catch (error) {
+            console.error('Error saving coin to Firestore:', error);
+          }
+        }
         
         // Player growth based on score (Agar.io style)
         player.size = Math.min(50, 20 + Math.sqrt(player.score) * 2);

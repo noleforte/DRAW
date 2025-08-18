@@ -22,8 +22,10 @@ class AuthSystem {
                     this.showAuthenticatedUI();
                     // Auto-fill player name if signed in
                     this.autoFillPlayerInfo();
+                    this.setupCoinsListener(); // Setup listener for coins updates
                 } else {
                     this.showGuestUI();
+                    this.stopCoinsListener(); // Stop listener when user signs out
                 }
             });
         }).catch((error) => {
@@ -165,6 +167,7 @@ class AuthSystem {
             await firebaseAuth.signOut();
             this.currentUser = null;
             this.playerStats = null;
+            this.stopCoinsListener(); // Stop listener on sign out
         } catch (error) {
             console.error('Sign out failed:', error);
         }
@@ -191,8 +194,37 @@ class AuthSystem {
                 };
                 await firebaseDb.collection('players').doc(this.currentUser.uid).set(this.playerStats);
             }
+            
+            // Update UI with loaded stats
+            this.updatePlayerInfoPanel();
         } catch (error) {
             console.error('Error loading player stats:', error);
+        }
+    }
+
+    // Load player's total coins from Firestore
+    async loadPlayerTotalCoins() {
+        if (!this.currentUser) return 0;
+
+        try {
+            const doc = await firebaseDb.collection('players').doc(this.currentUser.uid).get();
+            if (doc.exists) {
+                const data = doc.data();
+                const totalCoins = data.totalScore || 0;
+                
+                // Update UI
+                const totalCoinsElement = document.getElementById('totalCoins');
+                if (totalCoinsElement) {
+                    totalCoinsElement.textContent = totalCoins;
+                    console.log(`💰 Loaded total coins: ${totalCoins}`);
+                }
+                
+                return totalCoins;
+            }
+            return 0;
+        } catch (error) {
+            console.error('Error loading player total coins:', error);
+            return 0;
         }
     }
 
@@ -567,6 +599,85 @@ class AuthSystem {
                 });
             }
         });
+    }
+
+    // Setup real-time listener for total coins updates
+    setupCoinsListener() {
+        if (!this.currentUser || !firebaseDb) return;
+
+        // Listen for real-time updates to player's total coins
+        this.coinsUnsubscribe = firebaseDb.collection('players').doc(this.currentUser.uid)
+            .onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    const totalCoins = data.totalScore || 0;
+                    
+                    // Update UI in real-time
+                    const totalCoinsElement = document.getElementById('totalCoins');
+                    if (totalCoinsElement) {
+                        // Only update if value actually changed
+                        const currentValue = parseInt(totalCoinsElement.textContent) || 0;
+                        if (currentValue !== totalCoins) {
+                            totalCoinsElement.textContent = totalCoins;
+                            console.log(`🔄 Real-time coin update: ${currentValue} → ${totalCoins}`);
+                            
+                            // Add visual feedback for coin updates
+                            totalCoinsElement.classList.add('coin-update');
+                            setTimeout(() => {
+                                totalCoinsElement.classList.remove('coin-update');
+                            }, 1000);
+                            
+                            // Show coin increase notification
+                            if (totalCoins > currentValue) {
+                                this.showCoinNotification(totalCoins - currentValue);
+                            }
+                        }
+                    }
+                }
+            }, (error) => {
+                console.error('Error listening to coins updates:', error);
+            });
+    }
+
+    // Stop listening to coins updates
+    stopCoinsListener() {
+        if (this.coinsUnsubscribe) {
+            this.coinsUnsubscribe();
+            this.coinsUnsubscribe = null;
+        }
+    }
+
+    // Show coin notification
+    showCoinNotification(coinAmount) {
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-20 right-4 bg-yellow-500 text-black px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-500';
+        notification.style.transform = 'translateX(100%)';
+        notification.style.opacity = '0';
+        notification.innerHTML = `
+            <div class="flex items-center space-x-2">
+                <span class="text-xl">🪙</span>
+                <span class="font-bold">+${coinAmount} coin${coinAmount > 1 ? 's' : ''}</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => {
+            notification.style.transform = 'translateX(0)';
+            notification.style.opacity = '1';
+        }, 10);
+        
+        // Animate out and remove
+        setTimeout(() => {
+            notification.style.transform = 'translateX(100%)';
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 500);
+        }, 2000);
     }
 }
 

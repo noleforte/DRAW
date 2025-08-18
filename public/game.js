@@ -1931,11 +1931,21 @@ async function updatePlayerInfoPanelWithStats(user) {
     
     console.log('📊 Loading user stats:', user.stats);
     
+    // Load real-time total coins from Firebase if available
+    if (window.authSystem && window.authSystem.currentUser) {
+        console.log('🔄 Loading real-time coins from Firebase...');
+        try {
+            await window.authSystem.loadPlayerTotalCoins();
+        } catch (error) {
+            console.warn('⚠️ Failed to load coins from Firebase:', error);
+        }
+    }
+    
     if (user.stats) {
-        // Show accumulated total coins from all games
-        if (totalCoinsElement) {
+        // Show accumulated total coins from all games (fallback to local data if Firebase fails)
+        if (totalCoinsElement && !window.authSystem?.currentUser) {
             totalCoinsElement.textContent = user.stats.totalScore || 0;
-            console.log('💰 Total coins loaded:', user.stats.totalScore);
+            console.log('💰 Total coins loaded from local:', user.stats.totalScore);
         }
         
         // Show matches played
@@ -1951,8 +1961,10 @@ async function updatePlayerInfoPanelWithStats(user) {
         }
     } else {
         console.log('⚠️ No user stats found, using defaults');
-        // Set default values
-        if (totalCoinsElement) totalCoinsElement.textContent = '0';
+        // Set default values only if not using Firebase
+        if (!window.authSystem?.currentUser) {
+            if (totalCoinsElement) totalCoinsElement.textContent = '0';
+        }
         if (matchesPlayedElement) matchesPlayedElement.textContent = '0';
         if (bestScoreElement) bestScoreElement.textContent = '0';
     }
