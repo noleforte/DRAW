@@ -596,15 +596,28 @@ function updateBots() {
              console.log(`🤖 Respawned new bot: ${newBot.name}`);
            }
          }, 5000 + Math.random() * 10000); // 5-15 seconds delay
-       } else {
-         gameState.players.delete(target.id);
-         // If it was a player, send them a death message
-         io.emit('playerEaten', {
-           victimId: target.id,
-           eatenByBot: bot.name,
-           coinsLost: target.score
-         });
-       }
+             } else {
+        // Save player's coins to Firestore before death
+        if (target.score > 0 && (target.firebaseId || target.playerId)) {
+          const playerIdForSave = target.firebaseId || target.playerId;
+          GameDataService.savePlayerCoin(playerIdForSave, target.score)
+            .then(() => {
+              console.log(`💰 Saved ${target.score} coins to Firestore for player ${target.name} before death`);
+            })
+            .catch((error) => {
+              console.error('❌ Failed to save coins before death:', error);
+            });
+        }
+        
+        gameState.players.delete(target.id);
+        // If it was a player, send them a death message
+        io.emit('playerEaten', {
+          victimId: target.id,
+          eatenByBot: bot.name,
+          coinsLost: target.score, // Keep for backward compatibility
+          coinsSaved: target.score // New field to indicate coins are saved
+        });
+      }
      });
 
     // Occasionally send chat messages (reduced frequency)
@@ -748,15 +761,28 @@ function updatePlayers(deltaTime) {
              console.log(`🤖 Respawned new bot: ${newBot.name} (eaten by player)`);
            }
          }, 5000 + Math.random() * 10000); // 5-15 seconds delay
-       } else {
-         gameState.players.delete(target.id);
-         // If it was a player, send them a death message
-         io.emit('playerEaten', {
-           victimId: target.id,
-           eatenByPlayer: player.name,
-           coinsLost: target.score
-         });
-       }
+             } else {
+        // Save player's coins to Firestore before death
+        if (target.score > 0 && (target.firebaseId || target.playerId)) {
+          const playerIdForSave = target.firebaseId || target.playerId;
+          GameDataService.savePlayerCoin(playerIdForSave, target.score)
+            .then(() => {
+              console.log(`💰 Saved ${target.score} coins to Firestore for player ${target.name} before death`);
+            })
+            .catch((error) => {
+              console.error('❌ Failed to save coins before death:', error);
+            });
+        }
+        
+        gameState.players.delete(target.id);
+        // If it was a player, send them a death message
+        io.emit('playerEaten', {
+          victimId: target.id,
+          eatenByPlayer: player.name,
+          coinsLost: target.score, // Keep for backward compatibility
+          coinsSaved: target.score // New field to indicate coins are saved
+        });
+      }
      });
   });
 }

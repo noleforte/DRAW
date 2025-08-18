@@ -805,17 +805,32 @@ function setupSocketListeners() {
     socket.on('playerEaten', (data) => {
         // Handle when our player gets eaten
         if (localPlayer && localPlayer.id === data.victimId) {
-            console.log(`💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! Lost ${data.coinsLost} coins`);
+            console.log(`💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! Saved ${data.coinsLost} coins to your balance.`);
             
             // Show death message
             addChatMessage({
                 playerName: 'System',
-                message: `💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! Lost ${data.coinsLost} coins`,
+                message: `💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! 💰 ${data.coinsLost} coins saved to your Total Coins!`,
                 timestamp: Date.now()
             });
             
             // Show death notification
-            showServerMessage(`💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! Lost ${data.coinsLost} coins. Returning to main menu in 3 seconds...`, 'error');
+            showServerMessage(`💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! 💰 ${data.coinsLost} coins saved to your Total Coins! Returning to main menu in 3 seconds...`, 'success');
+            
+            // Force refresh Total Coins from Firestore to show the updated balance
+            setTimeout(async () => {
+                try {
+                    await window.nicknameAuth.syncUserStatsFromFirestore();
+                    console.log('💰 Total Coins refreshed after death');
+                    
+                    // Update Player Info panel if open
+                    if (window.panelManager) {
+                        await window.panelManager.updateUserInfoPanel();
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Failed to refresh Total Coins after death:', error);
+                }
+            }, 1500); // Refresh after 1.5 seconds to allow server to save
             
             // Disconnect from game and return to main menu after a short delay
             setTimeout(() => {
@@ -846,6 +861,12 @@ function setupSocketListeners() {
                 if (leaderboardList) {
                     leaderboardList.innerHTML = '';
                 }
+                
+                // Refresh player data on main menu to show updated Total Coins
+                setTimeout(async () => {
+                    await loadSavedPlayerData();
+                    console.log('💰 Player data refreshed on main menu after death');
+                }, 500);
                 
                 console.log('🔄 Returned to main menu after being eaten');
             }, 3000); // 3 second delay to show message
@@ -978,7 +999,92 @@ function setupSocketListeners() {
     });
 }
 
+// Prevent zoom/scaling to maintain fair gameplay
+function preventZoom() {
+    // Prevent Ctrl+Scroll zoom
+    document.addEventListener('wheel', (e) => {
+        if (e.ctrlKey) {
+            e.preventDefault();
+            console.log('🚫 Zoom attempt blocked via Ctrl+Scroll');
+        }
+    }, { passive: false });
+    
+    // Prevent keyboard zoom shortcuts
+    document.addEventListener('keydown', (e) => {
+        // Block Ctrl+Plus, Ctrl+Minus, Ctrl+0 (zoom shortcuts)
+        if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+            e.preventDefault();
+            console.log('🚫 Zoom attempt blocked via keyboard shortcut:', e.key);
+        }
+        
+        // Block F11 (fullscreen can sometimes affect zoom)
+        if (e.key === 'F11') {
+            e.preventDefault();
+            console.log('🚫 F11 fullscreen blocked');
+        }
+    });
+    
+    // Prevent pinch-to-zoom on touch devices
+    document.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 1) {
+            e.preventDefault();
+            console.log('🚫 Multi-touch zoom attempt blocked');
+        }
+    }, { passive: false });
+    
+    document.addEventListener('touchmove', (e) => {
+        if (e.touches.length > 1) {
+            e.preventDefault();
+            console.log('🚫 Pinch-to-zoom blocked');
+        }
+    }, { passive: false });
+    
+    // Block right-click context menu (can sometimes be used for zoom)
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        console.log('🚫 Context menu blocked');
+    });
+    
+    // Block double-tap zoom on mobile
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) {
+            e.preventDefault();
+            console.log('🚫 Double-tap zoom blocked');
+        }
+        lastTouchEnd = now;
+    }, { passive: false });
+    
+    // Monitor zoom level changes
+    let currentZoom = window.devicePixelRatio;
+    setInterval(() => {
+        const newZoom = window.devicePixelRatio;
+        if (Math.abs(newZoom - currentZoom) > 0.1) {
+            console.warn('🚫 Zoom level change detected, attempting to reset...');
+            
+            // Show warning to player
+            showServerMessage('🚫 Zoom detected! Please use normal zoom level for fair play.', 'warning');
+            
+            // Try to reset zoom (limited effectiveness due to browser security)
+            try {
+                document.body.style.zoom = '1';
+                document.body.style.transform = 'scale(1)';
+            } catch (error) {
+                console.warn('⚠️ Could not reset zoom level');
+            }
+            
+            currentZoom = newZoom;
+        }
+    }, 1000);
+    
+    console.log('🛡️ Zoom prevention system activated');
+}
+
 function setupInputHandlers() {
+    // Prevent zoom/scale events
+    preventZoom();
+    
     // Keyboard input
     document.addEventListener('keydown', (e) => {
         // Check if user is typing in an input field
