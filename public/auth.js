@@ -23,9 +23,11 @@ class AuthSystem {
                     // Auto-fill player name if signed in
                     this.autoFillPlayerInfo();
                     this.setupCoinsListener(); // Setup listener for coins updates
+                    console.log('✅ User authenticated, panel should be updated');
                 } else {
                     this.showGuestUI();
                     this.stopCoinsListener(); // Stop listener when user signs out
+                    console.log('👤 User signed out, showing guest UI');
                 }
             });
         }).catch((error) => {
@@ -193,10 +195,12 @@ class AuthSystem {
                     lastPlayed: firebase.firestore.FieldValue.serverTimestamp()
                 };
                 await firebaseDb.collection('players').doc(this.currentUser.uid).set(this.playerStats);
+                console.log('🆕 Created new player document in Firestore');
             }
             
             // Update UI with loaded stats
             this.updatePlayerInfoPanel();
+            console.log('📊 Player stats loaded and UI updated');
         } catch (error) {
             console.error('Error loading player stats:', error);
         }
@@ -371,12 +375,19 @@ class AuthSystem {
                 if (bestScore) bestScore.textContent = this.playerStats.bestScore || 0;
             }
         } else {
-            // Not logged in
+            // Not logged in - show guest info
             if (playerInfoName) playerInfoName.textContent = 'Guest';
             if (playerInfoStatus) playerInfoStatus.textContent = 'Not signed in';
-            if (totalCoins) totalCoins.textContent = '20';
+            if (totalCoins) totalCoins.textContent = '0';
             if (matchesPlayed) matchesPlayed.textContent = '0';
             if (bestScore) bestScore.textContent = '0';
+        }
+        
+        // Ensure panel is always visible
+        const playerInfoPanel = document.getElementById('playerInfoPanel');
+        if (playerInfoPanel) {
+            playerInfoPanel.style.display = 'block';
+            playerInfoPanel.style.visibility = 'visible';
         }
     }
 
@@ -397,6 +408,9 @@ class AuthSystem {
         if (signOutBtn) {
             signOutBtn.classList.add('hidden');
         }
+        
+        // Update player info panel for guest
+        this.updatePlayerInfoPanel();
     }
 
     // Auto-fill player information when signed in
@@ -685,9 +699,109 @@ class AuthSystem {
 const authSystem = new AuthSystem();
 window.authSystem = authSystem;
 
+// Function to initialize player info panel for all users
+function initializePlayerInfoPanel() {
+    console.log('🔄 Initializing player info panel...');
+    
+    // Ensure panel is always visible
+    const playerInfoPanel = document.getElementById('playerInfoPanel');
+    if (playerInfoPanel) {
+        playerInfoPanel.style.display = 'block';
+        playerInfoPanel.style.visibility = 'visible';
+        console.log('✅ Player info panel set to visible');
+    }
+    
+    // Check if there's a current user in the nickname auth system
+    if (window.nicknameAuth) {
+        const currentUser = window.nicknameAuth.getCurrentUser();
+        if (currentUser) {
+            console.log('👤 Found user in nickname auth system:', currentUser.nickname);
+            // Update with nickname auth user data
+            updatePlayerInfoWithNicknameAuth(currentUser);
+            return;
+        }
+    }
+    
+    // Initialize with default values or current user data
+    if (window.authSystem && window.authSystem.currentUser) {
+        window.authSystem.updatePlayerInfoPanel();
+    } else {
+        // Set default guest values
+        const playerInfoName = document.getElementById('playerInfoName');
+        const playerInfoStatus = document.getElementById('playerInfoStatus');
+        const totalCoins = document.getElementById('totalCoins');
+        const matchesPlayed = document.getElementById('matchesPlayed');
+        const bestScore = document.getElementById('bestScore');
+        
+        if (playerInfoName) playerInfoName.textContent = 'Guest';
+        if (playerInfoStatus) playerInfoStatus.textContent = 'Not signed in';
+        if (totalCoins) totalCoins.textContent = '0';
+        if (matchesPlayed) matchesPlayed.textContent = '0';
+        if (bestScore) bestScore.textContent = '0';
+        
+        console.log('✅ Set default guest values in player info panel');
+    }
+}
+
+// Update player info panel with nickname auth user data
+function updatePlayerInfoWithNicknameAuth(user) {
+    console.log('🔄 Updating player info with nickname auth user:', user);
+    
+    const playerInfoName = document.getElementById('playerInfoName');
+    const playerInfoStatus = document.getElementById('playerInfoStatus');
+    const totalCoins = document.getElementById('totalCoins');
+    const matchesPlayed = document.getElementById('matchesPlayed');
+    const bestScore = document.getElementById('bestScore');
+    const logoutBtn = document.getElementById('logoutBtn');
+    
+    if (playerInfoName && user.nickname) {
+        playerInfoName.textContent = user.nickname;
+        console.log('✅ Updated playerInfoName to:', user.nickname);
+    }
+    
+    if (playerInfoStatus) {
+        playerInfoStatus.textContent = 'Authenticated';
+        console.log('✅ Updated playerInfoStatus to: Authenticated');
+    }
+    
+    // Update stats if available
+    if (user.stats) {
+        if (totalCoins) {
+            totalCoins.textContent = user.stats.totalScore || 0;
+            console.log('💰 Updated totalCoins to:', user.stats.totalScore);
+        }
+        if (matchesPlayed) {
+            // If user is currently in game, show +1 for active match
+            const baseMatches = user.stats.gamesPlayed || 0;
+            const isInGame = window.socket && window.socket.connected && window.localPlayer;
+            matchesPlayed.textContent = isInGame ? baseMatches + 1 : baseMatches;
+            console.log('🎮 Updated matchesPlayed to:', matchesPlayed.textContent);
+        }
+        if (bestScore) {
+            // Show current game score if it's higher than saved best
+            const savedBest = user.stats.bestScore || 0;
+            const currentScore = window.localPlayer ? window.localPlayer.score || 0 : 0;
+            const displayScore = Math.max(savedBest, currentScore);
+            bestScore.textContent = displayScore;
+            console.log('🏆 Updated bestScore to:', displayScore);
+        }
+    }
+    
+    // Show logout button
+    if (logoutBtn) {
+        logoutBtn.classList.remove('hidden');
+        console.log('✅ Showed logout button');
+    }
+}
+
 // Setup auth modal handlers when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🔄 DOM loaded, setting up auth modal handlers');
+    console.log('🔄 DOM loaded, setting up auth system...');
+    
+    // Initialize player info panel first
+    initializePlayerInfoPanel();
+    
+    // Setup auth modal handlers
     if (window.authSystem) {
         window.authSystem.setupAuthModalHandlers();
         console.log('✅ Auth modal handlers set up');

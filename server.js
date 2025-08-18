@@ -238,35 +238,52 @@ function updatePlayers(deltaTime) {
     player.y = Math.max(-gameState.worldSize/2, Math.min(gameState.worldSize/2, player.y));
     
     // Check coin collection
-    gameState.coins.forEach(async (coin) => {
+    const coinsToDelete = [];
+    const coinsToSave = [];
+    
+    gameState.coins.forEach((coin) => {
       const distance = Math.sqrt((coin.x - player.x) ** 2 + (coin.y - player.y) ** 2);
       if (distance < player.size) {
         player.score += coin.value;
+        coinsToDelete.push(coin.id);
         
-        // Save coin to Firebase immediately for real-time persistence
+        // Queue coin for Firebase saving
         if (player.firebaseId) {
-          try {
-            await GameDataService.savePlayerCoin(player.firebaseId, coin.value);
-            console.log(`💾 Saved coin to Firestore for player ${player.name} (${player.firebaseId})`);
-          } catch (error) {
-            console.error('Error saving coin to Firestore:', error);
-          }
+          coinsToSave.push({ playerId: player.firebaseId, value: coin.value, playerName: player.name });
         }
         
         // Player growth based on score (Agar.io style)
         player.size = Math.min(50, 20 + Math.sqrt(player.score) * 2);
-        
-        gameState.coins.delete(coin.id);
-        
-        // Respawn coin
-        const newCoin = {
-          id: gameState.nextCoinId++,
-          ...getRandomPosition(),
-          value: 1
-        };
-        gameState.coins.set(newCoin.id, newCoin);
       }
     });
+    
+    // Process collected coins
+    coinsToDelete.forEach(coinId => {
+      gameState.coins.delete(coinId);
+      
+      // Respawn coin
+      const newCoin = {
+        id: gameState.nextCoinId++,
+        ...getRandomPosition(),
+        value: 1
+      };
+      gameState.coins.set(newCoin.id, newCoin);
+    });
+    
+    // Save coins to Firebase in batch (non-blocking)
+    if (coinsToSave.length > 0) {
+      // Use setTimeout to avoid blocking the game loop
+      setTimeout(async () => {
+        for (const coinData of coinsToSave) {
+          try {
+            await GameDataService.savePlayerCoin(coinData.playerId, coinData.value);
+            console.log(`💾 Saved coin to Firestore for player ${coinData.playerName} (${coinData.playerId})`);
+          } catch (error) {
+            console.error('Error saving coin to Firestore:', error);
+          }
+        }
+      }, 0);
+    }
     
     // Check eating other players/bots (Agar.io mechanics)
     const allEntities = [...gameState.players.values(), ...gameState.bots.values()];

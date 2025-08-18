@@ -15,6 +15,7 @@ let camera = {
 };
 
 let localPlayer = null;
+window.localPlayer = localPlayer; // Make it globally available
 let canvas = null;
 let ctx = null;
 let keys = {};
@@ -375,6 +376,7 @@ class HybridAuthSystem {
 
 // Initialize nickname auth system
 const nicknameAuth = new HybridAuthSystem();
+window.nicknameAuth = nicknameAuth; // Make it globally available
 
 // Initialize game
 function init() {
@@ -405,6 +407,7 @@ function init() {
         path: '/socket.io',
         transports: ['websocket', 'polling']
     });
+    window.socket = socket; // Make socket globally available
     setupSocketListeners();
     
     // Setup input handlers
@@ -456,6 +459,7 @@ function setupSocketListeners() {
     socket.on('gameState', (data) => {
         gameState = data;
         localPlayer = gameState.players.find(p => p.id === data.playerId);
+        window.localPlayer = localPlayer; // Update global reference
         if (localPlayer) {
             camera.x = localPlayer.x;
             camera.y = localPlayer.y;
@@ -469,17 +473,25 @@ function setupSocketListeners() {
         
         const previousLocalPlayer = localPlayer;
         localPlayer = gameState.players.find(p => p.id === gameState.playerId);
+        window.localPlayer = localPlayer; // Update global reference
         
         if (!localPlayer) {
             // Try to recover localPlayer
             if (previousLocalPlayer) {
                 localPlayer = previousLocalPlayer;
+                window.localPlayer = localPlayer; // Update global reference
             }
         }
         
         // Update Player Info Panel with current game stats
         if (localPlayer) {
             updatePlayerInfoPanelStats(localPlayer);
+            
+            // Also update the main player info panel to show active game
+            const currentUser = nicknameAuth.getCurrentUser();
+            if (currentUser) {
+                updateMainPlayerInfoPanel(currentUser);
+            }
         }
         
         updateLeaderboard();
@@ -728,6 +740,39 @@ function setupUIHandlers() {
         });
     }
 
+    // Logout Button
+    const mainLogoutBtn = document.getElementById('logoutBtn');
+    if (mainLogoutBtn) {
+        mainLogoutBtn.addEventListener('click', () => {
+            console.log('🚪 Logout button clicked');
+            
+            // Logout from both systems
+            if (window.authSystem) {
+                window.authSystem.signOut();
+            }
+            if (window.nicknameAuth) {
+                window.nicknameAuth.logout();
+            }
+            
+            // Reset player info panel to guest state
+            const playerInfoName = document.getElementById('playerInfoName');
+            const playerInfoStatus = document.getElementById('playerInfoStatus');
+            const totalCoins = document.getElementById('totalCoins');
+            const matchesPlayed = document.getElementById('matchesPlayed');
+            const bestScore = document.getElementById('bestScore');
+            
+            if (playerInfoName) playerInfoName.textContent = 'Guest';
+            if (playerInfoStatus) playerInfoStatus.textContent = 'Not signed in';
+            if (totalCoins) totalCoins.textContent = '0';
+            if (matchesPlayed) matchesPlayed.textContent = '0';
+            if (bestScore) bestScore.textContent = '0';
+            
+            // Hide logout button
+            mainLogoutBtn.classList.add('hidden');
+            
+            console.log('✅ Logged out successfully');
+        });
+    }
     
     // Continue as Guest Button
     const mainGuestPlayBtn = document.getElementById('mainGuestPlayBtn');
@@ -782,6 +827,9 @@ function setupUIHandlers() {
             
             // Update player info panel with authenticated user
             updatePlayerInfoPanelWithStats(user);
+            
+            // Also update the main player info panel
+            updateMainPlayerInfoPanel(user);
             
             // Use authenticated user's data
             playerName = user.nickname;
@@ -1833,6 +1881,7 @@ function showGameOverModal(finalResults) {
 }
 
 let gameLoopCounter = 0;
+let lastStatsUpdate = 0;
 
 function gameLoop() {
     if (gameEnded) {
@@ -1849,6 +1898,12 @@ function gameLoop() {
         if (now - lastMovementSent > MOVEMENT_SEND_INTERVAL) {
             socket.emit('playerMove', movement);
             lastMovementSent = now;
+        }
+        
+        // Update player stats every second during gameplay
+        if (now - lastStatsUpdate > 1000 && localPlayer) {
+            updatePlayerInfoPanelStats(localPlayer);
+            lastStatsUpdate = now;
         }
     }
     
@@ -1977,16 +2032,25 @@ async function updatePlayerInfoPanelStats(player) {
         return; // Only update for authenticated current user
     }
     
+    // Update matches played to show current game is active
+    const matchesPlayedElement = document.getElementById('matchesPlayed');
+    if (matchesPlayedElement) {
+        const baseMatches = currentUser.stats.gamesPlayed || 0;
+        matchesPlayedElement.textContent = baseMatches + 1; // +1 for current active game
+    }
+    
     // Update best score if current score is higher
     const bestScoreElement = document.getElementById('bestScore');
     if (bestScoreElement) {
-        const currentBest = parseInt(bestScoreElement.textContent) || 0;
+        const savedBestScore = currentUser.stats.bestScore || 0;
         const currentGameScore = player.score || 0;
         
-        if (currentGameScore > currentBest) {
-            bestScoreElement.textContent = currentGameScore;
-            
-            // Update in Firestore/localStorage
+        // Show the highest between saved best score and current score
+        const displayScore = Math.max(savedBestScore, currentGameScore);
+        bestScoreElement.textContent = displayScore;
+        
+        // If current score is new best, update in database
+        if (currentGameScore > savedBestScore) {
             currentUser.stats.bestScore = currentGameScore;
             await nicknameAuth.updateUserStats(currentUser.nickname, currentUser.stats);
             console.log('🏆 New best score recorded:', currentGameScore);
@@ -2003,6 +2067,9 @@ function loadSavedPlayerData() {
         // Load latest user data from Firestore/localStorage
         updatePlayerInfoPanelWithStats(currentUser);
         
+        // Also update the main player info panel
+        updateMainPlayerInfoPanel(currentUser);
+        
         // Try to sync with Firestore to get latest data
         if (nicknameAuth.isOnline && window.firebaseDb) {
             setTimeout(async () => {
@@ -2014,6 +2081,7 @@ function loadSavedPlayerData() {
                     const updatedUser = nicknameAuth.getCurrentUser();
                     if (updatedUser) {
                         updatePlayerInfoPanelWithStats(updatedUser);
+                        updateMainPlayerInfoPanel(updatedUser);
                         console.log('✅ Player data updated from Firestore');
                     }
                 } catch (error) {
@@ -2023,5 +2091,49 @@ function loadSavedPlayerData() {
         }
     } else {
         console.log('ℹ️ No saved user data found');
+    }
+} 
+
+// Update main player info panel with current user data
+function updateMainPlayerInfoPanel(user) {
+    console.log('🔄 Updating main player info panel with user:', user);
+    
+    const playerInfoName = document.getElementById('playerInfoName');
+    const playerInfoStatus = document.getElementById('playerInfoStatus');
+    const totalCoins = document.getElementById('totalCoins');
+    const matchesPlayed = document.getElementById('matchesPlayed');
+    const bestScore = document.getElementById('bestScore');
+    
+    if (playerInfoName && user.nickname) {
+        playerInfoName.textContent = user.nickname;
+        console.log('✅ Updated playerInfoName to:', user.nickname);
+    }
+    
+    if (playerInfoStatus) {
+        playerInfoStatus.textContent = 'Authenticated';
+        console.log('✅ Updated playerInfoStatus to: Authenticated');
+    }
+    
+    // Update stats if available
+    if (user.stats) {
+        if (totalCoins) {
+            totalCoins.textContent = user.stats.totalScore || 0;
+            console.log('💰 Updated totalCoins to:', user.stats.totalScore);
+        }
+        if (matchesPlayed) {
+            matchesPlayed.textContent = user.stats.gamesPlayed || 0;
+            console.log('🎮 Updated matchesPlayed to:', user.stats.gamesPlayed);
+        }
+        if (bestScore) {
+            bestScore.textContent = user.stats.bestScore || 0;
+            console.log('🏆 Updated bestScore to:', user.stats.bestScore);
+        }
+    }
+    
+    // Show logout button if it exists
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.classList.remove('hidden');
+        console.log('✅ Showed logout button');
     }
 } 
