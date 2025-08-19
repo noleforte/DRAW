@@ -2420,23 +2420,26 @@ function performLogout() {
     const gameCanvas = document.getElementById('gameCanvas');
     const nameModal = document.getElementById('nameModal');
     
-    if (gameCanvas) gameCanvas.style.display = 'none';
-    if (nameModal) nameModal.classList.remove('hidden');
+    if (gameCanvas) {
+        gameCanvas.style.display = 'none';
+    }
     
-    // 8. Reset any game UI elements
-    const gameUI = document.querySelectorAll('#matchTimer, #speedIndicator, .panel-wrapper');
-    gameUI.forEach(element => {
-        if (element) element.style.display = 'none';
+    // 8. Reset any game UI elements to their default state
+    const matchTimer = document.getElementById('matchTimer');
+    const speedIndicator = document.getElementById('speedIndicator');
+    const panelWrappers = document.querySelectorAll('.panel-wrapper');
+    
+    if (matchTimer) matchTimer.style.display = 'none';
+    if (speedIndicator) speedIndicator.style.display = 'none';
+    panelWrappers.forEach(wrapper => {
+        if (wrapper) wrapper.style.display = 'none';
     });
     
-    // 9. Show main menu elements
-    const mainMenuElements = document.querySelectorAll('#nameModal, #nameModalContent');
-    mainMenuElements.forEach(element => {
-        if (element) {
-            element.style.display = 'flex';
-            element.classList.remove('hidden');
-        }
-    });
+    // 9. Show main menu properly
+    if (nameModal) {
+        nameModal.classList.remove('hidden');
+        nameModal.style.display = 'flex';
+    }
     
     // 10. Reset canvas context
     const canvas = document.getElementById('gameCanvas');
@@ -2446,6 +2449,14 @@ function performLogout() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
     }
+    
+    // 11. Reset page to initial state
+    document.body.style.overflow = 'auto'; // Allow scrolling again
+    
+    // 12. Force page reload to ensure clean state
+    setTimeout(() => {
+        window.location.reload();
+    }, 100);
     
     console.log('✅ Logout completed - returned to main menu');
 }
