@@ -3032,6 +3032,15 @@ async function updatePlayerInfoPanelStats(player) {
             console.log('🏆 New best score recorded:', currentGameScore);
         }
     }
+    
+    // Update current game rank (if PanelManager exists)
+    if (window.panelManager && player) {
+        const currentGameRankElement = document.querySelector('#userinfoLeftPanel #currentGameRank');
+        if (currentGameRankElement) {
+            const playerRank = window.panelManager.calculatePlayerRank(player);
+            currentGameRankElement.textContent = playerRank ? `#${playerRank}` : '#-';
+        }
+    }
 }
 
 async function loadSavedPlayerData() {
@@ -3258,6 +3267,27 @@ class PanelManager {
         }
     }
     
+    calculatePlayerRank(localPlayer) {
+        // Calculate player's rank based on current leaderboard
+        if (!localPlayer || !window.entities) return null;
+        
+        // Get all players (not bots) with their scores
+        const allPlayers = window.entities.filter(entity => !entity.isBot && entity.score !== undefined);
+        
+        // Add local player if not already in entities
+        if (!allPlayers.find(p => p.id === localPlayer.id)) {
+            allPlayers.push(localPlayer);
+        }
+        
+        // Sort by score in descending order
+        allPlayers.sort((a, b) => (b.score || 0) - (a.score || 0));
+        
+        // Find local player's position
+        const playerRank = allPlayers.findIndex(p => p.id === localPlayer.id) + 1;
+        
+        return playerRank > 0 ? playerRank : null;
+    }
+    
     openPanel(panelName) {
         const panel = this.panels[panelName];
         if (panel && panel.toggle && panel.panel) {
@@ -3332,10 +3362,28 @@ class PanelManager {
                 const bestScoreElement = document.querySelector('#userinfoLeftPanel #bestScoreLeft');
                 const currentGameScoreElement = document.querySelector('#userinfoLeftPanel #currentGameScore');
                 const currentGameSizeElement = document.querySelector('#userinfoLeftPanel #currentGameSize');
+                const currentGameRankElement = document.querySelector('#userinfoLeftPanel #currentGameRank');
+                const playerWalletElement = document.querySelector('#userinfoLeftPanel #playerWalletAddressLeft');
                 const logoutBtn = document.querySelector('#userinfoLeftPanel #logoutBtnLeft');
                 
                 if (nameElement) nameElement.textContent = currentUser.nickname || 'Guest';
                 if (statusElement) statusElement.textContent = currentUser.nickname ? 'Signed in' : 'Not signed in';
+                
+                // Update wallet address from database
+                if (playerWalletElement) {
+                    const walletAddress = currentUser.wallet || currentUser.walletAddress || '-';
+                    if (walletAddress && walletAddress !== '-') {
+                        // Show first 6 and last 4 characters of wallet address
+                        const truncatedWallet = walletAddress.length > 10 
+                            ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`
+                            : walletAddress;
+                        playerWalletElement.textContent = truncatedWallet;
+                        playerWalletElement.title = walletAddress; // Full address on hover
+                    } else {
+                        playerWalletElement.textContent = '-';
+                        playerWalletElement.title = 'No wallet address';
+                    }
+                }
                 if (totalCoinsElement) {
                     const totalCoins = currentUser.stats?.totalScore || 0;
                     totalCoinsElement.textContent = totalCoins;
@@ -3356,9 +3404,16 @@ class PanelManager {
                 if (window.localPlayer) {
                     if (currentGameScoreElement) currentGameScoreElement.textContent = window.localPlayer.score || 0;
                     if (currentGameSizeElement) currentGameSizeElement.textContent = Math.round(window.localPlayer.size || 20);
+                    
+                    // Calculate current rank in leaderboard
+                    if (currentGameRankElement) {
+                        const playerRank = this.calculatePlayerRank(window.localPlayer);
+                        currentGameRankElement.textContent = playerRank ? `#${playerRank}` : '#-';
+                    }
                 } else {
                     if (currentGameScoreElement) currentGameScoreElement.textContent = '0';
                     if (currentGameSizeElement) currentGameSizeElement.textContent = '20';
+                    if (currentGameRankElement) currentGameRankElement.textContent = '#-';
                 }
                 
                 if (logoutBtn) {

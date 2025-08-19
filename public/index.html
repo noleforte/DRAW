@@ -332,9 +332,7 @@
             #matchTimerText{
                 font-size: 0.8rem !important;
             }
-            #currentGameStatsLeft{
-                display: none !important;
-            }
+            
             #timerDisplay{
                 font-size: 1rem !important;
             }
@@ -1137,15 +1135,21 @@
                         <div class="space-y-2">
                             <!-- Player Identity -->
                             <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
-                                        </svg>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <div id="playerInfoNameLeft" class="font-bold text-sm">Guest</div>
+                                            <div id="playerInfoStatusLeft" class="text-xs opacity-90">Not signed in</div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div id="playerInfoNameLeft" class="font-bold text-sm">Guest</div>
-                                        <div id="playerInfoStatusLeft" class="text-xs opacity-90">Not signed in</div>
+                                    <div class="text-right">
+                                        <div class="text-xs opacity-75">Wallet</div>
+                                        <div id="playerWalletAddressLeft" class="text-xs font-mono opacity-90" title="Wallet Address">-</div>
                                     </div>
                                 </div>
                             </div>
@@ -1154,6 +1158,10 @@
                             <div class="bg-gray-700 rounded-lg p-2" id="currentGameStatsLeft">
                                 <h4 class="font-bold text-green-400 text-sm mb-2">🎮 Current Game</h4>
                                 <div class="space-y-2">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs text-gray-300">Rank:</span>
+                                        <span class="font-bold text-yellow-400 text-sm" id="currentGameRank">#-</span>
+                                    </div>
                                     <div class="flex justify-between items-center">
                                         <span class="text-xs text-gray-300">Score:</span>
                                         <span class="font-bold text-green-400 text-sm" id="currentGameScore">0</span>
