@@ -17,7 +17,6 @@ if (typeof firebase === 'undefined') {
     try {
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
-        console.log('✅ Firebase initialized successfully');
 
         // Initialize Firebase services
         const auth = firebase.auth();
@@ -27,9 +26,7 @@ if (typeof firebase === 'undefined') {
         let analytics = null;
         try {
             analytics = firebase.analytics();
-            console.log('✅ Firebase Analytics initialized');
         } catch (e) {
-            console.log('ℹ️ Analytics not available (this is normal for localhost)');
         }
 
         // Export for use in other files

@@ -11,11 +11,9 @@ class AuthSystem {
         // Wait for Firebase to be ready
         this.waitForFirebase().then(() => {
             this.firebaseReady = true;
-            console.log('🔥 AuthSystem: Firebase ready, setting up auth listener');
             
             // Listen for auth state changes
             firebaseAuth.onAuthStateChanged((user) => {
-                console.log('🔄 Auth state changed:', user ? `User: ${user.email || user.uid}` : 'No user');
                 this.currentUser = user;
                 if (user) {
                     this.loadPlayerStats();
@@ -23,11 +21,9 @@ class AuthSystem {
                     // Auto-fill player name if signed in
                     this.autoFillPlayerInfo();
                     this.setupCoinsListener(); // Setup listener for coins updates
-                    console.log('✅ User authenticated, panel should be updated');
                 } else {
                     this.showGuestUI();
                     this.stopCoinsListener(); // Stop listener when user signs out
-                    console.log('👤 User signed out, showing guest UI');
                 }
             });
         }).catch((error) => {
@@ -58,12 +54,9 @@ class AuthSystem {
         }
 
         try {
-            console.log('👤 Starting anonymous sign-in...');
             const result = await firebaseAuth.signInAnonymously();
-            console.log('✅ Anonymous sign-in successful:', result.user.uid);
             return result.user;
         } catch (error) {
-            console.error('❌ Anonymous sign-in failed:', error);
             throw new Error(`Guest sign-in failed: ${error.message}`);
         }
     }
@@ -75,18 +68,12 @@ class AuthSystem {
         }
 
         try {
-            console.log('🔑 Starting Google sign-in...');
             const provider = new firebase.auth.GoogleAuthProvider();
             provider.addScope('profile');
             provider.addScope('email');
             
             // Use popup for better compatibility
             const result = await firebaseAuth.signInWithPopup(provider);
-            console.log('✅ Google sign-in successful:', {
-                uid: result.user.uid,
-                email: result.user.email,
-                name: result.user.displayName
-            });
             return result.user;
         } catch (error) {
             console.error('❌ Google sign-in failed:', error);
@@ -111,9 +98,7 @@ class AuthSystem {
         }
 
         try {
-            console.log('📧 Starting email sign-in for:', email);
             const result = await firebaseAuth.signInWithEmailAndPassword(email, password);
-            console.log('✅ Email sign-in successful:', result.user.uid);
             return result.user;
         } catch (error) {
             console.error('❌ Email sign-in failed:', error);
@@ -140,15 +125,12 @@ class AuthSystem {
         }
 
         try {
-            console.log('👤 Creating account for:', email);
             const result = await firebaseAuth.createUserWithEmailAndPassword(email, password);
             await result.user.updateProfile({
                 displayName: displayName
             });
-            console.log('✅ Account created successfully:', result.user.uid);
             return result.user;
         } catch (error) {
-            console.error('❌ Account creation failed:', error);
             
             // Handle specific error cases
             if (error.code === 'auth/email-already-in-use') {
@@ -195,14 +177,11 @@ class AuthSystem {
                     lastPlayed: firebase.firestore.FieldValue.serverTimestamp()
                 };
                 await firebaseDb.collection('players').doc(this.currentUser.uid).set(this.playerStats);
-                console.log('🆕 Created new player document in Firestore');
             }
             
             // Update UI with loaded stats
             this.updatePlayerInfoPanel();
-            console.log('📊 Player stats loaded and UI updated');
         } catch (error) {
-            console.error('Error loading player stats:', error);
         }
     }
 
@@ -220,7 +199,6 @@ class AuthSystem {
                 const totalCoinsElement = document.getElementById('totalCoins');
                 if (totalCoinsElement) {
                     totalCoinsElement.textContent = totalCoins;
-                    console.log(`💰 Loaded total coins: ${totalCoins}`);
                 }
                 
                 return totalCoins;
@@ -403,7 +381,6 @@ class AuthSystem {
         
         if (signInBtn) {
             signInBtn.classList.remove('hidden');
-            console.log('🔄 Showing Sign In button');
         }
         if (signOutBtn) {
             signOutBtn.classList.add('hidden');
@@ -431,14 +408,12 @@ class AuthSystem {
             
             if (displayName && !playerNameInput.value.trim()) {
                 playerNameInput.value = displayName;
-                console.log('📝 Auto-filled player name:', displayName);
             }
         }
         
         if (this.playerStats?.walletAddress && playerWalletInput) {
             if (!playerWalletInput.value.trim()) {
                 playerWalletInput.value = this.playerStats.walletAddress;
-                console.log('💳 Auto-filled wallet address');
             }
         }
     }
@@ -461,10 +436,8 @@ class AuthSystem {
 
     // Show authentication modal
     showAuthModal() {
-        console.log('🔄 showAuthModal called');
         const authModal = document.getElementById('authModal');
         if (authModal) {
-            console.log('✅ Auth modal found, showing it');
             authModal.classList.remove('hidden');
         } else {
             console.error('❌ Auth modal not found');
@@ -633,7 +606,6 @@ class AuthSystem {
                         const currentValue = parseInt(totalCoinsElement.textContent) || 0;
                         if (currentValue !== totalCoins) {
                             totalCoinsElement.textContent = totalCoins;
-                            console.log(`🔄 Real-time coin update: ${currentValue} → ${totalCoins}`);
                             
                             // Add visual feedback for coin updates
                             totalCoinsElement.classList.add('coin-update');
@@ -666,13 +638,11 @@ class AuthSystem {
         if (!this.currentUser) return;
 
         try {
-            console.log('🔄 Reloading player stats from Firebase...');
             const doc = await firebaseDb.collection('players').doc(this.currentUser.uid).get();
             if (doc.exists) {
                 this.playerStats = doc.data();
                 // Update UI with fresh stats
                 this.updatePlayerInfoPanel();
-                console.log('✅ Player stats reloaded:', this.playerStats);
                 return this.playerStats;
             }
         } catch (error) {
@@ -721,21 +691,18 @@ window.authSystem = authSystem;
 
 // Function to initialize player info panel for all users
 async function initializePlayerInfoPanel() {
-    console.log('🔄 Initializing player info panel...');
     
     // Ensure panel is always visible
     const playerInfoPanel = document.getElementById('playerInfoPanel');
     if (playerInfoPanel) {
         playerInfoPanel.style.display = 'block';
         playerInfoPanel.style.visibility = 'visible';
-        console.log('✅ Player info panel set to visible');
     }
     
     // Check if there's a current user in the nickname auth system
     if (window.nicknameAuth) {
         const currentUser = window.nicknameAuth.getCurrentUser();
         if (currentUser) {
-            console.log('👤 Found user in nickname auth system:', currentUser.nickname);
             // Update with nickname auth user data
             await updatePlayerInfoWithNicknameAuth(currentUser);
             return;
@@ -759,13 +726,11 @@ async function initializePlayerInfoPanel() {
         if (matchesPlayed) matchesPlayed.textContent = '0';
         if (bestScore) bestScore.textContent = '0';
         
-        console.log('✅ Set default guest values in player info panel');
     }
 }
 
 // Update player info panel with nickname auth user data
 async function updatePlayerInfoWithNicknameAuth(user) {
-    console.log('🔄 Updating player info with nickname auth user:', user);
     
     const playerInfoName = document.getElementById('playerInfoName');
     const playerInfoStatus = document.getElementById('playerInfoStatus');
@@ -776,12 +741,10 @@ async function updatePlayerInfoWithNicknameAuth(user) {
     
     if (playerInfoName && user.nickname) {
         playerInfoName.textContent = user.nickname;
-        console.log('✅ Updated playerInfoName to:', user.nickname);
     }
     
     if (playerInfoStatus) {
         playerInfoStatus.textContent = 'Authenticated';
-        console.log('✅ Updated playerInfoStatus to: Authenticated');
     }
     
     // Try to get fresh stats from Firebase first
@@ -791,7 +754,6 @@ async function updatePlayerInfoWithNicknameAuth(user) {
             const response = await fetch(`/api/player/${window.authSystem.currentUser.uid}`);
             if (response.ok) {
                 firebaseStats = await response.json();
-                console.log('📊 Loaded fresh stats from Firebase:', firebaseStats);
             }
         } catch (error) {
             console.warn('⚠️ Failed to load stats from Firebase, using local data');
@@ -805,14 +767,12 @@ async function updatePlayerInfoWithNicknameAuth(user) {
     if (stats) {
         if (totalCoins) {
             totalCoins.textContent = stats.totalScore || 0;
-            console.log('💰 Updated totalCoins to:', stats.totalScore);
         }
         if (matchesPlayed) {
             // If user is currently in game, show +1 for active match
             const baseMatches = stats.gamesPlayed || 0;
             const isInGame = window.socket && window.socket.connected && window.localPlayer;
             matchesPlayed.textContent = isInGame ? baseMatches + 1 : baseMatches;
-            console.log('🎮 Updated matchesPlayed to:', matchesPlayed.textContent);
         }
         if (bestScore) {
             // Show current game score if it's higher than saved best
@@ -820,20 +780,17 @@ async function updatePlayerInfoWithNicknameAuth(user) {
             const currentScore = window.localPlayer ? window.localPlayer.score || 0 : 0;
             const displayScore = Math.max(savedBest, currentScore);
             bestScore.textContent = displayScore;
-            console.log('🏆 Updated bestScore to:', displayScore);
         }
     }
     
     // Show logout button
     if (logoutBtn) {
         logoutBtn.classList.remove('hidden');
-        console.log('✅ Showed logout button');
     }
 }
 
 // Setup auth modal handlers when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🔄 DOM loaded, setting up auth system...');
     
     // Initialize player info panel first
     initializePlayerInfoPanel();
@@ -841,8 +798,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Setup auth modal handlers
     if (window.authSystem) {
         window.authSystem.setupAuthModalHandlers();
-        console.log('✅ Auth modal handlers set up');
+        
     } else {
-        console.error('❌ AuthSystem not available on DOM load');
+        
     }
 }); 

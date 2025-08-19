@@ -123,7 +123,6 @@ class GameDataService {
                     totalScore: admin.firestore.FieldValue.increment(coinValue),
                     lastPlayed: admin.firestore.FieldValue.serverTimestamp()
                 });
-                console.log(`💰 Added ${coinValue} coin to player ${playerId}`);
             } else {
                 // Create new player if doesn't exist
                 await playerRef.set({
@@ -135,7 +134,6 @@ class GameDataService {
                     firstPlayed: admin.firestore.FieldValue.serverTimestamp(),
                     lastPlayed: admin.firestore.FieldValue.serverTimestamp()
                 });
-                console.log(`🆕 Created new player ${playerId} with ${coinValue} coin`);
             }
             
             return true;
@@ -185,10 +183,8 @@ class GameDataService {
                 });
             }
             
-            console.log(`💰 Batch saved ${coinCount} coins to player ${playerId}`);
             return true;
         } catch (error) {
-            console.error('Error batch saving player coins:', error);
             return false;
         }
     }
@@ -208,7 +204,6 @@ class GameDataService {
                         bestScore: currentScore,
                         lastPlayed: admin.firestore.FieldValue.serverTimestamp()
                     });
-                    console.log(`🏆 Updated best score for player ${playerId}: ${currentBest} → ${currentScore}`);
                     return true;
                 }
             } else {
@@ -222,7 +217,6 @@ class GameDataService {
                     firstPlayed: admin.firestore.FieldValue.serverTimestamp(),
                     lastPlayed: admin.firestore.FieldValue.serverTimestamp()
                 });
-                console.log(`🆕 Created new player ${playerId} with best score: ${currentScore}`);
                 return true;
             }
             
@@ -258,7 +252,6 @@ class GameDataService {
                 });
             }
             
-            console.log(`🎮 Saved game session for player ${playerId}: score ${sessionData.score}`);
             return true;
         } catch (error) {
             console.error('Error saving game session:', error);

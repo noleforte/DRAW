@@ -99,7 +99,6 @@ app.post('/api/player/:playerId/session', async (req, res) => {
     }
     
     const success = await GameDataService.saveGameSession(playerId, sessionData);
-    console.log(`💾 Game session saved for player ${playerId}: score ${sessionData.score}`);
     res.json({ success });
   } catch (error) {
     console.error('Error saving game session:', error);
@@ -149,7 +148,6 @@ function checkAFKPlayers() {
     
     // Check if player has been inactive for more than 2 minutes
     if (timeSinceLastActivity > afkTimeLimit) {
-      console.log(`⏰ Player ${player.name} has been AFK for ${Math.round(timeSinceLastActivity / 1000)}s - kicking`);
       playersToKick.push({ player, socketId });
     }
   });
@@ -161,10 +159,8 @@ function checkAFKPlayers() {
       const playerIdForSave = player.firebaseId || player.playerId;
       GameDataService.savePlayerCoin(playerIdForSave, player.score)
         .then(() => {
-          console.log(`💰 Saved ${player.score} coins for AFK player ${player.name}`);
         })
         .catch((error) => {
-          console.error('❌ Failed to save coins for AFK player:', error);
         });
     }
     
@@ -176,9 +172,7 @@ function checkAFKPlayers() {
         score: player.score,
         walletAddress: player.wallet || ''
       }).then(() => {
-        console.log(`🎮 Saved match for AFK player ${player.name} (score: ${player.score})`);
       }).catch((error) => {
-        console.error('❌ Failed to save match for AFK player:', error);
       });
     }
 
@@ -196,7 +190,6 @@ function checkAFKPlayers() {
 
     // Remove player from game
     gameState.players.delete(socketId);
-    console.log(`🚪 Kicked AFK player ${player.name} after 2 minutes of inactivity`);
   });
 }
 
@@ -333,7 +326,6 @@ function calculateSafeFleeTarget(bot, threat, worldSize) {
       
       if (candidateX >= minX && candidateX <= maxX && 
           candidateY >= minY && candidateY <= maxY) {
-        console.log(`🔄 Bot ${bot.name} using alternative flee direction`);
         return { x: candidateX, y: candidateY };
       }
     }
@@ -342,7 +334,6 @@ function calculateSafeFleeTarget(bot, threat, worldSize) {
   // Emergency fallback: move towards center of map
   const centerX = Math.max(minX, Math.min(maxX, 0));
   const centerY = Math.max(minY, Math.min(maxY, 0));
-  console.log(`🆘 Bot ${bot.name} emergency flee to center`);
   
   return { x: centerX, y: centerY };
 }
@@ -445,8 +436,7 @@ function updateBots() {
         isFleeingFromThreat = true;
         
         // Console logging for debugging  
-        console.log(`🏃 Bot ${bot.name} (${bot.score} coins) fleeing from ${nearestThreat.name || nearestThreat.id} (${nearestThreat.score} coins) at distance ${Math.round(nearestThreatDistance)} to safe position (${Math.round(targetX)}, ${Math.round(targetY)})`);
-        
+       
         // Occasionally send flee message
         const now = Date.now();
         if (now - bot.lastMessageTime > 25000 && Math.random() < 0.15) { // 15% chance every 25 seconds
@@ -507,7 +497,6 @@ function updateBots() {
           targetY = bestTarget.y;
           targetFound = true;
         } else {
-          console.log(`🔄 Bot ${bot.name} avoiding boundary while hunting, looking for coins instead`);
           bestTarget = null; // Don't hunt if it's unsafe, fall back to coin collection
         }
         
@@ -551,13 +540,11 @@ function updateBots() {
               targetX = safeCoin.x;
               targetY = safeCoin.y;
               targetFound = true;
-              console.log(`🔄 Bot ${bot.name} avoiding boundary, targeting safer coin`);
             } else {
               // Move towards center as fallback
               targetX = 0;
               targetY = 0;
               targetFound = true;
-              console.log(`🔄 Bot ${bot.name} moving to center to avoid boundaries`);
             }
           }
         }
@@ -643,7 +630,6 @@ function updateBots() {
              timestamp: Date.now()
            });
            
-           console.log(`🤖 Bot ${bot.name} (${bot.score} coins, size ${Math.round(bot.size)}) ate ${target.name} (${target.score} coins, size ${Math.round(target.size)})`);
         }
       }
     });
@@ -657,7 +643,6 @@ function updateBots() {
            if (gameState.bots.size < 15) { // Maintain bot population
              const newBot = createBot(gameState.nextBotId++);
              gameState.bots.set(newBot.id, newBot);
-             console.log(`🤖 Respawned new bot: ${newBot.name}`);
            }
          }, 5000 + Math.random() * 10000); // 5-15 seconds delay
              } else {
@@ -666,10 +651,8 @@ function updateBots() {
           const playerIdForSave = target.firebaseId || target.playerId;
           GameDataService.savePlayerCoin(playerIdForSave, target.score)
             .then(() => {
-              console.log(`💰 Saved ${target.score} coins to Firestore for player ${target.name} before death`);
             })
             .catch((error) => {
-              console.error('❌ Failed to save coins before death:', error);
             });
         }
         
@@ -681,9 +664,7 @@ function updateBots() {
             score: target.score,
             walletAddress: target.wallet || ''
           }).then(() => {
-            console.log(`🎮 Saved match for player ${target.name} who died to bot (score: ${target.score})`);
           }).catch((error) => {
-            console.error('❌ Failed to save match after death to bot:', error);
           });
         }
         
@@ -749,9 +730,7 @@ function updatePlayers(deltaTime) {
         const playerIdForFirebase = player.firebaseId || player.playerId || player.id;
         if (playerIdForFirebase) {
           coinsToSave.push({ playerId: playerIdForFirebase, value: coin.value, playerName: player.name });
-          console.log(`🪙 Queuing coin save for player: ${player.name} (ID: ${playerIdForFirebase})`);
         } else {
-          console.warn(`⚠️ No player ID found for coin save: ${player.name}`);
         }
         
         // Player growth based on score (Agar.io style)
@@ -779,9 +758,7 @@ function updatePlayers(deltaTime) {
         for (const coinData of coinsToSave) {
           try {
             await GameDataService.savePlayerCoin(coinData.playerId, coinData.value);
-            console.log(`💾 Saved coin to Firestore for player ${coinData.playerName} (${coinData.playerId})`);
           } catch (error) {
-            console.error('Error saving coin to Firestore:', error);
           }
         }
       }, 0);
@@ -810,9 +787,7 @@ function updatePlayers(deltaTime) {
             setTimeout(async () => {
               try {
                 await GameDataService.savePlayerCoin(player.firebaseId, coinsGained);
-                console.log(`💾 Saved ${coinsGained} eating coins to Firestore for player ${player.name}`);
               } catch (error) {
-                console.error('Error saving eating coins to Firestore:', error);
               }
             }, 0);
           }
@@ -825,7 +800,6 @@ function updatePlayers(deltaTime) {
              timestamp: Date.now()
            });
            
-           console.log(`👤 Player ${player.name} (${player.score} coins, size ${Math.round(player.size)}) ate ${target.name} (${target.score} coins, size ${Math.round(target.size)})`);
         }
       }
     });
@@ -839,7 +813,6 @@ function updatePlayers(deltaTime) {
            if (gameState.bots.size < 15) { // Maintain bot population
              const newBot = createBot(gameState.nextBotId++);
              gameState.bots.set(newBot.id, newBot);
-             console.log(`🤖 Respawned new bot: ${newBot.name} (eaten by player)`);
            }
          }, 5000 + Math.random() * 10000); // 5-15 seconds delay
              } else {
@@ -848,10 +821,8 @@ function updatePlayers(deltaTime) {
           const playerIdForSave = target.firebaseId || target.playerId;
           GameDataService.savePlayerCoin(playerIdForSave, target.score)
             .then(() => {
-              console.log(`💰 Saved ${target.score} coins to Firestore for player ${target.name} before death`);
             })
             .catch((error) => {
-              console.error('❌ Failed to save coins before death:', error);
             });
         }
         
@@ -863,9 +834,7 @@ function updatePlayers(deltaTime) {
             score: target.score,
             walletAddress: target.wallet || ''
           }).then(() => {
-            console.log(`🎮 Saved match for player ${target.name} who died to player (score: ${target.score})`);
           }).catch((error) => {
-            console.error('❌ Failed to save match after death to player:', error);
           });
         }
         
@@ -1205,8 +1174,6 @@ io.on('connection', (socket) => {
       // Initialize last position
       player.lastPosition = { x: player.x, y: player.y };
       
-      console.log(`👤 New player joined: ${player.name} (Socket: ${socket.id}, PlayerID: ${playerId})`);
-      console.log(`🎨 Player color: ${player.color} (hue: ${colorHue})`);
     }
     
     gameState.players.set(socket.id, player);
@@ -1288,9 +1255,7 @@ io.on('connection', (socket) => {
         score: player.score,
         walletAddress: player.wallet || ''
       }).then(() => {
-        console.log(`💾 Saved game session for disconnecting player ${player.name} (score: ${player.score})`);
       }).catch(error => {
-        console.error('Error saving game session on disconnect:', error);
       });
       
       disconnectedPlayers.set(player.firebaseId, player);
@@ -1399,28 +1364,21 @@ setInterval(() => {
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Open your browser and go to: http://localhost:${PORT}`);
-  console.log(`🤖 Current bots in game: ${gameState.bots.size}`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM received, shutting down gracefully');
   
   // Notify all clients about server shutdown
   io.emit('serverShutdown', { message: 'Server is restarting, please wait...' });
   
   server.close(() => {
-    console.log('💤 Server closed');
     process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
-  console.log('🛑 SIGINT received, shutting down gracefully');
   server.close(() => {
-    console.log('💤 Server closed');
     process.exit(0);
   });
 }); 
