@@ -310,44 +310,44 @@
             }
         }
 
-        /* Medium screens (tablets, small laptops) - smaller panels */
+        /* Medium screens (tablets, small laptops) - much smaller panels to avoid overlap */
         @media (min-width: 800px) and (max-width: 1440px) {
-            /* Leaderboard Panel - 4x4 -> 3x3 */
+            /* Leaderboard Panel - compact size */
             #leaderboardPanel {
-                width: 300px !important;
-                height: 240px !important;
+                width: 220px !important;
+                height: 180px !important;
             }
             
-            /* Chat Panel - 4x4 -> 3x3 */
+            /* Chat Panel - compact size */
             #chatPanelNew {
-                width: 320px !important;
-                height: 280px !important;
-            }
-            
-            /* Controls Panel - 3x2 -> 2.5x1.5 */
-            #controlsPanel {
-                width: 250px !important;
-                height: 120px !important;
-            }
-            
-            /* User Info Panel - 3x3 -> 2.5x2.5 */
-            #userinfoLeftPanel {
-                width: 250px !important;
+                width: 240px !important;
                 height: 200px !important;
             }
             
-            /* Adjust button spacing for medium screens */
+            /* Controls Panel - very compact */
+            #controlsPanel {
+                width: 180px !important;
+                height: 100px !important;
+            }
+            
+            /* User Info Panel - compact */
+            #userinfoLeftPanel {
+                width: 180px !important;
+                height: 140px !important;
+            }
+            
+            /* Smaller buttons for medium screens */
             .panel-button {
-                width: 70px !important;
-                height: 70px !important;
+                width: 55px !important;
+                height: 55px !important;
             }
             
             .panel-button .icon {
-                font-size: 16px;
+                font-size: 14px;
             }
             
             .panel-button .label {
-                font-size: 10px;
+                font-size: 9px;
             }
         }
         .text-lg { font-size: 1.125rem; }
