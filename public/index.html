@@ -311,7 +311,7 @@
         }
 
         /* Medium screens (tablets, small laptops) - much smaller panels to avoid overlap */
-        @media (min-width: 800px) and (max-width: 1679px) {
+        @media (min-width: 1000px) and (max-width: 1679px) {
             /* Leaderboard Panel - compact size */
             #leaderboardPanel {
                 width: 220px !important;
@@ -348,6 +348,128 @@
             
             .panel-button .label {
                 font-size: 9px;
+            }
+            
+            /* Compact font sizes for panel content */
+            #leaderboardPanel {
+                font-size: 11px !important;
+            }
+            
+            #leaderboardPanel .panel-title {
+                font-size: 12px !important;
+            }
+            
+            #leaderboardPanel .leaderboard-entry {
+                padding: 2px 4px !important;
+                font-size: 10px !important;
+                line-height: 1.2 !important;
+            }
+            
+            #chatPanelNew {
+                font-size: 10px !important;
+            }
+            
+            #chatPanelNew .panel-title {
+                font-size: 12px !important;
+            }
+            
+            #chatPanelNew .chat-message {
+                padding: 2px 4px !important;
+                font-size: 9px !important;
+                line-height: 1.2 !important;
+                margin-bottom: 2px !important;
+            }
+            
+            #chatPanelNew #chatInput {
+                font-size: 10px !important;
+                padding: 4px !important;
+                height: 24px !important;
+            }
+            
+            #chatPanelNew #sendChatBtn {
+                font-size: 10px !important;
+                padding: 4px 8px !important;
+                height: 24px !important;
+            }
+            
+            #controlsPanel {
+                font-size: 9px !important;
+            }
+            
+            #controlsPanel .panel-title {
+                font-size: 11px !important;
+            }
+            
+            #controlsPanel .control-item {
+                margin-bottom: 1px !important;
+                font-size: 8px !important;
+                line-height: 1.1 !important;
+            }
+            
+            #controlsPanel .icon {
+                font-size: 10px !important;
+                margin-right: 2px !important;
+            }
+            
+            #userinfoLeftPanel {
+                font-size: 10px !important;
+            }
+            
+            #userinfoLeftPanel .panel-title {
+                font-size: 11px !important;
+            }
+            
+            #userinfoLeftPanel .stat-item {
+                margin-bottom: 2px !important;
+                font-size: 9px !important;
+                line-height: 1.2 !important;
+            }
+            
+            #userinfoLeftPanel .stat-label {
+                font-size: 8px !important;
+            }
+            
+            #userinfoLeftPanel .stat-value {
+                font-size: 10px !important;
+            }
+            
+            /* Remove scrollbars for compact panels */
+            #controlsPanel .panel-body,
+            #userinfoLeftPanel .panel-body {
+                overflow: visible !important;
+                height: auto !important;
+                max-height: none !important;
+            }
+            
+            /* Compact spacing for all panels */
+            .panel-content .panel-header {
+                padding: 6px 8px !important;
+                height: 28px !important;
+            }
+            
+            .panel-content .panel-body {
+                padding: 4px 6px !important;
+            }
+            
+            /* Make text more compact */
+            .text-sm { 
+                font-size: 8px !important; 
+                line-height: 1.1 !important;
+            }
+            
+            .mb-1 { 
+                margin-bottom: 1px !important; 
+            }
+            
+            .mb-2 { 
+                margin-bottom: 2px !important; 
+            }
+            
+            /* Color picker compact */
+            .color-picker .color-option {
+                width: 16px !important;
+                height: 16px !important;
+                margin: 1px !important;
             }
         }
         .text-lg { font-size: 1.125rem; }
