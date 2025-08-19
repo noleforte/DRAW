@@ -342,10 +342,16 @@
             #controlsPanel{
                 display: none !important;
             }
-            #speedIndicator{
-                max-width: 36% !important;
-            }
-        }
+                         #speedIndicator{
+                 max-width: 36% !important;
+             }
+             #mobileJoystick{
+                 display: block !important;
+                 bottom: 70px !important;
+                 left: 20px !important;
+                 z-index: 30 !important;
+             }
+         }
         /* Medium screens (tablets, small laptops) - optimized panels for full content */
         @media (min-width: 1000px) and (max-width: 1679px) {
             /* Leaderboard Panel - larger to fit content */
@@ -387,12 +393,20 @@
                 font-size: 9px;
             }
             
-            /* Keep normal scrollbars working properly */
-            #controlsPanel .panel-body,
-            #userinfoLeftPanel .panel-body {
-                overflow-y: auto !important;
-            }
-        }
+                         /* Keep normal scrollbars working properly */
+             #controlsPanel .panel-body,
+             #userinfoLeftPanel .panel-body {
+                 overflow-y: auto !important;
+             }
+             
+             /* Show joystick on medium screens */
+             #mobileJoystick {
+                 display: block !important;
+                 bottom: 20px !important;
+                 left: 20px !important;
+                 z-index: 30 !important;
+             }
+         }
         .text-lg { font-size: 1.125rem; }
         .text-xl { font-size: 1.25rem; }
         .text-2xl { font-size: 1.5rem; }
@@ -1245,7 +1259,7 @@
         </div>
         
         <!-- Mobile Joystick -->
-        <div id="mobileJoystick" class="lg:hidden fixed bottom-4 left-4 z-20">
+        <div id="mobileJoystick" class="xl:hidden fixed bottom-4 left-4 z-20">
             <div class="joystick" id="joystick">
                 <div class="joystick-knob" id="joystickKnob"></div>
             </div>

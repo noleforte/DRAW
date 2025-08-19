@@ -1173,9 +1173,14 @@ function setupInputHandlers() {
     const joystick = document.getElementById('joystick');
     const joystickKnob = document.getElementById('joystickKnob');
     
-    joystick.addEventListener('touchstart', handleJoystickStart, { passive: false });
-    joystick.addEventListener('touchmove', handleJoystickMove, { passive: false });
-    joystick.addEventListener('touchend', handleJoystickEnd, { passive: false });
+    if (joystick && joystickKnob) {
+        console.log('🕹️ Mobile joystick elements found, setting up event listeners');
+        joystick.addEventListener('touchstart', handleJoystickStart, { passive: false });
+        joystick.addEventListener('touchmove', handleJoystickMove, { passive: false });
+        joystick.addEventListener('touchend', handleJoystickEnd, { passive: false });
+    } else {
+        console.warn('⚠️ Mobile joystick elements not found:', { joystick, joystickKnob });
+    }
     
     function handleJoystickStart(e) {
         e.preventDefault();
@@ -1183,6 +1188,7 @@ function setupInputHandlers() {
         const rect = joystick.getBoundingClientRect();
         joystickCenter.x = rect.left + rect.width / 2;
         joystickCenter.y = rect.top + rect.height / 2;
+        console.log('🕹️ Joystick started at:', joystickCenter);
     }
     
     function handleJoystickMove(e) {
@@ -1215,6 +1221,7 @@ function setupInputHandlers() {
         movement.x = 0;
         movement.y = 0;
         joystickKnob.style.transform = 'translate(-50%, -50%)';
+        console.log('🕹️ Joystick ended');
     }
 }
 
