@@ -648,6 +648,11 @@ function init() {
     // Start game loop
     gameLoop();
     
+    // Initialize rank display after a short delay
+    setTimeout(() => {
+        updatePlayerRankDisplay();
+    }, 1000);
+    
     // Calculate initial time until end of GMT day
     const now = new Date();
     const endOfDay = new Date(now);
@@ -746,6 +751,7 @@ function setupSocketListeners() {
     
     socket.on('gameState', (data) => {
         gameState = data;
+        window.gameState = gameState; // Make gameState globally available
         localPlayer = gameState.players.find(p => p.id === data.playerId);
         window.localPlayer = localPlayer; // Update global reference
         
@@ -759,6 +765,9 @@ function setupSocketListeners() {
             if (window.panelManager) {
                 window.panelManager.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
             }
+            
+            // Update player rank display
+            updatePlayerRankDisplay();
         } else {
             console.log('⚠️ gameState received but no localPlayer found. PlayerId:', data.playerId, 'Available players:', gameState.players.map(p => p.id));
         }
@@ -768,6 +777,7 @@ function setupSocketListeners() {
         gameState.players = data.players;
         gameState.bots = data.bots;
         gameState.coins = data.coins;
+        window.gameState = gameState; // Update global reference
         
         const previousLocalPlayer = localPlayer;
         localPlayer = gameState.players.find(p => p.id === gameState.playerId);
@@ -809,6 +819,9 @@ function setupSocketListeners() {
         }
         
         updateLeaderboard();
+        
+        // Update player rank display after leaderboard update
+        updatePlayerRankDisplay();
     });
     
     socket.on('chatMessage', (data) => {
@@ -2370,15 +2383,31 @@ function scrollChatToBottom() {
 
 // Helper function to update player rank display
 function updatePlayerRankDisplay() {
-    if (!window.panelManager || !window.localPlayer) return;
+    if (!window.panelManager) {
+        console.log('❌ updatePlayerRankDisplay: window.panelManager not found');
+        return;
+    }
+    
+    if (!window.localPlayer) {
+        console.log('❌ updatePlayerRankDisplay: window.localPlayer not found');
+        return;
+    }
+    
+    if (!window.gameState) {
+        console.log('❌ updatePlayerRankDisplay: window.gameState not found');
+        return;
+    }
     
     const currentGameRankElement = document.querySelector('#userinfoLeftPanel #currentGameRank');
-    if (currentGameRankElement) {
-        const playerRank = window.panelManager.calculatePlayerRank(window.localPlayer);
-        const rankText = playerRank ? `#${playerRank}` : '#-';
-        currentGameRankElement.textContent = rankText;
-        console.log('🏆 Updated player rank display to:', rankText);
+    if (!currentGameRankElement) {
+        console.log('❌ updatePlayerRankDisplay: currentGameRankElement not found');
+        return;
     }
+    
+    const playerRank = window.panelManager.calculatePlayerRank(window.localPlayer);
+    const rankText = playerRank ? `#${playerRank}` : '#-';
+    currentGameRankElement.textContent = rankText;
+    console.log('🏆 Updated player rank display to:', rankText, 'for player:', window.localPlayer.name, 'score:', window.localPlayer.score);
 }
 
 // Centralized logout function
@@ -3279,11 +3308,16 @@ class PanelManager {
     
     calculatePlayerRank(localPlayer) {
         // Calculate player's rank based on current leaderboard from gameState
-        if (!localPlayer || !window.gameState) return null;
+        if (!localPlayer || !window.gameState) {
+            console.log('❌ calculatePlayerRank: Missing localPlayer or gameState');
+            return null;
+        }
         
         // Use the same logic as updateLeaderboard function
         const allEntities = [...(window.gameState.players || []), ...(window.gameState.bots || [])];
         allEntities.sort((a, b) => (b.score || 0) - (a.score || 0));
+        
+        console.log('🔍 calculatePlayerRank: Looking for player:', localPlayer.id, localPlayer.name, 'in', allEntities.length, 'entities');
         
         // Find local player's position in sorted leaderboard
         const playerRank = allEntities.findIndex(entity => 
@@ -3291,6 +3325,11 @@ class PanelManager {
             entity.name === localPlayer.name ||
             (entity.id === window.gameState?.playerId)
         ) + 1;
+        
+        console.log('🔍 calculatePlayerRank: Found rank:', playerRank, 'for player score:', localPlayer.score);
+        
+        // Debug: show top 5 players
+        console.log('🏆 Top 5 leaderboard:', allEntities.slice(0, 5).map(e => `${e.name}(${e.score})`));
         
         return playerRank > 0 ? playerRank : null;
     }
