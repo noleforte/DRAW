@@ -3169,11 +3169,44 @@ class PanelManager {
         });
         
         console.log('🎛️ Panel Manager initialized');
+        
+        // Listen for window resize to handle orientation changes
+        window.addEventListener('resize', () => {
+            this.handleResize();
+        });
+    }
+    
+    handleResize() {
+        // If screen becomes mobile size (≤800px) and multiple panels are open, close all but one
+        if (window.innerWidth <= 800) {
+            const openPanels = Object.entries(this.panels).filter(([name, panel]) => 
+                panel.panel && !panel.panel.classList.contains('hidden')
+            );
+            
+            if (openPanels.length > 1) {
+                console.log('📱 Screen resized to mobile, closing extra panels');
+                // Keep only the first open panel, close the rest
+                openPanels.slice(1).forEach(([name]) => {
+                    this.closePanel(name);
+                    console.log(`📱 Auto-closed panel ${name} due to mobile resize`);
+                });
+            }
+        }
     }
     
     openPanel(panelName) {
         const panel = this.panels[panelName];
         if (panel && panel.toggle && panel.panel) {
+            // On mobile screens (max-width: 800px), close all other panels first
+            if (window.innerWidth <= 800) {
+                Object.entries(this.panels).forEach(([name, otherPanel]) => {
+                    if (name !== panelName && otherPanel.panel && !otherPanel.panel.classList.contains('hidden')) {
+                        this.closePanel(name);
+                        console.log(`📱 Mobile: Auto-closed panel ${name} to open ${panelName}`);
+                    }
+                });
+            }
+            
             // Hide button, show panel
             panel.toggle.style.display = 'none';
             panel.panel.classList.remove('hidden');
