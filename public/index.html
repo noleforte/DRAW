@@ -309,6 +309,47 @@
                 font-size: 9px;
             }
         }
+
+        /* Medium screens (tablets, small laptops) - smaller panels */
+        @media (min-width: 800px) and (max-width: 1440px) {
+            /* Leaderboard Panel - 4x4 -> 3x3 */
+            #leaderboardPanel {
+                width: 300px !important;
+                height: 240px !important;
+            }
+            
+            /* Chat Panel - 4x4 -> 3x3 */
+            #chatPanelNew {
+                width: 320px !important;
+                height: 280px !important;
+            }
+            
+            /* Controls Panel - 3x2 -> 2.5x1.5 */
+            #controlsPanel {
+                width: 250px !important;
+                height: 120px !important;
+            }
+            
+            /* User Info Panel - 3x3 -> 2.5x2.5 */
+            #userinfoLeftPanel {
+                width: 250px !important;
+                height: 200px !important;
+            }
+            
+            /* Adjust button spacing for medium screens */
+            .panel-button {
+                width: 70px !important;
+                height: 70px !important;
+            }
+            
+            .panel-button .icon {
+                font-size: 16px;
+            }
+            
+            .panel-button .label {
+                font-size: 10px;
+            }
+        }
         .text-lg { font-size: 1.125rem; }
         .text-xl { font-size: 1.25rem; }
         .text-2xl { font-size: 1.5rem; }
