@@ -2368,6 +2368,19 @@ function scrollChatToBottom() {
     }
 }
 
+// Helper function to update player rank display
+function updatePlayerRankDisplay() {
+    if (!window.panelManager || !window.localPlayer) return;
+    
+    const currentGameRankElement = document.querySelector('#userinfoLeftPanel #currentGameRank');
+    if (currentGameRankElement) {
+        const playerRank = window.panelManager.calculatePlayerRank(window.localPlayer);
+        const rankText = playerRank ? `#${playerRank}` : '#-';
+        currentGameRankElement.textContent = rankText;
+        console.log('🏆 Updated player rank display to:', rankText);
+    }
+}
+
 // Centralized logout function
 function performLogout() {
     console.log('🚪 Performing logout...');
@@ -2529,6 +2542,9 @@ function updateLeaderboard() {
     });
         }
     }
+    
+    // Update current game rank in Player Info panel when leaderboard updates
+    updatePlayerRankDisplay();
 }
 
 function startClientTimer() {
@@ -3034,13 +3050,7 @@ async function updatePlayerInfoPanelStats(player) {
     }
     
     // Update current game rank (if PanelManager exists)
-    if (window.panelManager && player) {
-        const currentGameRankElement = document.querySelector('#userinfoLeftPanel #currentGameRank');
-        if (currentGameRankElement) {
-            const playerRank = window.panelManager.calculatePlayerRank(player);
-            currentGameRankElement.textContent = playerRank ? `#${playerRank}` : '#-';
-        }
-    }
+    updatePlayerRankDisplay();
 }
 
 async function loadSavedPlayerData() {
@@ -3268,22 +3278,19 @@ class PanelManager {
     }
     
     calculatePlayerRank(localPlayer) {
-        // Calculate player's rank based on current leaderboard
-        if (!localPlayer || !window.entities) return null;
+        // Calculate player's rank based on current leaderboard from gameState
+        if (!localPlayer || !window.gameState) return null;
         
-        // Get all players (not bots) with their scores
-        const allPlayers = window.entities.filter(entity => !entity.isBot && entity.score !== undefined);
+        // Use the same logic as updateLeaderboard function
+        const allEntities = [...(window.gameState.players || []), ...(window.gameState.bots || [])];
+        allEntities.sort((a, b) => (b.score || 0) - (a.score || 0));
         
-        // Add local player if not already in entities
-        if (!allPlayers.find(p => p.id === localPlayer.id)) {
-            allPlayers.push(localPlayer);
-        }
-        
-        // Sort by score in descending order
-        allPlayers.sort((a, b) => (b.score || 0) - (a.score || 0));
-        
-        // Find local player's position
-        const playerRank = allPlayers.findIndex(p => p.id === localPlayer.id) + 1;
+        // Find local player's position in sorted leaderboard
+        const playerRank = allEntities.findIndex(entity => 
+            entity.id === localPlayer.id || 
+            entity.name === localPlayer.name ||
+            (entity.id === window.gameState?.playerId)
+        ) + 1;
         
         return playerRank > 0 ? playerRank : null;
     }
@@ -3405,11 +3412,8 @@ class PanelManager {
                     if (currentGameScoreElement) currentGameScoreElement.textContent = window.localPlayer.score || 0;
                     if (currentGameSizeElement) currentGameSizeElement.textContent = Math.round(window.localPlayer.size || 20);
                     
-                    // Calculate current rank in leaderboard
-                    if (currentGameRankElement) {
-                        const playerRank = this.calculatePlayerRank(window.localPlayer);
-                        currentGameRankElement.textContent = playerRank ? `#${playerRank}` : '#-';
-                    }
+                    // Update current rank using helper function
+                    updatePlayerRankDisplay();
                 } else {
                     if (currentGameScoreElement) currentGameScoreElement.textContent = '0';
                     if (currentGameSizeElement) currentGameSizeElement.textContent = '20';
