@@ -314,6 +314,17 @@
                 width: 192px !important;
                 height: 326px !important;
             }
+            #matchTimer{
+                width: 35% !important;
+                height: 10% !important;
+                font-size: small !important;
+            }
+            #matchTimerText{
+                font-size: 0.8rem !important;
+            }
+            #timerDisplay{
+                font-size: 1rem !important;
+            }
         }
         /* Medium screens (tablets, small laptops) - optimized panels for full content */
         @media (min-width: 1000px) and (max-width: 1679px) {
@@ -1238,7 +1249,7 @@
         
         <!-- Match Timer -->
         <div id="matchTimer" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-600 bg-opacity-80 rounded-lg px-6 py-3 text-center z-10">
-            <div class="text-white font-bold text-lg">⏰ Time Until GMT Day End</div>
+            <div id="matchTimerText" class="text-white font-bold text-lg">⏰ Time Until GMT Day End</div>
             <div id="timerDisplay" class="text-white font-mono text-2xl">--:--:--</div>
             <div id="gmtDisplay" class="text-gray-300 font-mono text-xs mt-1">GMT: --:--:--</div>
         </div>
