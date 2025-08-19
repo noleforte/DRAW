@@ -1286,33 +1286,8 @@ function setupUIHandlers() {
     const mainLogoutBtn = document.getElementById('logoutBtn');
     if (mainLogoutBtn) {
         mainLogoutBtn.addEventListener('click', () => {
-            console.log('🚪 Logout button clicked');
-            
-            // Logout from both systems
-            if (window.authSystem) {
-                window.authSystem.signOut();
-            }
-            if (window.nicknameAuth) {
-                window.nicknameAuth.logout();
-            }
-            
-            // Reset player info panel to guest state
-            const playerInfoName = document.getElementById('playerInfoName');
-            const playerInfoStatus = document.getElementById('playerInfoStatus');
-            const totalCoins = document.getElementById('totalCoins');
-            const matchesPlayed = document.getElementById('matchesPlayed');
-            const bestScore = document.getElementById('bestScore');
-            
-            if (playerInfoName) playerInfoName.textContent = 'Guest';
-            if (playerInfoStatus) playerInfoStatus.textContent = 'Not signed in';
-            if (totalCoins) totalCoins.textContent = '0';
-            if (matchesPlayed) matchesPlayed.textContent = '0';
-            if (bestScore) bestScore.textContent = '0';
-            
-            // Hide logout button
-            mainLogoutBtn.classList.add('hidden');
-            
-            console.log('✅ Logged out successfully');
+            console.log('🚪 Main logout button clicked');
+            performLogout();
         });
     }
     
@@ -1819,18 +1794,14 @@ function setupUIHandlers() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
             if (confirm('Are you sure you want to logout?')) {
-                nicknameAuth.logout();
+                console.log('🚪 UI logout button clicked');
+                performLogout();
                 
                 // Clear form inputs
                 const mainNameInput = document.getElementById('playerNameInput');
                 const mainWalletInput = document.getElementById('playerWalletInput');
                 if (mainNameInput) mainNameInput.value = '';
                 if (mainWalletInput) mainWalletInput.value = '';
-                
-                // Update player info panel
-                updatePlayerInfoPanel('Guest', 'Not signed in');
-                
-                alert('Logged out successfully!');
             }
         });
     }
@@ -2395,6 +2366,88 @@ function scrollChatToBottom() {
         chatMessages.scrollTop = chatMessages.scrollHeight;
         console.log('💬 Forced chat scroll to bottom');
     }
+}
+
+// Centralized logout function
+function performLogout() {
+    console.log('🚪 Performing logout...');
+    
+    // 1. Logout from both authentication systems
+    if (window.authSystem) {
+        window.authSystem.signOut();
+    }
+    if (window.nicknameAuth) {
+        window.nicknameAuth.logout();
+    }
+    
+    // 2. Disconnect from game server if connected
+    if (socket && socket.connected) {
+        console.log('🔌 Disconnecting from game server...');
+        socket.disconnect();
+    }
+    
+    // 3. Reset game state
+    gameEnded = true;
+    localPlayer = null;
+    entities = [];
+    coins = [];
+    
+    // 4. Reset player info to guest state
+    const playerInfoName = document.getElementById('playerInfoName');
+    const playerInfoStatus = document.getElementById('playerInfoStatus');
+    const totalCoins = document.getElementById('totalCoins');
+    const matchesPlayed = document.getElementById('matchesPlayed');
+    const bestScore = document.getElementById('bestScore');
+    
+    if (playerInfoName) playerInfoName.textContent = 'Guest';
+    if (playerInfoStatus) playerInfoStatus.textContent = 'Not signed in';
+    if (totalCoins) totalCoins.textContent = '0';
+    if (matchesPlayed) matchesPlayed.textContent = '0';
+    if (bestScore) bestScore.textContent = '0';
+    
+    // 5. Hide all logout buttons
+    const logoutBtns = document.querySelectorAll('#logoutBtn, #logoutBtnLeft');
+    logoutBtns.forEach(btn => btn.classList.add('hidden'));
+    
+    // 6. Close all panels
+    if (window.panelManager) {
+        Object.keys(window.panelManager.panels).forEach(panelName => {
+            window.panelManager.closePanel(panelName);
+        });
+    }
+    
+    // 7. Hide game canvas and show main menu
+    const gameCanvas = document.getElementById('gameCanvas');
+    const nameModal = document.getElementById('nameModal');
+    
+    if (gameCanvas) gameCanvas.style.display = 'none';
+    if (nameModal) nameModal.classList.remove('hidden');
+    
+    // 8. Reset any game UI elements
+    const gameUI = document.querySelectorAll('#matchTimer, #speedIndicator, .panel-wrapper');
+    gameUI.forEach(element => {
+        if (element) element.style.display = 'none';
+    });
+    
+    // 9. Show main menu elements
+    const mainMenuElements = document.querySelectorAll('#nameModal, #nameModalContent');
+    mainMenuElements.forEach(element => {
+        if (element) {
+            element.style.display = 'flex';
+            element.classList.remove('hidden');
+        }
+    });
+    
+    // 10. Reset canvas context
+    const canvas = document.getElementById('gameCanvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+    
+    console.log('✅ Logout completed - returned to main menu');
 }
 
 // Setup chat event listeners (used when recreating chat elements)
@@ -3301,8 +3354,8 @@ class PanelManager {
                     if (currentUser.nickname) {
                         logoutBtn.classList.remove('hidden');
                         logoutBtn.onclick = () => {
-                            window.nicknameAuth.logout();
-                            this.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
+                            console.log('🚪 Panel logout button clicked');
+                            performLogout();
                         };
                     } else {
                         logoutBtn.classList.add('hidden');
