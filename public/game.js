@@ -1706,6 +1706,9 @@ function setupUIHandlers() {
     colorOptions.forEach((option, index) => {
         option.addEventListener('click', () => {
             console.log(`🎨 Color option clicked: ${option.dataset.color}`);
+            console.log(`🎨 Clicked element background-color: ${option.style.backgroundColor}`);
+            console.log(`🎨 Clicked element data-color: ${option.dataset.color}`);
+            
             // Remove previous selection
             colorOptions.forEach(opt => {
                 opt.classList.remove('border-white', 'selected');
@@ -1714,10 +1717,11 @@ function setupUIHandlers() {
             option.classList.add('border-white', 'selected');
             selectedColor = parseInt(option.dataset.color);
             console.log(`🎨 Selected color updated to: ${selectedColor}`);
+            console.log(`🎨 Color will be rendered as: hsl(${selectedColor}, 70%, 50%)`);
         });
         
         // Log available options
-        console.log(`🎨 Color option ${index}: data-color="${option.dataset.color}"`);
+        console.log(`🎨 Color option ${index}: data-color="${option.dataset.color}", background-color: ${option.style.backgroundColor}`);
     });
     
     // Set default color selection
