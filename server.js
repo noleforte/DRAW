@@ -1163,8 +1163,8 @@ io.on('connection', (socket) => {
       const player = {
         id: playerId,
         name: name,
-        x: Math.random() * (WORLD_SIZE - 200) + 100,
-        y: Math.random() * (WORLD_SIZE - 200) + 100,
+        x: Math.random() * (gameState.worldSize - 200) + 100,
+        y: Math.random() * (gameState.worldSize - 200) + 100,
         vx: 0,
         vy: 0,
         targetVx: 0,
