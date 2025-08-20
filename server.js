@@ -1217,6 +1217,84 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('updatePlayerScore', (data) => {
+    // Update player score when client requests it (for initialization from Total Coins)
+    const player = gameState.players.get(socket.id);
+    if (player && data.playerId === player.id && typeof data.score === 'number' && data.score >= 0) {
+      console.log(`💰 Updating player ${player.name} score from ${player.score} to ${data.score}`);
+      player.score = data.score;
+      
+      // Broadcast updated game state to all clients
+      io.emit('gameUpdate', {
+        players: Array.from(gameState.players.values()).map(p => ({
+          id: p.id,
+          x: Math.round(p.x),
+          y: Math.round(p.y),
+          vx: Math.round(p.vx * 10) / 10,
+          vy: Math.round(p.vy * 10) / 10,
+          score: p.score,
+          size: p.size,
+          name: p.name,
+          color: p.color
+        })),
+        bots: Array.from(gameState.bots.values()).map(b => ({
+          id: b.id,
+          x: Math.round(b.x),
+          y: Math.round(b.y),
+          score: b.score,
+          size: b.size,
+          name: b.name,
+          color: b.color
+        })),
+        coins: Array.from(gameState.coins.values()).map(c => ({
+          id: c.id,
+          x: Math.round(c.x),
+          y: Math.round(c.y),
+          value: c.value
+        }))
+      });
+    }
+  });
+
+  socket.on('updatePlayerSize', (data) => {
+    // Update player size when client requests it (for initialization from saved size)
+    const player = gameState.players.get(socket.id);
+    if (player && data.playerId === player.id && typeof data.size === 'number' && data.size >= 20) {
+      console.log(`📏 Updating player ${player.name} size from ${player.size} to ${data.size}`);
+      player.size = data.size;
+      
+      // Broadcast updated game state to all clients
+      io.emit('gameUpdate', {
+        players: Array.from(gameState.players.values()).map(p => ({
+          id: p.id,
+          x: Math.round(p.x),
+          y: Math.round(p.y),
+          vx: Math.round(p.vx * 10) / 10,
+          vy: Math.round(p.vy * 10) / 10,
+          score: p.score,
+          size: p.size,
+          name: p.name,
+          color: p.color
+        })),
+        bots: Array.from(gameState.bots.values()).map(b => ({
+          id: b.id,
+          x: Math.round(b.x),
+          y: Math.round(b.y),
+          score: b.score,
+          size: b.size,
+          name: b.name,
+          color: b.color
+        })),
+        coins: Array.from(gameState.coins.values()).map(c => ({
+          id: c.id,
+          x: Math.round(c.x),
+          y: Math.round(c.y),
+          value: c.value
+        }))
+      });
+    }
+  });
+
   socket.on('disconnect', () => {
     // Save player state for potential reconnection (5 minutes)
     const player = gameState.players.get(socket.id);

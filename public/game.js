@@ -758,6 +758,20 @@ async function sendCoinsToFirestore(coinsGained) {
             setTimeout(() => updatePlayerRankDisplay(), 100);
         }, 1000);
         
+        // Also save current player size to Firestore
+        if (window.localPlayer && window.localPlayer.size) {
+            try {
+                const playerRef = window.firebaseDb.collection('players').doc(playerId);
+                await playerRef.update({
+                    lastSize: window.localPlayer.size,
+                    lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
+                });
+                console.log(`📏 Saved current player size ${window.localPlayer.size} to Firestore`);
+            } catch (error) {
+                console.warn('⚠️ Failed to save player size to Firestore:', error);
+            }
+        }
+        
     } catch (error) {
         console.error('❌ Failed to save coins to Firestore:', error);
     }
@@ -857,6 +871,37 @@ function setupSocketListeners() {
                 console.log('✅ Camera initialized successfully');
             }
             
+            // Initialize player score from Total Coins if this is a new game
+            const currentUser = nicknameAuth.getCurrentUserSync();
+            if (currentUser && currentUser.stats && currentUser.stats.totalScore && localPlayer.score === 0) {
+                console.log('💰 Initializing player score from Total Coins:', currentUser.stats.totalScore);
+                localPlayer.score = currentUser.stats.totalScore;
+                
+                // Update server with initial score
+                if (socket && socket.connected) {
+                    socket.emit('updatePlayerScore', {
+                        playerId: localPlayer.id,
+                        score: localPlayer.score
+                    });
+                    console.log('📤 Sent initial score to server:', localPlayer.score);
+                }
+            }
+            
+            // Initialize player size from saved size if this is a new game
+            if (currentUser && currentUser.stats && currentUser.stats.lastSize && localPlayer.size === 20) {
+                console.log('📏 Initializing player size from saved size:', currentUser.stats.lastSize);
+                localPlayer.size = currentUser.stats.lastSize;
+                
+                // Update server with initial size
+                if (socket && socket.connected) {
+                    socket.emit('updatePlayerSize', {
+                        playerId: localPlayer.id,
+                        size: localPlayer.size
+                    });
+                    console.log('📤 Sent initial size to server:', localPlayer.size);
+                }
+            }
+            
             // Update all player stats display
             const vx = localPlayer.vx || 0;
             const vy = localPlayer.vy || 0;
@@ -945,14 +990,14 @@ function setupSocketListeners() {
             if (localPlayer.size > previousLocalPlayer.size) {
                 console.log(`📏 Size increased: ${Math.round(previousLocalPlayer.size)} → ${Math.round(localPlayer.size)}`);
                 
-                            // Update display immediately when size changes
-            const vx = localPlayer.vx || 0;
-            const vy = localPlayer.vy || 0;
-            const currentSpeed = Math.sqrt(vx * vx + vy * vy);
-            updatePlayerStatsDisplay(currentSpeed, localPlayer);
-            
-            // Log size changes for debugging
-            console.log('📏 Size display updated:', Math.round(previousLocalPlayer.size), '→', Math.round(localPlayer.size));
+                // Update display immediately when size changes
+                const vx = localPlayer.vx || 0;
+                const vy = localPlayer.vy || 0;
+                const currentSpeed = Math.sqrt(vx * vx + vy * vy);
+                updatePlayerStatsDisplay(currentSpeed, localPlayer);
+                
+                // Log size changes for debugging
+                console.log('📏 Size display updated:', Math.round(previousLocalPlayer.size), '→', Math.round(localPlayer.size));
             }
             
             // Update display immediately when score changes
@@ -964,8 +1009,14 @@ function setupSocketListeners() {
             // Log score changes for debugging
             console.log('💰 Score display updated:', previousLocalPlayer.score, '→', localPlayer.score);
             
-            // Send coins to Firestore immediately
-            sendCoinsToFirestore(coinsGained);
+            // Only send coins to Firestore if this is a real score increase (not initialization)
+            // Check if the score increase is reasonable (not a huge jump from initialization)
+            const maxReasonableIncrease = 1000; // Maximum reasonable coins gained in one update
+            if (coinsGained <= maxReasonableIncrease) {
+                sendCoinsToFirestore(coinsGained);
+            } else {
+                console.log(`⚠️ Skipping Firestore update - unreasonable score increase: ${coinsGained} (likely initialization)`);
+            }
         }
         
         if (!localPlayer) {
@@ -3543,6 +3594,20 @@ window.addEventListener('beforeunload', async (event) => {
             
             console.log(`💾 Saving match on page unload: ${localPlayer.score || 0} coins`);
             
+            // Also save current player size to Firestore
+            if (window.firebaseDb && localPlayer.size) {
+                try {
+                    const playerRef = window.firebaseDb.collection('players').doc(currentUser.nickname);
+                    await playerRef.update({
+                        lastSize: localPlayer.size,
+                        lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    console.log(`📏 Saved player size ${localPlayer.size} to Firestore on page unload`);
+                } catch (error) {
+                    console.warn('⚠️ Failed to save player size on page unload:', error);
+                }
+            }
+            
             // Update player rank display before unload
             updatePlayerRankDisplay();
         } catch (error) {
@@ -3571,6 +3636,20 @@ document.addEventListener('visibilitychange', async () => {
                 });
                 if (response.ok) {
                     console.log(`💾 Match saved on visibility change: ${localPlayer.score || 0} coins`);
+                }
+                
+                // Also save current player size to Firestore
+                if (window.firebaseDb && localPlayer.size) {
+                    try {
+                        const playerRef = window.firebaseDb.collection('players').doc(currentUser.nickname);
+                        await playerRef.update({
+                            lastSize: localPlayer.size,
+                            lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        console.log(`📏 Saved player size ${localPlayer.size} to Firestore on visibility change`);
+                    } catch (error) {
+                        console.warn('⚠️ Failed to save player size on visibility change:', error);
+                    }
                 }
                 
                 // Update player rank display on visibility change
