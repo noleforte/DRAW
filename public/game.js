@@ -1175,7 +1175,7 @@ function setupInputHandlers() {
                 }
                 
                 // Handle pause/resume logic here to avoid conflicts
-                console.log('🎮 ESC key pressed in setupInputHandlers, gamePaused:', gamePaused, 'gameEnded:', gameEnded);
+                console.log('🎮 ESC key pressed in setupInputHandlers, gamePaused:', gamePaused, 'gameEnded:', gameEnded, 'localPlayer:', !!localPlayer);
                 
                 // First check if pause modal is open - if so, resume
                 if (gamePaused) {
@@ -1198,14 +1198,16 @@ function setupInputHandlers() {
                     !gameOverModal.classList.contains('hidden')
                 );
                 
-                console.log('🎮 Modal check - anyModalVisible:', anyModalVisible, 'localPlayer:', !!localPlayer);
+                console.log('🎮 Modal check - anyModalVisible:', anyModalVisible, 'localPlayer:', !!localPlayer, 'nameModal display:', nameModal?.style.display);
                 
-                // Only pause if we're in the game (no modals visible) and game is not ended
-                if (!anyModalVisible && !gameEnded && localPlayer) {
+                // Allow pause if: no modals visible, game not ended, and either localPlayer exists OR nameModal is hidden (game started)
+                const canPause = !anyModalVisible && !gameEnded && (localPlayer || nameModal?.style.display === 'none');
+                
+                if (canPause) {
                     console.log('🎮 All conditions met, pausing game...');
                     pauseGame();
                 } else {
-                    console.log('🎮 Cannot pause - conditions not met');
+                    console.log('🎮 Cannot pause - conditions not met. anyModalVisible:', anyModalVisible, 'gameEnded:', gameEnded, 'localPlayer:', !!localPlayer, 'nameModal hidden:', nameModal?.style.display === 'none');
                 }
                 
                 return; // Prevent further processing
@@ -2933,7 +2935,15 @@ function gameLoop() {
 // Pause game functions
 function pauseGame() {
     console.log('🎮 pauseGame called, gameEnded:', gameEnded, 'gamePaused:', gamePaused);
-    if (gameEnded || gamePaused) return;
+    
+    // Check if we can pause - either localPlayer exists OR nameModal is hidden (game started)
+    const nameModal = document.getElementById('nameModal');
+    const canPause = !gameEnded && !gamePaused && (localPlayer || nameModal?.style.display === 'none');
+    
+    if (!canPause) {
+        console.log('🎮 Cannot pause - conditions not met');
+        return;
+    }
     
     gamePaused = true;
     const pauseModal = document.getElementById('pauseModal');
