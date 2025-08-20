@@ -605,79 +605,78 @@ function updateBots() {
       }
     });
 
-    // Check eating other players/bots (Agar.io mechanics for bots)
-    const eatableEntities = [...gameState.players.values(), ...gameState.bots.values()];
-    const entitiesToRemove = [];
+    // Check eating other players/bots (Agar.io mechanics for bots) - DISABLED
+    // const eatableEntities = [...gameState.players.values(), ...gameState.bots.values()];
+    // const entitiesToRemove = [];
     
-    eatableEntities.forEach(target => {
-             if (target.id !== bot.id) { // Don't eat yourself
-         const distance = Math.sqrt((target.x - bot.x) ** 2 + (target.y - bot.y) ** 2);
-         
-         // Can eat if you have more coins and touching
-         if (bot.score > target.score && distance < (bot.size + target.size) * 0.7) {
-          // Transfer victim's score to bot
-          bot.score += target.score;
-          bot.size = Math.min(50, 20 + Math.sqrt(bot.score) * 2);
+    // eatableEntities.forEach(target => {
+    //   if (target.id !== bot.id) { // Don't eat yourself
+    //     const distance = Math.sqrt((target.x - bot.x) ** 2 + (target.y - bot.y) ** 2);
+        
+    //     // Can eat if you have more coins and touching
+    //     if (bot.score > target.score && distance < (bot.size + target.size) * 0.7) {
+    //       // Transfer victim's score to bot
+    //       bot.score += target.score;
+    //       bot.size = Math.min(50, 20 + Math.sqrt(bot.score) * 2);
           
-          // Mark entity for removal
-          entitiesToRemove.push(target);
+    //       // Mark entity for removal
+    //       entitiesToRemove.push(target);
           
-                     // Send eating message
-           io.emit('chatMessage', {
-             playerId: bot.id,
-             playerName: bot.name,
-             message: `Ate ${target.name}! (+${target.score} coins) [Size: ${Math.round(bot.size)}]`,
-             timestamp: Date.now()
-           });
-           
-        }
-      }
-    });
+    //       // Send eating message
+    //       io.emit('chatMessage', {
+    //         playerId: bot.id,
+    //         playerName: bot.name,
+    //         message: `Ate ${target.name}! (+${target.score} coins) [Size: ${Math.round(bot.size)}]`,
+    //         timestamp: Date.now()
+    //       });
+    //     }
+    //   }
+    // });
     
-         // Remove eaten entities
-     entitiesToRemove.forEach(target => {
-       if (target.isBot) {
-         gameState.bots.delete(target.id);
-         // Respawn a new bot after a delay to maintain population
-         setTimeout(() => {
-           if (gameState.bots.size < 15) { // Maintain bot population
-             const newBot = createBot(gameState.nextBotId++);
-             gameState.bots.set(newBot.id, newBot);
-           }
-         }, 5000 + Math.random() * 10000); // 5-15 seconds delay
-             } else {
-        // Save player's coins to Firestore before death
-        if (target.score > 0 && (target.firebaseId || target.playerId)) {
-          const playerIdForSave = target.firebaseId || target.playerId;
-          GameDataService.savePlayerCoin(playerIdForSave, target.score)
-            .then(() => {
-            })
-            .catch((error) => {
-            });
-        }
+    // // Remove eaten entities
+    // entitiesToRemove.forEach(target => {
+    //   if (target.isBot) {
+    //     gameState.bots.delete(target.id);
+    //     // Respawn a new bot after a delay to maintain population
+    //     setTimeout(() => {
+    //       if (gameState.bots.size < 15) { // Maintain bot population
+    //         const newBot = createBot(gameState.nextBotId++);
+    //         gameState.bots.set(newBot.id, newBot);
+    //       }
+    //     }, 5000 + Math.random() * 10000); // 5-15 seconds delay
+    //   } else {
+    //     // Save player's coins to Firestore before death
+    //     if (target.score > 0 && (target.firebaseId || target.playerId)) {
+    //       const playerIdForSave = target.firebaseId || target.playerId;
+    //       GameDataService.savePlayerCoin(playerIdForSave, target.score)
+    //         .then(() => {
+    //         })
+    //         .catch((error) => {
+    //         });
+    //     }
         
-        // Save game session (match) when player dies to bot
-        if ((target.firebaseId || target.playerId)) {
-          const playerIdForSave = target.firebaseId || target.playerId;
-          GameDataService.saveGameSession(playerIdForSave, {
-            playerName: target.name,
-            score: target.score,
-            walletAddress: target.wallet || ''
-          }).then(() => {
-          }).catch((error) => {
-          });
-        }
+    //     // Save game session (match) when player dies to bot
+    //     if ((target.firebaseId || target.playerId)) {
+    //       const playerIdForSave = target.firebaseId || target.playerId;
+    //       GameDataService.saveGameSession(playerIdForSave, {
+    //         playerName: target.name,
+    //         score: target.score,
+    //         walletAddress: target.wallet || ''
+    //       }).then(() => {
+    //       }).catch((error) => {
+    //       });
+    //     }
         
-        gameState.players.delete(target.id);
-        // If it was a player, send them a death message
-        io.emit('playerEaten', {
-          victimId: target.id,
-          eatenByBot: bot.name,
-          coinsLost: target.score, // Keep for backward compatibility
-          coinsSaved: target.score // New field to indicate coins are saved
-        });
-      }
-     });
+    //     gameState.players.delete(target.id);
+    //     // If it was a player, send them a death message
+    //     io.emit('playerEaten', {
+    //       victimId: target.id,
+    //       eatenByBot: bot.name,
+    //       coinsLost: target.score, // Keep for backward compatibility
+    //       coinsSaved: target.score // New field to indicate coins are saved
+    //     });
+    //   }
+    // });
 
     // Occasionally send chat messages (reduced frequency)
     const now = Date.now();
@@ -735,6 +734,18 @@ function updatePlayers(deltaTime) {
         
         // Player growth based on score (Agar.io style)
         player.size = Math.min(50, 20 + Math.sqrt(player.score) * 2);
+        
+        // Save player size for next game
+        if (player.firebaseId || player.playerId) {
+          const playerIdForSize = player.firebaseId || player.playerId;
+          setTimeout(async () => {
+            try {
+              await GameDataService.savePlayerSize(playerIdForSize, player.size);
+            } catch (error) {
+              console.error('Error saving player size:', error);
+            }
+          }, 0);
+        }
       }
     });
     
@@ -764,45 +775,45 @@ function updatePlayers(deltaTime) {
       }, 0);
     }
     
-    // Check eating other players/bots (Agar.io mechanics)
-    const allEntities = [...gameState.players.values(), ...gameState.bots.values()];
-    const entitiesToRemove = [];
+    // Check eating other players/bots (Agar.io mechanics) - DISABLED
+    // const allEntities = [...gameState.players.values(), ...gameState.bots.values()];
+    // const entitiesToRemove = [];
     
-    allEntities.forEach(target => {
-             if (target.id !== player.id) { // Can eat anyone except yourself
-         const distance = Math.sqrt((target.x - player.x) ** 2 + (target.y - player.y) ** 2);
+    // allEntities.forEach(target => {
+    //             if (target.id !== player.id) { // Can eat anyone except yourself
+    //         const distance = Math.sqrt((target.x - player.x) ** 2 + (target.y - player.y) ** 2);
          
-         // Can eat if you have more coins and touching
-         if (player.score > target.score && distance < (player.size + target.size) * 0.7) {
-          // Transfer victim's score to player
-          const coinsGained = target.score;
-          player.score += coinsGained;
-          player.size = Math.min(50, 20 + Math.sqrt(player.score) * 2);
+    //         // Can eat if you have more coins and touching
+    //         if (player.score > target.score && distance < (player.size + target.size) * 0.7) {
+    //          // Transfer victim's score to player
+    //          const coinsGained = target.score;
+    //          player.score += coinsGained;
+    //          player.size = Math.min(50, 20 + Math.sqrt(player.score) * 2);
           
-          // Mark entity for removal
-          entitiesToRemove.push(target);
+    //          // Mark entity for removal
+    //          entitiesToRemove.push(target);
           
-          // Save gained coins to Firebase if player is authenticated
-          if (player.firebaseId && coinsGained > 0) {
-            setTimeout(async () => {
-              try {
-                await GameDataService.savePlayerCoin(player.firebaseId, coinsGained);
-              } catch (error) {
-              }
-            }, 0);
-          }
+    //          // Save gained coins to Firebase if player is authenticated
+    //          if (player.firebaseId && coinsGained > 0) {
+    //            setTimeout(async () => {
+    //              try {
+    //                await GameDataService.savePlayerCoin(player.firebaseId, coinsGained);
+    //              } catch (error) {
+    //              }
+    //            }, 0);
+    //          }
           
-                     // Send eating notification
-           io.emit('chatMessage', {
-             playerId: player.id,
-             playerName: player.name,
-             message: `Ate ${target.name}! (+${coinsGained} coins) [Size: ${Math.round(player.size)}]`,
-             timestamp: Date.now()
-           });
+    //                     // Send eating notification
+    //           io.emit('chatMessage', {
+    //             playerId: player.id,
+    //             playerName: player.name,
+    //             message: `Ate ${target.name}! (+${coinsGained} coins) [Size: ${Math.round(player.size)}]`,
+    //             timestamp: Date.now()
+    //           });
            
-        }
-      }
-    });
+    //        }
+    //      }
+    // });
     
          // Remove eaten entities
      entitiesToRemove.forEach(target => {
@@ -1164,7 +1175,7 @@ io.on('connection', (socket) => {
         targetVx: 0, // Add target velocity for smooth 60fps movement
         targetVy: 0,
         score: 0,
-        size: 20,
+        size: 20, // Default size, will be updated if saved size exists
         color: `hsl(${colorHue}, 70%, 50%)`,
         isBot: false,
         lastActivity: Date.now(), // Track last activity for AFK detection
@@ -1174,6 +1185,20 @@ io.on('connection', (socket) => {
       // Initialize last position
       player.lastPosition = { x: player.x, y: player.y };
       
+      // Load saved player size from Firestore if player exists
+      if (playerId) {
+        setTimeout(async () => {
+          try {
+            const playerStats = await GameDataService.getPlayerStats(playerId);
+            if (playerStats && playerStats.lastSize) {
+              player.size = playerStats.lastSize;
+              console.log(`Loaded saved size ${playerStats.lastSize} for player ${playerId}`);
+            }
+          } catch (error) {
+            console.error('Error loading player size:', error);
+          }
+        }, 0);
+      }
     }
     
     gameState.players.set(socket.id, player);
@@ -1258,6 +1283,18 @@ io.on('connection', (socket) => {
       }).catch(error => {
       });
       
+      // Save player size when player disconnects
+      if (player.firebaseId || player.playerId) {
+        const playerIdForSize = player.firebaseId || player.playerId;
+        setTimeout(async () => {
+          try {
+            await GameDataService.savePlayerSize(playerIdForSize, player.size);
+          } catch (error) {
+            console.error('Error saving player size on disconnect:', error);
+          }
+        }, 0);
+      }
+
       disconnectedPlayers.set(player.firebaseId, player);
       setTimeout(() => {
         if (disconnectedPlayers.has(player.firebaseId)) {

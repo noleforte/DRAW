@@ -850,9 +850,9 @@ function setupSocketListeners() {
     });
     
     socket.on('playerEaten', (data) => {
-        // Handle when our player gets eaten
+        // Handle when our player gets eaten (now only for AFK kicks)
         if (localPlayer && localPlayer.id === data.victimId) {
-            // Handle AFK kick differently
+            // Handle AFK kick
             if (data.afkKick) {
                 console.log(`⏰ You were kicked for being AFK! Saved ${data.coinsLost} coins to your balance.`);
                 
@@ -865,73 +865,62 @@ function setupSocketListeners() {
                 
                 // Show AFK kick notification
                 showServerMessage(`⏰ You were kicked for being inactive for 2 minutes! 💰 ${data.coinsLost} coins saved to your Total Coins! Returning to main menu in 3 seconds...`, 'warning');
-            } else {
-                console.log(`💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! Saved ${data.coinsLost} coins to your balance.`);
                 
-                // Show death message
-                addChatMessage({
-                    playerName: 'System',
-                    message: `💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! 💰 ${data.coinsLost} coins saved to your Total Coins!`,
-                    timestamp: Date.now()
-                });
-                
-                // Show death notification
-                showServerMessage(`💀 You were eaten by ${data.eatenByBot || data.eatenByPlayer}! 💰 ${data.coinsLost} coins saved to your Total Coins! Returning to main menu in 3 seconds...`, 'success');
-            }
-            
-            // Force refresh Total Coins from Firestore to show the updated balance
-            setTimeout(async () => {
-                try {
-                    await window.nicknameAuth.syncUserStatsFromFirestore();
-                    console.log('💰 Total Coins refreshed after death');
-                    
-                    // Update Player Info panel if open
-                    if (window.panelManager) {
-                        await window.panelManager.updateUserInfoPanel();
-                    }
-                } catch (error) {
-                    console.warn('⚠️ Failed to refresh Total Coins after death:', error);
-                }
-            }, 1500); // Refresh after 1.5 seconds to allow server to save
-            
-            // Disconnect from game and return to main menu after a short delay
-            setTimeout(() => {
-                // Disconnect socket
-                if (socket) {
-                    socket.disconnect();
-                }
-                
-                // Reset game state
-                gameEnded = true;
-                localPlayer = null;
-                window.localPlayer = null;
-                
-                // Hide game canvas
-                const canvas = document.getElementById('gameCanvas');
-                if (canvas) {
-                    canvas.style.display = 'none';
-                }
-                
-                // Show main menu
-                const nameModal = document.getElementById('nameModal');
-                if (nameModal) {
-                    nameModal.style.display = 'flex';
-                }
-                
-                // Clear leaderboard
-                const leaderboardList = document.getElementById('leaderboardList');
-                if (leaderboardList) {
-                    leaderboardList.innerHTML = '';
-                }
-                
-                // Refresh player data on main menu to show updated Total Coins
+                // Force refresh Total Coins from Firestore to show the updated balance
                 setTimeout(async () => {
-                    await loadSavedPlayerData();
-                    console.log('💰 Player data refreshed on main menu after death');
-                }, 500);
+                    try {
+                        await window.nicknameAuth.syncUserStatsFromFirestore();
+                        console.log('💰 Total Coins refreshed after AFK kick');
+                        
+                        // Update Player Info panel if open
+                        if (window.panelManager) {
+                            await window.panelManager.updateUserInfoPanel();
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Failed to refresh Total Coins after AFK kick:', error);
+                    }
+                }, 1500); // Refresh after 1.5 seconds to allow server to save
                 
-                console.log('🔄 Returned to main menu after being eaten');
-            }, 3000); // 3 second delay to show message
+                // Disconnect from game and return to main menu after a short delay
+                setTimeout(() => {
+                    // Disconnect socket
+                    if (socket) {
+                        socket.disconnect();
+                    }
+                    
+                    // Reset game state
+                    gameEnded = true;
+                    localPlayer = null; // Will be recreated by server with saved size
+                    window.localPlayer = null;
+                    
+                    // Hide game canvas
+                    const canvas = document.getElementById('gameCanvas');
+                    if (canvas) {
+                        canvas.style.display = 'none';
+                    }
+                    
+                    // Show main menu
+                    const nameModal = document.getElementById('nameModal');
+                    if (nameModal) {
+                        nameModal.style.display = 'flex';
+                    }
+                    
+                    // Clear leaderboard
+                    const leaderboardList = document.getElementById('leaderboardList');
+                    if (leaderboardList) {
+                        leaderboardList.innerHTML = '';
+                    }
+                    
+                    // Refresh player data on main menu to show updated Total Coins
+                    setTimeout(async () => {
+                        await loadSavedPlayerData();
+                        console.log('💰 Player data refreshed on main menu after AFK kick');
+                    }, 500);
+                    
+                    console.log('🔄 Returned to main menu after AFK kick');
+                }, 3000); // 3 second delay to show message
+            }
+            // Note: Eating mechanics are disabled, so no other death handling needed
         }
     });
     
@@ -954,7 +943,8 @@ function setupSocketListeners() {
         }
         
         if (currentSizeElement) {
-            currentSizeElement.textContent = '20';
+            // Don't reset size to 20 - it will be loaded from saved data
+            currentSizeElement.textContent = '...';
         }
         
         startClientTimer();
@@ -1595,7 +1585,7 @@ function setupUIHandlers() {
         // Reset game state for new game
         gameEnded = false;
         gamePaused = false;
-        localPlayer = null;
+        localPlayer = null; // Will be recreated by server with saved size
         window.localPlayer = null;
         
         // Hide pause modal if it's open
@@ -3748,7 +3738,8 @@ class PanelManager {
                     updatePlayerRankDisplay();
                 } else {
                     if (currentGameScoreElement) currentGameScoreElement.textContent = '0';
-                    if (currentGameSizeElement) currentGameSizeElement.textContent = '20';
+                    // Don't reset size to 20 - it will be loaded from saved data
+                    if (currentGameSizeElement) currentGameSizeElement.textContent = '...';
                     if (currentGameRankElement) currentGameRankElement.textContent = '#-';
                 }
                 
@@ -3910,7 +3901,7 @@ class PanelManager {
         // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
         setTimeout(() => updatePlayerRankDisplay(), 120795955200000);
         
-        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
         setTimeout(() => updatePlayerRankDisplay(), 241591910400000);
         
         // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay

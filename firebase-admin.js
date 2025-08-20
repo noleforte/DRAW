@@ -127,7 +127,6 @@ class GameDataService {
                 // Create new player if doesn't exist
                 await playerRef.set({
                     playerName: `Player_${playerId}`,
-                    walletAddress: '',
                     totalScore: coinValue,
                     gamesPlayed: 0,
                     bestScore: 0,
@@ -135,11 +134,22 @@ class GameDataService {
                     lastPlayed: admin.firestore.FieldValue.serverTimestamp()
                 });
             }
-            
-            return true;
         } catch (error) {
             console.error('Error saving player coin:', error);
-            return false;
+        }
+    }
+
+    // Save player size for next game
+    async savePlayerSize(playerId, size) {
+        try {
+            const playerRef = db.collection('players').doc(playerId);
+            await playerRef.update({
+                lastSize: size,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+            });
+            console.log(`Saved player size ${size} for player ${playerId}`);
+        } catch (error) {
+            console.error('Error saving player size:', error);
         }
     }
 
