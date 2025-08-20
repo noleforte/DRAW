@@ -1173,8 +1173,42 @@ function setupInputHandlers() {
                     e.preventDefault();
                     return; // Exit early to avoid other ESC handling
                 }
-                // Don't process ESC as a game key - let the pause system handle it
-                return;
+                
+                // Handle pause/resume logic here to avoid conflicts
+                console.log('🎮 ESC key pressed in setupInputHandlers, gamePaused:', gamePaused, 'gameEnded:', gameEnded);
+                
+                // First check if pause modal is open - if so, resume
+                if (gamePaused) {
+                    console.log('🎮 Game is paused, resuming...');
+                    resumeGame();
+                    return;
+                }
+                
+                // Only allow pause/resume when in game (not in menus)
+                const nameModal = document.getElementById('nameModal');
+                const authModal = document.getElementById('authModal');
+                const registrationModal = document.getElementById('registrationModal');
+                const gameOverModal = document.getElementById('gameOverModal');
+                
+                // Check if any modal is visible
+                const anyModalVisible = (
+                    !nameModal.classList.contains('hidden') ||
+                    !authModal.classList.contains('hidden') ||
+                    !registrationModal.classList.contains('hidden') ||
+                    !gameOverModal.classList.contains('hidden')
+                );
+                
+                console.log('🎮 Modal check - anyModalVisible:', anyModalVisible, 'localPlayer:', !!localPlayer);
+                
+                // Only pause if we're in the game (no modals visible) and game is not ended
+                if (!anyModalVisible && !gameEnded && localPlayer) {
+                    console.log('🎮 All conditions met, pausing game...');
+                    pauseGame();
+                } else {
+                    console.log('🎮 Cannot pause - conditions not met');
+                }
+                
+                return; // Prevent further processing
             }
             
             // Prevent default for game keys only when not typing
@@ -2898,24 +2932,30 @@ function gameLoop() {
 
 // Pause game functions
 function pauseGame() {
+    console.log('🎮 pauseGame called, gameEnded:', gameEnded, 'gamePaused:', gamePaused);
     if (gameEnded || gamePaused) return;
     
     gamePaused = true;
     const pauseModal = document.getElementById('pauseModal');
     if (pauseModal) {
         pauseModal.classList.remove('hidden');
-        console.log('🎮 Game paused');
+        console.log('🎮 Game paused - modal shown');
+    } else {
+        console.warn('⚠️ Pause modal not found!');
     }
 }
 
 function resumeGame() {
+    console.log('🎮 resumeGame called, gamePaused:', gamePaused);
     if (!gamePaused) return;
     
     gamePaused = false;
     const pauseModal = document.getElementById('pauseModal');
     if (pauseModal) {
         pauseModal.classList.add('hidden');
-        console.log('🎮 Game resumed');
+        console.log('🎮 Game resumed - modal hidden');
+    } else {
+        console.warn('⚠️ Pause modal not found!');
     }
 }
 
@@ -2947,62 +2987,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Setup pause controls
 function setupPauseControls() {
-            // ESC key handler for pause/resume
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                
-                // First check if pause modal is open - if so, resume
-                if (gamePaused) {
-                    resumeGame();
-                    return;
-                }
-                
-                // Check if user is typing in chat or other input
-                const activeElement = document.activeElement;
-                const isTyping = activeElement && (
-                    activeElement.tagName === 'INPUT' || 
-                    activeElement.tagName === 'TEXTAREA' || 
-                    activeElement.contentEditable === 'true'
-                );
-                
-                if (isTyping) {
-                    activeElement.blur();
-                    return;
-                }
-                
-                // Only allow pause/resume when in game (not in menus)
-                const nameModal = document.getElementById('nameModal');
-                const authModal = document.getElementById('authModal');
-                const registrationModal = document.getElementById('registrationModal');
-                const gameOverModal = document.getElementById('gameOverModal');
-                
-                // Check if any modal is visible
-                const anyModalVisible = (
-                    !nameModal.classList.contains('hidden') ||
-                    !authModal.classList.contains('hidden') ||
-                    !registrationModal.classList.contains('hidden') ||
-                    !gameOverModal.classList.contains('hidden')
-                );
-                
-                // Only pause if we're in the game (no modals visible) and game is not ended
-                if (!anyModalVisible && !gameEnded && localPlayer) {
-                    pauseGame();
-                }
-            }
-        });
+    console.log('🎮 setupPauseControls called - setting up pause modal click handler');
     
     // Click to resume when paused
     const pauseModal = document.getElementById('pauseModal');
     if (pauseModal) {
         pauseModal.addEventListener('click', () => {
             if (gamePaused) {
+                console.log('🎮 Pause modal clicked, resuming game...');
                 resumeGame();
             }
         });
+        console.log('🎮 Pause modal click handler added');
+    } else {
+        console.warn('⚠️ Pause modal not found during setup!');
     }
     
-    console.log('🎮 Pause controls initialized - Press ESC to pause/resume');
+    console.log('🎮 Pause controls initialized - Click pause modal to resume');
 }
 
 // Save game session when user leaves the page
