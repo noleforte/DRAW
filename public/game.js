@@ -612,6 +612,8 @@ window.nicknameAuth = nicknameAuth; // Make it globally available
 
 // Initialize game
 function init() {
+    console.log('🎮 init() function called - starting game initialization');
+    
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d');
     
@@ -642,8 +644,10 @@ function init() {
     window.socket = socket; // Make socket globally available
     setupSocketListeners();
     
+    console.log('🎮 About to call setupInputHandlers()');
     // Setup input handlers
     setupInputHandlers();
+    console.log('🎮 setupInputHandlers() completed');
     
     // Setup UI handlers with delay to ensure DOM is ready
     setTimeout(() => {
@@ -681,6 +685,8 @@ function init() {
         console.log('🔄 Loading player data after Firebase initialization...');
         await loadSavedPlayerData();
     }, 3000); // Wait 3 seconds for Firebase to initialize
+    
+    console.log('🎮 init() function completed successfully');
 }
 
 function loadBackgroundImage() {
@@ -2525,13 +2531,13 @@ function updatePlayerRankDisplay() {
     }
     
     try {
-        const playerRank = window.panelManager.calculatePlayerRank(window.localPlayer);
-        const rankText = playerRank ? `#${playerRank}` : '#-';
+    const playerRank = window.panelManager.calculatePlayerRank(window.localPlayer);
+    const rankText = playerRank ? `#${playerRank}` : '#-';
         
         // Only update if rank actually changed
         if (currentGameRankElement.textContent !== rankText) {
-            currentGameRankElement.textContent = rankText;
-            console.log('🏆 Updated player rank display to:', rankText, 'for player:', window.localPlayer.name, 'score:', window.localPlayer.score);
+    currentGameRankElement.textContent = rankText;
+    console.log('🏆 Updated player rank display to:', rankText, 'for player:', window.localPlayer.name, 'score:', window.localPlayer.score);
             lastRankUpdate = now;
         }
     } catch (error) {
@@ -2997,7 +3003,11 @@ function togglePause() {
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🎮 DOMContentLoaded event fired - starting initialization');
+    
+    console.log('🎮 About to call init()');
     init();
+    console.log('🎮 init() returned');
     
     // Load saved player data
     await loadSavedPlayerData();
@@ -3011,6 +3021,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Setup pause functionality
     setupPauseControls();
+    
+    console.log('🎮 DOMContentLoaded initialization completed');
 });
 
 // Setup pause controls
@@ -3648,15 +3660,15 @@ class PanelManager {
     closePanel(panelName) {
         const panel = this.panels[panelName];
         if (panel && panel.toggle && panel.panel) {
-                    // Show button, hide panel
-        panel.toggle.style.display = 'flex';
-        panel.panel.classList.add('hidden');
-        
-        console.log(`📁 Closed panel: ${panelName}`);
+            // Show button, hide panel
+            panel.toggle.style.display = 'flex';
+            panel.panel.classList.add('hidden');
+            
+            console.log(`📁 Closed panel: ${panelName}`);
         
         // Update rank display when panel closes
         setTimeout(() => updatePlayerRankDisplay(), 100);
-    }
+        }
     }
     
     async updateUserInfoPanel() {
