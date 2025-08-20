@@ -4693,7 +4693,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Function to update booster status display
 function updateBoosterStatusDisplay() {
-
+    // Debug logging
+    console.log('🔄 updateBoosterStatusDisplay called');
+    console.log('🚀 Speed booster state:', activeBoosters.speed);
+    console.log('💰 Coin booster state:', activeBoosters.coins);
+    
+    // Create or update booster status elements
+    let boosterContainer = document.getElementById('boosterStatusContainer');
     
     if (!boosterContainer) {
         boosterContainer = document.createElement('div');
