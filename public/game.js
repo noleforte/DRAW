@@ -722,7 +722,15 @@ async function sendCoinsToFirestore(coinsGained) {
     
     try {
         const playerId = currentUser.nickname;
-        console.log(`💾 Saving ${coinsGained} coins to Firestore for player: ${playerId}`);
+        
+        // Apply coin multiplier if active
+        let actualCoinsGained = coinsGained;
+        if (activeBoosters.coins.active) {
+            actualCoinsGained = coinsGained * activeBoosters.coins.multiplier;
+            console.log(`💰 Coin multiplier applied: ${coinsGained} → ${actualCoinsGained} coins`);
+        }
+        
+        console.log(`💾 Saving ${actualCoinsGained} coins to Firestore for player: ${playerId}`);
         
         // Update Firestore directly
         const playerRef = window.firebaseDb.collection('players').doc(playerId);
@@ -731,21 +739,21 @@ async function sendCoinsToFirestore(coinsGained) {
         if (playerDoc.exists) {
             // Update existing player's total coins
             await playerRef.update({
-                totalScore: window.firebase.firestore.FieldValue.increment(coinsGained),
+                totalScore: window.firebase.firestore.FieldValue.increment(actualCoinsGained),
                 lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
             });
-            console.log(`✅ Added ${coinsGained} coins to Firestore for ${playerId}`);
+            console.log(`✅ Added ${actualCoinsGained} coins to Firestore for ${playerId}`);
         } else {
             // Create new player document
             await playerRef.set({
                 playerName: playerId,
-                totalScore: coinsGained,
+                totalScore: actualCoinsGained,
                 gamesPlayed: 0,
                 bestScore: 0,
                 firstPlayed: window.firebase.firestore.FieldValue.serverTimestamp(),
                 lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
             });
-            console.log(`🆕 Created new player ${playerId} with ${coinsGained} coins`);
+            console.log(`🆕 Created new player ${playerId} with ${actualCoinsGained} coins`);
         }
         
         // Force refresh stats from Firestore
@@ -800,6 +808,11 @@ function setupSocketListeners() {
         gameState = data;
         gameState.boosters = data.boosters || [];
         window.gameState = gameState; // Make gameState globally available
+        
+        // Initialize boosters array if not present
+        if (!gameState.boosters) {
+            gameState.boosters = [];
+        }
         
         // Find localPlayer by current socket.id (this is the correct player for this client)
         localPlayer = gameState.players.find(p => p.socketId === currentSocketId);
@@ -933,6 +946,11 @@ function setupSocketListeners() {
         gameState.boosters = data.boosters || [];
         window.gameState = gameState; // Update global reference
         
+        // Initialize boosters array if not present
+        if (!gameState.boosters) {
+            gameState.boosters = [];
+        }
+        
         const previousLocalPlayer = localPlayer;
         
         // Find localPlayer by current socket.id (this is the correct player for this client)
@@ -1016,20 +1034,13 @@ function setupSocketListeners() {
             // Log score changes for debugging
             console.log('💰 Score display updated:', previousLocalPlayer.score, '→', localPlayer.score);
             
-            // Apply coin multiplier if active
-            let actualCoinsGained = coinsGained;
-            if (activeBoosters.coins.active) {
-                actualCoinsGained = coinsGained * activeBoosters.coins.multiplier;
-                console.log(`💰 Coin multiplier applied: ${coinsGained} → ${actualCoinsGained} coins`);
-            }
-            
             // Only send coins to Firestore if this is a real score increase (not initialization)
             // Check if the score increase is reasonable (not a huge jump from initialization)
             const maxReasonableIncrease = 1000; // Maximum reasonable coins gained in one update
-            if (actualCoinsGained <= maxReasonableIncrease) {
-                sendCoinsToFirestore(actualCoinsGained);
+            if (coinsGained <= maxReasonableIncrease) {
+                sendCoinsToFirestore(coinsGained);
             } else {
-                console.log(`⚠️ Skipping Firestore update - unreasonable score increase: ${actualCoinsGained} (likely initialization)`);
+                console.log(`⚠️ Skipping Firestore update - unreasonable score increase: ${coinsGained} (likely initialization)`);
             }
         }
         
@@ -1046,12 +1057,21 @@ function setupSocketListeners() {
                         activeBoosters.speed.multiplier = 2;
                         activeBoosters.speed.endTime = Date.now() + 120000; // 2 minutes (120 seconds)
                         console.log(`🚀 Speed boost activated for 2 minutes`);
+                        
+                        // Force update booster display immediately
+                        updateBoosterStatusDisplay();
                     } else if (booster.type === 'coins') {
                         activeBoosters.coins.active = true;
                         activeBoosters.coins.multiplier = 2;
                         activeBoosters.coins.endTime = Date.now() + 120000; // 2 minutes (120 seconds)
                         console.log(`💰 Coin multiplier activated for 2 minutes`);
+                        
+                        // Force update booster display immediately
+                        updateBoosterStatusDisplay();
                     }
+                    
+                    // Remove booster from client-side state (server will handle respawn)
+                    gameState.boosters = gameState.boosters.filter(b => b.id !== booster.id);
                 }
             });
         }
@@ -1099,6 +1119,26 @@ function setupSocketListeners() {
         updatePlayerRankDisplay();
     });
     
+    // Handle booster activation from server
+    socket.on('boosterActivated', (data) => {
+        console.log(`🚀 Booster activated from server:`, data);
+        
+        if (data.type === 'speed') {
+            activeBoosters.speed.active = true;
+            activeBoosters.speed.multiplier = 2;
+            activeBoosters.speed.endTime = Date.now() + data.duration;
+            console.log(`🚀 Speed boost activated for ${data.duration/1000} seconds`);
+        } else if (data.type === 'coins') {
+            activeBoosters.coins.active = true;
+            activeBoosters.coins.multiplier = 2;
+            activeBoosters.coins.endTime = Date.now() + data.duration;
+            console.log(`💰 Coin multiplier activated for ${data.duration/1000} seconds`);
+        }
+        
+        // Force update booster display immediately
+        updateBoosterStatusDisplay();
+    });
+    
     socket.on('chatMessage', (data) => {
         addChatMessage(data);
         showSpeechBubble(data);
@@ -1120,33 +1160,33 @@ function setupSocketListeners() {
                 
                 // Show AFK kick notification
                 showServerMessage(`⏰ You were kicked for being inactive for 2 minutes! 💰 ${data.coinsLost} coins saved to your Total Coins! Returning to main menu in 3 seconds...`, 'warning');
-                
-                // Force refresh Total Coins from Firestore to show the updated balance
-                setTimeout(async () => {
-                    try {
-                        await window.nicknameAuth.syncUserStatsFromFirestore();
+            
+            // Force refresh Total Coins from Firestore to show the updated balance
+            setTimeout(async () => {
+                try {
+                    await window.nicknameAuth.syncUserStatsFromFirestore();
                         console.log('💰 Total Coins refreshed after AFK kick');
-                        
-                        // Update Player Info panel if open
-                        if (window.panelManager) {
-                            await window.panelManager.updateUserInfoPanel();
-                        }
-                    } catch (error) {
-                        console.warn('⚠️ Failed to refresh Total Coins after AFK kick:', error);
-                    }
-                }, 1500); // Refresh after 1.5 seconds to allow server to save
-                
-                // Disconnect from game and return to main menu after a short delay
-                setTimeout(() => {
-                    // Disconnect socket
-                    if (socket) {
-                        socket.disconnect();
-                    }
                     
-                    // Reset game state
-                    gameEnded = true;
+                    // Update Player Info panel if open
+                    if (window.panelManager) {
+                        await window.panelManager.updateUserInfoPanel();
+                    }
+                } catch (error) {
+                        console.warn('⚠️ Failed to refresh Total Coins after AFK kick:', error);
+                }
+            }, 1500); // Refresh after 1.5 seconds to allow server to save
+            
+            // Disconnect from game and return to main menu after a short delay
+            setTimeout(() => {
+                // Disconnect socket
+                if (socket) {
+                    socket.disconnect();
+                }
+                
+                // Reset game state
+                gameEnded = true;
                     localPlayer = null; // Will be recreated by server with saved size
-                    window.localPlayer = null;
+                window.localPlayer = null;
                     
                     // Reset camera
                     camera.x = 0;
@@ -1159,12 +1199,12 @@ function setupSocketListeners() {
                     
                     // Clear keys
                     keys = {};
-                    
-                    // Hide game canvas
-                    const canvas = document.getElementById('gameCanvas');
-                    if (canvas) {
-                        canvas.style.display = 'none';
-                    }
+                
+                // Hide game canvas
+                const canvas = document.getElementById('gameCanvas');
+                if (canvas) {
+                    canvas.style.display = 'none';
+                }
                     
                     // Hide all game panels
                     const gamePanels = document.querySelectorAll('.game-panel, .panel');
@@ -1173,18 +1213,18 @@ function setupSocketListeners() {
                             panel.style.display = 'none';
                         }
                     });
-                    
-                    // Show main menu
-                    const nameModal = document.getElementById('nameModal');
-                    if (nameModal) {
-                        nameModal.style.display = 'flex';
-                    }
-                    
-                    // Clear leaderboard
-                    const leaderboardList = document.getElementById('leaderboardList');
-                    if (leaderboardList) {
-                        leaderboardList.innerHTML = '';
-                    }
+                
+                // Show main menu
+                const nameModal = document.getElementById('nameModal');
+                if (nameModal) {
+                    nameModal.style.display = 'flex';
+                }
+                
+                // Clear leaderboard
+                const leaderboardList = document.getElementById('leaderboardList');
+                if (leaderboardList) {
+                    leaderboardList.innerHTML = '';
+                }
                     
                     // Reset game state variables
                     gameState = {
@@ -1329,15 +1369,15 @@ function setupSocketListeners() {
                     if (mobilePanelToggle) {
                         mobilePanelToggle.style.display = 'none';
                     }
-                    
-                    // Refresh player data on main menu to show updated Total Coins
-                    setTimeout(async () => {
-                        await loadSavedPlayerData();
+                
+                // Refresh player data on main menu to show updated Total Coins
+                setTimeout(async () => {
+                    await loadSavedPlayerData();
                         console.log('💰 Player data refreshed on main menu after AFK kick');
-                    }, 500);
-                    
+                }, 500);
+                
                     console.log('🔄 Returned to main menu after AFK kick');
-                }, 3000); // 3 second delay to show message
+            }, 3000); // 3 second delay to show message
             }
             // Note: Eating mechanics are disabled, so no other death handling needed
         }
@@ -2617,7 +2657,7 @@ function worldToScreen(worldX, worldY) {
     const screenY = (worldY - camera.y) * camera.zoom + canvas.height / 2;
     
     return { x: screenX, y: screenY };
- }
+}
 
 function render() {
     if (!ctx || !canvas) {
@@ -3546,7 +3586,7 @@ function gameLoop() {
     // Update camera to follow player (only if localPlayer exists and has valid coordinates)
     if (localPlayer && typeof localPlayer.x === 'number' && typeof localPlayer.y === 'number' && 
         !isNaN(localPlayer.x) && !isNaN(localPlayer.y)) {
-        updateCamera();
+    updateCamera();
         
         // Debug: test camera following (very rare to avoid spam)
         if (Math.random() < 0.0001) { // Extremely rare logging
@@ -4674,6 +4714,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Function to update booster status display
 function updateBoosterStatusDisplay() {
+    // Debug logging
+    console.log('🔄 updateBoosterStatusDisplay called');
+    console.log('🚀 Speed booster state:', activeBoosters.speed);
+    console.log('💰 Coin booster state:', activeBoosters.coins);
+    
     // Create or update booster status elements
     let boosterContainer = document.getElementById('boosterStatusContainer');
     
@@ -4682,6 +4727,7 @@ function updateBoosterStatusDisplay() {
         boosterContainer.id = 'boosterStatusContainer';
         boosterContainer.className = 'fixed top-4 right-4 z-50 space-y-2';
         document.body.appendChild(boosterContainer);
+        console.log('✅ Created new booster container');
     }
     
     // Clear existing booster displays
@@ -4750,10 +4796,10 @@ function updateBoosterStatusDisplay() {
         boosterContainer.appendChild(noBoosters);
     }
     
-    // Update left panel boosters list
-    const boostersListLeft = document.getElementById('boostersListLeft');
-    if (boostersListLeft) {
-        boostersListLeft.innerHTML = '';
+    // Update center panel boosters list
+    const boostersListCenter = document.getElementById('boostersListCenter');
+    if (boostersListCenter) {
+        boostersListCenter.innerHTML = '';
         
         if (activeBoosters.speed.active) {
             const timeLeft = Math.ceil((activeBoosters.speed.endTime - Date.now()) / 1000);
@@ -4762,12 +4808,12 @@ function updateBoosterStatusDisplay() {
             const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
             
             const speedItem = document.createElement('div');
-            speedItem.className = 'flex justify-between items-center text-xs';
+            speedItem.className = 'flex justify-between items-center text-sm bg-green-600 bg-opacity-70 rounded px-3 py-1';
             speedItem.innerHTML = `
-                <span class="text-green-400">🚀 Speed</span>
-                <span class="font-mono text-yellow-400">${timeText}</span>
+                <span class="text-white">🚀 Speed Boost</span>
+                <span class="font-mono text-white font-bold">${timeText}</span>
             `;
-            boostersListLeft.appendChild(speedItem);
+            boostersListCenter.appendChild(speedItem);
         }
         
         if (activeBoosters.coins.active) {
@@ -4777,19 +4823,19 @@ function updateBoosterStatusDisplay() {
             const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
             
             const coinItem = document.createElement('div');
-            coinItem.className = 'flex justify-between items-center text-xs';
+            coinItem.className = 'flex justify-between items-center text-sm bg-yellow-600 bg-opacity-70 rounded px-3 py-1';
             coinItem.innerHTML = `
-                <span class="text-yellow-400">💰 Coins</span>
-                <span class="font-mono text-yellow-400">${timeText}</span>
+                <span class="text-white">💰 Coin Multiplier</span>
+                <span class="font-mono text-white font-bold">${timeText}</span>
             `;
-            boostersListLeft.appendChild(coinItem);
+            boostersListCenter.appendChild(coinItem);
         }
         
         if (!activeBoosters.speed.active && !activeBoosters.coins.active) {
             const noBoosters = document.createElement('div');
             noBoosters.className = 'text-xs text-gray-400 text-center';
             noBoosters.textContent = 'No active boosters';
-            boostersListLeft.appendChild(noBoosters);
+            boostersListCenter.appendChild(noBoosters);
         }
     }
 }

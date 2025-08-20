@@ -524,24 +524,24 @@ function updateBots() {
     if (finalTargetId) {
       const targetCoin = gameState.coins.get(finalTargetId);
       if (targetCoin) {
-        // Check if coin target would lead bot too close to boundaries
+          // Check if coin target would lead bot too close to boundaries
         const targetSafe = isTargetSafeFromBoundaries(bot, targetCoin, gameState.worldSize);
-        if (targetSafe) {
+          if (targetSafe) {
           targetX = targetCoin.x;
           targetY = targetCoin.y;
-          targetFound = true;
-        } else {
-          // If target coin is unsafe, try to find a safer coin or move towards center
-          const safeCoin = findSafeCoinTarget(bot, gameState.coins, gameState.worldSize);
-          if (safeCoin) {
-            targetX = safeCoin.x;
-            targetY = safeCoin.y;
             targetFound = true;
           } else {
-            // Move towards center as fallback
-            targetX = 0;
-            targetY = 0;
-            targetFound = true;
+          // If target coin is unsafe, try to find a safer coin or move towards center
+            const safeCoin = findSafeCoinTarget(bot, gameState.coins, gameState.worldSize);
+            if (safeCoin) {
+              targetX = safeCoin.x;
+              targetY = safeCoin.y;
+              targetFound = true;
+            } else {
+              // Move towards center as fallback
+              targetX = 0;
+              targetY = 0;
+              targetFound = true;
           }
         }
       }
@@ -591,7 +591,7 @@ function updateBots() {
         // Player growth based on score (Agar.io style)
         bot.size = calculatePlayerSize(bot.score);
       }
-    });
+     });
 
     // Occasionally send chat messages (reduced frequency)
     const now = Date.now();
@@ -688,14 +688,18 @@ function updatePlayers(deltaTime) {
     gameState.boosters.forEach((booster) => {
       const distance = Math.sqrt((booster.x - player.x) ** 2 + (booster.y - player.y) ** 2);
       if (distance < player.size) {
-        // Apply booster effect
-        if (booster.type === 'speed') {
-          // Speed boost effect (will be handled on client)
-          console.log(`🚀 Player ${player.name} collected Speed Boost`);
-        } else if (booster.type === 'coins') {
-          // Coin multiplier effect (will be handled on client)
-          console.log(`💰 Player ${player.name} collected Coin Multiplier`);
-        }
+                            // Apply booster effect
+                    if (booster.type === 'speed') {
+                        // Speed boost effect (will be handled on client)
+                        console.log(`🚀 Player ${player.name} collected Speed Boost`);
+                        // Send booster activation to client
+                        socket.emit('boosterActivated', { type: 'speed', duration: 120000 });
+                    } else if (booster.type === 'coins') {
+                        // Coin multiplier effect (will be handled on client)
+                        console.log(`💰 Player ${player.name} collected Coin Multiplier`);
+                        // Send booster activation to client
+                        socket.emit('boosterActivated', { type: 'coins', duration: 120000 });
+                    }
         
         boostersToDelete.push(booster.id);
         
@@ -1111,7 +1115,7 @@ io.on('connection', (socket) => {
               
               // Log final state for debugging
               console.log(`✅ Reconnected player ${existingPlayer.id} final state - Score: ${existingPlayer.score}, Size: ${existingPlayer.size}`);
-            } else {
+    } else {
               console.log(`❌ No playerStats found for reconnected ${existingPlayer.id}`);
             }
           })
@@ -1209,8 +1213,8 @@ io.on('connection', (socket) => {
       }
       
       // Add player to game state using socket.id as key (for compatibility with existing code)
-      gameState.players.set(socket.id, player);
-      
+    gameState.players.set(socket.id, player);
+    
       // Start match if this is the first player and game hasn't started
       if (gameState.players.size === 1 && !gameState.gameStarted && !gameState.gameEnded) {
         console.log(`🎮 First player joined, starting new match`);
@@ -1219,11 +1223,11 @@ io.on('connection', (socket) => {
       
       // Send game state to new player
       const gameStateForClient = {
-        players: Array.from(gameState.players.values()),
-        bots: Array.from(gameState.bots.values()),
-        coins: Array.from(gameState.coins.values()),
+      players: Array.from(gameState.players.values()),
+      bots: Array.from(gameState.bots.values()),
+      coins: Array.from(gameState.coins.values()),
         boosters: Array.from(gameState.boosters.values()),
-        worldSize: gameState.worldSize,
+      worldSize: gameState.worldSize,
         playerId: socket.id,
         matchTimeLeft: gameState.matchTimeLeft,
         gameStarted: gameState.gameStarted,
@@ -1414,7 +1418,7 @@ io.on('connection', (socket) => {
           }
         }, 0);
       }
-
+      
       disconnectedPlayers.set(player.firebaseId, player);
       setTimeout(() => {
         if (disconnectedPlayers.has(player.firebaseId)) {
