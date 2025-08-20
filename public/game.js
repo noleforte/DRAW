@@ -661,7 +661,7 @@ function init() {
     // Initialize rank display after panelManager is ready
     const initRankDisplay = () => {
         if (window.panelManager) {
-            updatePlayerRankDisplay();
+        updatePlayerRankDisplay();
         } else {
             setTimeout(initRankDisplay, 100);
         }
@@ -870,60 +870,60 @@ function setupSocketListeners() {
                 
                 // Show AFK kick notification
                 showServerMessage(`⏰ You were kicked for being inactive for 2 minutes! 💰 ${data.coinsLost} coins saved to your Total Coins! Returning to main menu in 3 seconds...`, 'warning');
-                
-                // Force refresh Total Coins from Firestore to show the updated balance
-                setTimeout(async () => {
-                    try {
-                        await window.nicknameAuth.syncUserStatsFromFirestore();
+            
+            // Force refresh Total Coins from Firestore to show the updated balance
+            setTimeout(async () => {
+                try {
+                    await window.nicknameAuth.syncUserStatsFromFirestore();
                         console.log('💰 Total Coins refreshed after AFK kick');
-                        
-                        // Update Player Info panel if open
-                        if (window.panelManager) {
-                            await window.panelManager.updateUserInfoPanel();
-                        }
-                    } catch (error) {
+                    
+                    // Update Player Info panel if open
+                    if (window.panelManager) {
+                        await window.panelManager.updateUserInfoPanel();
+                    }
+                } catch (error) {
                         console.warn('⚠️ Failed to refresh Total Coins after AFK kick:', error);
-                    }
-                }, 1500); // Refresh after 1.5 seconds to allow server to save
+                }
+            }, 1500); // Refresh after 1.5 seconds to allow server to save
+            
+            // Disconnect from game and return to main menu after a short delay
+            setTimeout(() => {
+                // Disconnect socket
+                if (socket) {
+                    socket.disconnect();
+                }
                 
-                // Disconnect from game and return to main menu after a short delay
-                setTimeout(() => {
-                    // Disconnect socket
-                    if (socket) {
-                        socket.disconnect();
-                    }
-                    
-                    // Reset game state
-                    gameEnded = true;
+                // Reset game state
+                gameEnded = true;
                     localPlayer = null; // Will be recreated by server with saved size
-                    window.localPlayer = null;
-                    
-                    // Hide game canvas
-                    const canvas = document.getElementById('gameCanvas');
-                    if (canvas) {
-                        canvas.style.display = 'none';
-                    }
-                    
-                    // Show main menu
-                    const nameModal = document.getElementById('nameModal');
-                    if (nameModal) {
-                        nameModal.style.display = 'flex';
-                    }
-                    
-                    // Clear leaderboard
-                    const leaderboardList = document.getElementById('leaderboardList');
-                    if (leaderboardList) {
-                        leaderboardList.innerHTML = '';
-                    }
-                    
-                    // Refresh player data on main menu to show updated Total Coins
-                    setTimeout(async () => {
-                        await loadSavedPlayerData();
+                window.localPlayer = null;
+                
+                // Hide game canvas
+                const canvas = document.getElementById('gameCanvas');
+                if (canvas) {
+                    canvas.style.display = 'none';
+                }
+                
+                // Show main menu
+                const nameModal = document.getElementById('nameModal');
+                if (nameModal) {
+                    nameModal.style.display = 'flex';
+                }
+                
+                // Clear leaderboard
+                const leaderboardList = document.getElementById('leaderboardList');
+                if (leaderboardList) {
+                    leaderboardList.innerHTML = '';
+                }
+                
+                // Refresh player data on main menu to show updated Total Coins
+                setTimeout(async () => {
+                    await loadSavedPlayerData();
                         console.log('💰 Player data refreshed on main menu after AFK kick');
-                    }, 500);
-                    
+                }, 500);
+                
                     console.log('🔄 Returned to main menu after AFK kick');
-                }, 3000); // 3 second delay to show message
+            }, 3000); // 3 second delay to show message
             }
             // Note: Eating mechanics are disabled, so no other death handling needed
         }

@@ -1153,7 +1153,19 @@ io.on('connection', (socket) => {
         console.log(`⚠️ No ID for reconnected player ${name}`);
       }
       
-      socket.emit('gameState', gameState);
+      // Send game state to reconnected player
+      const gameStateForClient = {
+        players: Array.from(gameState.players.values()),
+        bots: Array.from(gameState.bots.values()),
+        coins: Array.from(gameState.coins.values()),
+        worldSize: gameState.worldSize,
+        playerId: socket.id,
+        matchTimeLeft: gameState.matchTimeLeft,
+        gameStarted: gameState.gameStarted,
+        gameEnded: gameState.gameEnded
+      };
+      
+      socket.emit('gameState', gameStateForClient);
       console.log(`🔄 Player ${name} reconnected`);
     } else {
       // New player joining - create player object
@@ -1233,7 +1245,18 @@ io.on('connection', (socket) => {
       }
       
       // Send game state to new player
-      socket.emit('gameState', gameState);
+      const gameStateForClient = {
+        players: Array.from(gameState.players.values()),
+        bots: Array.from(gameState.bots.values()),
+        coins: Array.from(gameState.coins.values()),
+        worldSize: gameState.worldSize,
+        playerId: socket.id,
+        matchTimeLeft: gameState.matchTimeLeft,
+        gameStarted: gameState.gameStarted,
+        gameEnded: gameState.gameEnded
+      };
+      
+      socket.emit('gameState', gameStateForClient);
       
       // Broadcast new player to all other players
       socket.broadcast.emit('playerJoined', player);
