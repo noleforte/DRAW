@@ -1147,6 +1147,12 @@ function setupSocketListeners() {
                         mobileJoystickToggle.style.display = 'none';
                     }
                     
+                    // Reset mobile panel toggle
+                    const mobilePanelToggle = document.getElementById('mobilePanelToggle');
+                    if (mobilePanelToggle) {
+                        mobilePanelToggle.style.display = 'none';
+                    }
+                    
                     // Refresh player data on main menu to show updated Total Coins
                     setTimeout(async () => {
                         await loadSavedPlayerData();
