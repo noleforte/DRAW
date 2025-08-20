@@ -562,14 +562,6 @@ function updateBots() {
         const baseSpeed = 2;
         let speedMultiplier = 1.0;
         
-        if (isFleeingFromThreat) {
-          // Bots move much faster when fleeing from threats
-          speedMultiplier = 1.8; // 80% speed boost when fleeing
-        } else if (bestTarget) {
-          // Bots move faster when chasing targets to eat
-          speedMultiplier = 1.3; // 30% speed boost when hunting
-        }
-        
         // Apply size-based speed reduction
         const sizeSpeedMultiplier = calculateSpeedMultiplier(bot.size);
         const speed = baseSpeed * bot.speedVariation * speedMultiplier * sizeSpeedMultiplier;
@@ -700,6 +692,9 @@ function updateBots() {
 // Update player positions with smooth 60fps movement
 function updatePlayers(deltaTime) {
   gameState.players.forEach(player => {
+    // Debug: Log player movement
+    console.log(`🎮 Updating player ${player.name} - TargetVel: (${Math.round(player.targetVx * 10) / 10}, ${Math.round(player.targetVy * 10) / 10}), CurrentVel: (${Math.round(player.vx * 10) / 10}, ${Math.round(player.vy * 10) / 10})`);
+    
     // Smooth velocity interpolation for 60fps movement
     const lerpFactor = Math.min(1, deltaTime * 8); // Smooth acceleration/deceleration
     player.vx += (player.targetVx - player.vx) * lerpFactor;
@@ -708,6 +703,9 @@ function updatePlayers(deltaTime) {
     // Update position based on velocity and deltaTime
     player.x += player.vx * deltaTime;
     player.y += player.vy * deltaTime;
+    
+    // Debug: Log position update
+    console.log(`🎮 Player ${player.name} moved to (${Math.round(player.x)}, ${Math.round(player.y)})`);
     
     // Keep within world bounds
     player.x = Math.max(-gameState.worldSize/2, Math.min(gameState.worldSize/2, player.x));
@@ -1189,6 +1187,9 @@ io.on('connection', (socket) => {
   socket.on('playerMove', (movement) => {
     const player = gameState.players.get(socket.id);
     if (player && gameState.gameStarted && !gameState.gameEnded) {
+      // Debug: Log received movement
+      console.log(`🎮 Received movement for ${player.name}: (${movement.x}, ${movement.y})`);
+      
       // Update activity when player sends movement input
       if (movement.x !== 0 || movement.y !== 0) {
         player.lastActivity = Date.now();
@@ -1202,6 +1203,11 @@ io.on('connection', (socket) => {
       // Set target velocity instead of instant position update
       player.targetVx = movement.x * speed;
       player.targetVy = movement.y * speed;
+      
+      // Debug: Log calculated target velocity
+      console.log(`🎮 Player ${player.name} target velocity: (${Math.round(player.targetVx * 10) / 10}, ${Math.round(player.targetVy * 10) / 10})`);
+    } else {
+      console.log(`⚠️ playerMove ignored - Player: ${!!player}, GameStarted: ${gameState.gameStarted}, GameEnded: ${gameState.gameEnded}`);
     }
   });
 
@@ -1275,6 +1281,9 @@ setInterval(() => {
   const deltaTime = (now - lastUpdate) / 1000;
   lastUpdate = now;
   
+  // Debug: Log game state
+  console.log(`🔄 Game loop - Players: ${gameState.players.size}, Bots: ${gameState.bots.size}, Coins: ${gameState.coins.size}`);
+  
   // Update game logic with deltaTime for smooth 60fps movement
   updatePlayers(deltaTime);
   updateBots();
@@ -1289,6 +1298,12 @@ setInterval(() => {
   updateCounter++;
   if (updateCounter >= 3) {
     updateCounter = 0;
+    
+    // Debug: Log movement data
+    if (gameState.players.size > 0) {
+      const firstPlayer = Array.from(gameState.players.values())[0];
+      console.log(`🎮 Player ${firstPlayer.name} - Pos: (${Math.round(firstPlayer.x)}, ${Math.round(firstPlayer.y)}), Vel: (${Math.round(firstPlayer.vx * 10) / 10}, ${Math.round(firstPlayer.vy * 10) / 10})`);
+    }
     
     // Only send essential data, not full objects
     const gameUpdate = {
