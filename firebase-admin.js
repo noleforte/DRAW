@@ -66,12 +66,23 @@ class GameDataService {
             
             if (playerDoc.exists) {
                 const data = playerDoc.data();
-                console.log(`✅ getPlayerStats found data for ${playerId}:`, {
-                    totalScore: data.totalScore,
-                    lastSize: data.lastSize,
-                    bestScore: data.bestScore
-                });
-                return data;
+                
+                // Extract data with proper fallbacks
+                const extractedData = {
+                    totalScore: data.totalScore || data.stats?.totalScore || 0,
+                    lastSize: data.lastSize || null,
+                    bestScore: data.bestScore || data.stats?.bestScore || 0,
+                    gamesPlayed: data.gamesPlayed || data.stats?.gamesPlayed || 0,
+                    wins: data.wins || data.stats?.wins || 0,
+                    nickname: data.nickname || '',
+                    wallet: data.wallet || '',
+                    email: data.email || '',
+                    lastLogin: data.lastLogin || null,
+                    lastPlayed: data.lastPlayed || null
+                };
+                
+                console.log(`✅ getPlayerStats found data for ${playerId}:`, extractedData);
+                return extractedData;
             } else {
                 console.log(`❌ getPlayerStats: No document found for playerId: ${playerId}`);
                 return null;

@@ -1206,7 +1206,7 @@ io.on('connection', (socket) => {
               }
               
               // Update the player in gameState with loaded data
-              const playerInGame = gameState.players.get(playerId);
+              const playerInGame = gameState.players.get(socket.id);
               if (playerInGame) {
                 playerInGame.score = player.score;
                 playerInGame.size = player.size;
@@ -1226,6 +1226,12 @@ io.on('connection', (socket) => {
       // Add player to game state using socket.id as key (for compatibility with existing code)
       gameState.players.set(socket.id, player);
       
+      // Start match if this is the first player and game hasn't started
+      if (gameState.players.size === 1 && !gameState.gameStarted && !gameState.gameEnded) {
+        console.log(`🎮 First player joined, starting new match`);
+        startNewMatch();
+      }
+      
       // Send game state to new player
       socket.emit('gameState', gameState);
       
@@ -1238,7 +1244,7 @@ io.on('connection', (socket) => {
 
   socket.on('playerMove', (movement) => {
     const player = gameState.players.get(socket.id);
-    if (player && gameState.gameStarted && !gameState.gameEnded) {
+    if (player && !gameState.gameEnded) {
       // Debug: Log received movement
       console.log(`🎮 Received movement for ${player.name}: (${movement.x}, ${movement.y})`);
       
