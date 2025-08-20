@@ -692,13 +692,15 @@ function updatePlayers(deltaTime) {
                     if (booster.type === 'speed') {
                         // Speed boost effect (will be handled on client)
                         console.log(`🚀 Player ${player.name} collected Speed Boost`);
-                        // Send booster activation to client
-                        socket.emit('boosterActivated', { type: 'speed', duration: 120000 });
+                        // Mark player as having speed boost
+                        player.speedBoost = true;
+                        player.speedBoostEndTime = Date.now() + 120000;
                     } else if (booster.type === 'coins') {
                         // Coin multiplier effect (will be handled on client)
                         console.log(`💰 Player ${player.name} collected Coin Multiplier`);
-                        // Send booster activation to client
-                        socket.emit('boosterActivated', { type: 'coins', duration: 120000 });
+                        // Mark player as having coin boost
+                        player.coinBoost = true;
+                        player.coinBoostEndTime = Date.now() + 120000;
                     }
         
         boostersToDelete.push(booster.id);
@@ -726,6 +728,20 @@ function updatePlayers(deltaTime) {
         gameState.boosters.set(newBooster.id, newBooster);
       }, 120000); // Respawn after 2 minutes (120 seconds)
     });
+    
+    // Check and expire boosters
+    const now = Date.now();
+    if (player.speedBoost && now > player.speedBoostEndTime) {
+      player.speedBoost = false;
+      player.speedBoostEndTime = 0;
+      console.log(`🚀 Speed boost expired for player ${player.name}`);
+    }
+    
+    if (player.coinBoost && now > player.coinBoostEndTime) {
+      player.coinBoost = false;
+      player.coinBoostEndTime = 0;
+      console.log(`💰 Coin boost expired for player ${player.name}`);
+    }
     
     // Save coins to Firebase in batch (non-blocking)
     if (coinsToSave.length > 0) {
@@ -1259,8 +1275,8 @@ io.on('connection', (socket) => {
       const sizeSpeedMultiplier = calculateSpeedMultiplier(player.size);
       let speed = baseSpeed * sizeSpeedMultiplier;
       
-      // Apply speed booster if active (client will send booster status)
-      if (movement.speedBooster) {
+      // Apply speed booster if active
+      if (player.speedBoost) {
         speed *= 2; // Double speed
         console.log(`🚀 Speed boost applied for player ${player.name}`);
       }
@@ -1466,45 +1482,49 @@ setInterval(() => {
       console.log(`🎮 Player ${firstPlayer.name} - Pos: (${Math.round(firstPlayer.x)}, ${Math.round(firstPlayer.y)}), Vel: (${Math.round(firstPlayer.vx * 10) / 10}, ${Math.round(firstPlayer.vy * 10) / 10})`);
     }
     
-    // Only send essential data, not full objects
-    const gameUpdate = {
-      players: Array.from(gameState.players.values()).map(p => ({
-        id: p.id,
-        x: Math.round(p.x),
-        y: Math.round(p.y),
-        vx: Math.round(p.vx * 10) / 10, // Send velocity for client-side interpolation
-        vy: Math.round(p.vy * 10) / 10,
-        score: p.score,
-        size: p.size,
-        name: p.name,
-        color: p.color
-      })),
-      bots: Array.from(gameState.bots.values()).map(b => ({
-        id: b.id,
-        x: Math.round(b.x),
-        y: Math.round(b.y),
-        score: b.score,
-        size: b.size,
-        name: b.name,
-        color: b.color
-      })),
-      coins: Array.from(gameState.coins.values()).map(c => ({
-        id: c.id,
-        x: Math.round(c.x),
-        y: Math.round(c.y)
-      })),
-      boosters: Array.from(gameState.boosters.values()).map(b => ({
-        id: b.id,
-        x: Math.round(b.x),
-        y: Math.round(b.y),
-        type: b.type,
-        name: b.name,
-        color: b.color,
-        effect: b.effect
-      }))
-    };
-    
-    io.emit('gameUpdate', gameUpdate);
+            // Only send essential data, not full objects
+        const gameUpdate = {
+            players: Array.from(gameState.players.values()).map(p => ({
+                id: p.id,
+                x: Math.round(p.x),
+                y: Math.round(p.y),
+                vx: Math.round(p.vx * 10) / 10, // Send velocity for client-side interpolation
+                vy: Math.round(p.vy * 10) / 10,
+                score: p.score,
+                size: p.size,
+                name: p.name,
+                color: p.color,
+                speedBoost: p.speedBoost || false,
+                coinBoost: p.coinBoost || false,
+                speedBoostEndTime: p.speedBoostEndTime || 0,
+                coinBoostEndTime: p.coinBoostEndTime || 0
+            })),
+            bots: Array.from(gameState.bots.values()).map(b => ({
+                id: b.id,
+                x: Math.round(b.x),
+                y: Math.round(b.y),
+                score: b.score,
+                size: b.size,
+                name: b.name,
+                color: b.color
+            })),
+            coins: Array.from(gameState.coins.values()).map(c => ({
+                id: c.id,
+                x: Math.round(c.x),
+                y: Math.round(c.y)
+            })),
+            boosters: Array.from(gameState.boosters.values()).map(b => ({
+                id: b.id,
+                x: Math.round(b.x),
+                y: Math.round(b.y),
+                type: b.type,
+                name: b.name,
+                color: b.color,
+                effect: b.effect
+            }))
+        };
+        
+        io.emit('gameUpdate', gameUpdate);
   }
 }, 1000 / 60); // 60 FPS logic, 20 FPS network
 

@@ -1051,29 +1051,35 @@ function setupSocketListeners() {
                 if (distance < localPlayer.size) {
                     console.log(`🚀 Player collected booster: ${booster.name} (${booster.effect})`);
                     
-                    // Apply booster effect
-                    if (booster.type === 'speed') {
-                        activeBoosters.speed.active = true;
-                        activeBoosters.speed.multiplier = 2;
-                        activeBoosters.speed.endTime = Date.now() + 120000; // 2 minutes (120 seconds)
-                        console.log(`🚀 Speed boost activated for 2 minutes`);
-                        
-                        // Force update booster display immediately
-                        updateBoosterStatusDisplay();
-                    } else if (booster.type === 'coins') {
-                        activeBoosters.coins.active = true;
-                        activeBoosters.coins.multiplier = 2;
-                        activeBoosters.coins.endTime = Date.now() + 120000; // 2 minutes (120 seconds)
-                        console.log(`💰 Coin multiplier activated for 2 minutes`);
-                        
-                        // Force update booster display immediately
-                        updateBoosterStatusDisplay();
-                    }
-                    
                     // Remove booster from client-side state (server will handle respawn)
                     gameState.boosters = gameState.boosters.filter(b => b.id !== booster.id);
                 }
             });
+        }
+        
+        // Update booster status from server data
+        if (localPlayer) {
+            if (localPlayer.speedBoost && localPlayer.speedBoostEndTime) {
+                activeBoosters.speed.active = true;
+                activeBoosters.speed.multiplier = 2;
+                activeBoosters.speed.endTime = localPlayer.speedBoostEndTime;
+                console.log(`🚀 Speed boost active until ${new Date(localPlayer.speedBoostEndTime).toLocaleTimeString()}`);
+            } else {
+                activeBoosters.speed.active = false;
+                activeBoosters.speed.multiplier = 1;
+                activeBoosters.speed.endTime = 0;
+            }
+            
+            if (localPlayer.coinBoost && localPlayer.coinBoostEndTime) {
+                activeBoosters.coins.active = true;
+                activeBoosters.coins.multiplier = 2;
+                activeBoosters.coins.endTime = localPlayer.coinBoostEndTime;
+                console.log(`💰 Coin boost active until ${new Date(localPlayer.coinBoostEndTime).toLocaleTimeString()}`);
+            } else {
+                activeBoosters.coins.active = false;
+                activeBoosters.coins.multiplier = 1;
+                activeBoosters.coins.endTime = 0;
+            }
         }
         
         if (!localPlayer) {
@@ -1119,25 +1125,7 @@ function setupSocketListeners() {
         updatePlayerRankDisplay();
     });
     
-    // Handle booster activation from server
-    socket.on('boosterActivated', (data) => {
-        console.log(`🚀 Booster activated from server:`, data);
-        
-        if (data.type === 'speed') {
-            activeBoosters.speed.active = true;
-            activeBoosters.speed.multiplier = 2;
-            activeBoosters.speed.endTime = Date.now() + data.duration;
-            console.log(`🚀 Speed boost activated for ${data.duration/1000} seconds`);
-        } else if (data.type === 'coins') {
-            activeBoosters.coins.active = true;
-            activeBoosters.coins.multiplier = 2;
-            activeBoosters.coins.endTime = Date.now() + data.duration;
-            console.log(`💰 Coin multiplier activated for ${data.duration/1000} seconds`);
-        }
-        
-        // Force update booster display immediately
-        updateBoosterStatusDisplay();
-    });
+
     
     socket.on('chatMessage', (data) => {
         addChatMessage(data);
@@ -2492,9 +2480,7 @@ function updateMovement() {
         movement.y /= length;
     }
     
-    // Add booster status to movement data
-    movement.speedBooster = activeBoosters.speed.active;
-    movement.coinBooster = activeBoosters.coins.active;
+
 }
 
 function updateCamera() {
