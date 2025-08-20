@@ -2772,8 +2772,17 @@ function drawEntity(entity) {
         return;
     }
     
-    // Entity body
-    ctx.fillStyle = entity.color;
+    // Entity body - convert hue to HSL color
+    let fillColor;
+    if (typeof entity.color === 'number') {
+        // Color is hue value, convert to HSL
+        fillColor = `hsl(${entity.color}, 70%, 50%)`;
+    } else {
+        // Color is already a string, use as is
+        fillColor = entity.color;
+    }
+    
+    ctx.fillStyle = fillColor;
     ctx.beginPath();
     ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
     ctx.fill();
