@@ -30,6 +30,7 @@ let gameEnded = false;
 let matchStartTime = null;
 let clientTimerInterval = null;
 let timeOffset = 0; // Offset between client and server time
+let gamePaused = false; // Game pause state
 
 // Background image
 let backgroundImage = null;
@@ -462,8 +463,13 @@ class HybridAuthSystem {
                 console.log('🔍 Firestore data:', JSON.stringify(firestoreData, null, 2));
                 
                 // Extract stats from Firestore (check both nested and root locations)
+                // Use the higher value between root and stats object
+                const rootTotalScore = firestoreData.totalScore || 0;
+                const statsTotalScore = firestoreData.stats?.totalScore || 0;
+                const totalScore = Math.max(rootTotalScore, statsTotalScore);
+                
                 const extractedStats = {
-                    totalScore: firestoreData.stats?.totalScore || firestoreData.totalScore || 0,
+                    totalScore: totalScore,
                     gamesPlayed: firestoreData.stats?.gamesPlayed || firestoreData.gamesPlayed || 0,
                     bestScore: firestoreData.stats?.bestScore || firestoreData.bestScore || 0,
                     wins: firestoreData.stats?.wins || firestoreData.wins || 0
@@ -1159,13 +1165,16 @@ function setupInputHandlers() {
                 }
             }
             
-            // Escape key to blur chat input
+            // Escape key to blur chat input (but don't interfere with pause system)
             if (e.code === 'Escape') {
                 const chatInput = document.getElementById('chatInput');
                 if (chatInput && document.activeElement === chatInput) {
                     chatInput.blur();
                     e.preventDefault();
+                    return; // Exit early to avoid other ESC handling
                 }
+                // Don't process ESC as a game key - let the pause system handle it
+                return;
             }
             
             // Prevent default for game keys only when not typing
@@ -1525,8 +1534,15 @@ function setupUIHandlers() {
         
         // Reset game state for new game
         gameEnded = false;
+        gamePaused = false;
         localPlayer = null;
         window.localPlayer = null;
+        
+        // Hide pause modal if it's open
+        const pauseModal = document.getElementById('pauseModal');
+        if (pauseModal) {
+            pauseModal.classList.add('hidden');
+        }
         
         // Force canvas visibility and test rendering
         if (canvas) {
@@ -1915,6 +1931,13 @@ async function handleGuestPlay() {
 }
 
 function updateMovement() {
+    // Don't process movement if game is paused
+    if (gamePaused) {
+        movement.x = 0;
+        movement.y = 0;
+        return;
+    }
+    
     // Check if user is typing in an input field
     const activeElement = document.activeElement;
     const isTyping = activeElement && (
@@ -2407,7 +2430,24 @@ function scrollChatToBottom() {
 }
 
 // Helper function to update player rank display
+// Debounce function to prevent excessive rank updates
+let rankUpdateTimeout = null;
+let lastRankUpdate = 0;
+const RANK_UPDATE_THROTTLE = 1000; // Update rank at most once per second
+
 function updatePlayerRankDisplay() {
+    // Throttle updates to prevent excessive calls
+    const now = Date.now();
+    if (now - lastRankUpdate < RANK_UPDATE_THROTTLE) {
+        if (rankUpdateTimeout) return; // Already scheduled
+        
+        rankUpdateTimeout = setTimeout(() => {
+            rankUpdateTimeout = null;
+            updatePlayerRankDisplay();
+        }, RANK_UPDATE_THROTTLE - (now - lastRankUpdate));
+        return;
+    }
+    
     // Check if panelManager is ready
     if (!window.panelManager) {
         console.log('⏳ updatePlayerRankDisplay: window.panelManager not ready yet, will retry later');
@@ -2426,15 +2466,20 @@ function updatePlayerRankDisplay() {
     
     const currentGameRankElement = document.querySelector('#userinfoLeftPanel #currentGameRank');
     if (!currentGameRankElement) {
-        console.log('❌ updatePlayerRankDisplay: currentGameRankElement not found in DOM');
+        console.log('❌ updatePlayerRankDisplay: currentGameRankDisplay: currentGameRankElement not found in DOM');
         return;
     }
     
     try {
         const playerRank = window.panelManager.calculatePlayerRank(window.localPlayer);
         const rankText = playerRank ? `#${playerRank}` : '#-';
-        currentGameRankElement.textContent = rankText;
-        console.log('🏆 Updated player rank display to:', rankText, 'for player:', window.localPlayer.name, 'score:', window.localPlayer.score);
+        
+        // Only update if rank actually changed
+        if (currentGameRankElement.textContent !== rankText) {
+            currentGameRankElement.textContent = rankText;
+            console.log('🏆 Updated player rank display to:', rankText, 'for player:', window.localPlayer.name, 'score:', window.localPlayer.score);
+            lastRankUpdate = now;
+        }
     } catch (error) {
         console.error('❌ Error updating player rank display:', error);
         currentGameRankElement.textContent = '#-';
@@ -2526,8 +2571,13 @@ function performLogout() {
     // 11. Reset page to initial state
     document.body.style.overflow = 'auto'; // Allow scrolling again
     
-    // 12. Reset player rank display
+    // 12. Reset player rank display and pause state
     updatePlayerRankDisplay();
+    gamePaused = false;
+    const pauseModal = document.getElementById('pauseModal');
+    if (pauseModal) {
+        pauseModal.classList.add('hidden');
+    }
     
     // 13. Force page reload to ensure clean state
     setTimeout(() => {
@@ -2765,11 +2815,16 @@ function gameLoop() {
         return;
     }
     
+    if (gamePaused) {
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+    
     // Silent game loop - no logs
     updateMovement();
     
     // Send movement to server (throttled to 30fps max)
-    if (socket) {
+    if (socket && !gamePaused) {
         const now = Date.now();
         if (now - lastMovementSent > MOVEMENT_SEND_INTERVAL) {
             socket.emit('playerMove', movement);
@@ -2841,6 +2896,37 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
+// Pause game functions
+function pauseGame() {
+    if (gameEnded || gamePaused) return;
+    
+    gamePaused = true;
+    const pauseModal = document.getElementById('pauseModal');
+    if (pauseModal) {
+        pauseModal.classList.remove('hidden');
+        console.log('🎮 Game paused');
+    }
+}
+
+function resumeGame() {
+    if (!gamePaused) return;
+    
+    gamePaused = false;
+    const pauseModal = document.getElementById('pauseModal');
+    if (pauseModal) {
+        pauseModal.classList.add('hidden');
+        console.log('🎮 Game resumed');
+    }
+}
+
+function togglePause() {
+    if (gamePaused) {
+        resumeGame();
+    } else {
+        pauseGame();
+    }
+}
+
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', async () => {
     init();
@@ -2854,7 +2940,70 @@ document.addEventListener('DOMContentLoaded', async () => {
             updatePlayerRankDisplay();
         }
     }, 4000);
+    
+    // Setup pause functionality
+    setupPauseControls();
 });
+
+// Setup pause controls
+function setupPauseControls() {
+            // ESC key handler for pause/resume
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                
+                // First check if pause modal is open - if so, resume
+                if (gamePaused) {
+                    resumeGame();
+                    return;
+                }
+                
+                // Check if user is typing in chat or other input
+                const activeElement = document.activeElement;
+                const isTyping = activeElement && (
+                    activeElement.tagName === 'INPUT' || 
+                    activeElement.tagName === 'TEXTAREA' || 
+                    activeElement.contentEditable === 'true'
+                );
+                
+                if (isTyping) {
+                    activeElement.blur();
+                    return;
+                }
+                
+                // Only allow pause/resume when in game (not in menus)
+                const nameModal = document.getElementById('nameModal');
+                const authModal = document.getElementById('authModal');
+                const registrationModal = document.getElementById('registrationModal');
+                const gameOverModal = document.getElementById('gameOverModal');
+                
+                // Check if any modal is visible
+                const anyModalVisible = (
+                    !nameModal.classList.contains('hidden') ||
+                    !authModal.classList.contains('hidden') ||
+                    !registrationModal.classList.contains('hidden') ||
+                    !gameOverModal.classList.contains('hidden')
+                );
+                
+                // Only pause if we're in the game (no modals visible) and game is not ended
+                if (!anyModalVisible && !gameEnded && localPlayer) {
+                    pauseGame();
+                }
+            }
+        });
+    
+    // Click to resume when paused
+    const pauseModal = document.getElementById('pauseModal');
+    if (pauseModal) {
+        pauseModal.addEventListener('click', () => {
+            if (gamePaused) {
+                resumeGame();
+            }
+        });
+    }
+    
+    console.log('🎮 Pause controls initialized - Press ESC to pause/resume');
+}
 
 // Save game session when user leaves the page
 window.addEventListener('beforeunload', async (event) => {
@@ -3602,18 +3751,18 @@ class PanelManager {
         setInterval(() => {
             if (!this.panels.userinfoLeft.panel.classList.contains('hidden')) {
                 this.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
-                // Also update rank display
+                // Also update rank display (but throttled)
                 updatePlayerRankDisplay();
             }
-        }, 1000); // Refresh every 1 second when panel is open
+        }, 2000); // Refresh every 2 seconds when panel is open
         
-        // Also update data in background every 5 seconds (for when panel opens)
+        // Also update data in background every 10 seconds (for when panel opens)
         setInterval(() => {
             // Always keep data fresh, even when panel is closed
             this.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
-            // Also update rank display in background
+            // Also update rank display in background (but throttled)
             updatePlayerRankDisplay();
-        }, 5000); // Background refresh every 5 seconds
+        }, 10000); // Background refresh every 10 seconds
         
         // Also initialize player rank display immediately
         setTimeout(() => updatePlayerRankDisplay(), 1000);
