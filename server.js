@@ -1123,9 +1123,11 @@ io.on('connection', (socket) => {
       
       // Load fresh data from Firestore for reconnected player
       if (existingPlayer.id) {
+        console.log(`🔍 Loading data for reconnected player: ${existingPlayer.id}`);
         // Load data asynchronously but update player immediately
         GameDataService.getPlayerStats(existingPlayer.id)
           .then(playerStats => {
+            console.log(`📊 Received playerStats for reconnected ${existingPlayer.id}:`, playerStats);
             if (playerStats) {
               // Update size if newer data exists
               if (playerStats.lastSize && playerStats.lastSize > existingPlayer.size) {
@@ -1140,11 +1142,15 @@ io.on('connection', (socket) => {
                 existingPlayer.size = calculatePlayerSize(playerStats.totalScore);
                 console.log(`💰 Reconnected player ${existingPlayer.id} - Updated score to ${playerStats.totalScore}, calculated size: ${existingPlayer.size}`);
               }
+            } else {
+              console.log(`❌ No playerStats found for reconnected ${existingPlayer.id}`);
             }
           })
           .catch(error => {
             console.error('Error loading reconnected player data from Firestore:', error);
           });
+      } else {
+        console.log(`⚠️ No ID for reconnected player ${name}`);
       }
       
       socket.emit('gameState', gameState);
@@ -1179,9 +1185,11 @@ io.on('connection', (socket) => {
       
       // Load saved player data from Firestore if player exists
       if (playerId) {
+        console.log(`🔍 Loading data for playerId: ${playerId}`);
         // Load data synchronously to avoid race conditions
         GameDataService.getPlayerStats(playerId)
           .then(playerStats => {
+            console.log(`📊 Received playerStats for ${playerId}:`, playerStats);
             if (playerStats) {
               // Load saved size
               if (playerStats.lastSize) {
@@ -1204,11 +1212,15 @@ io.on('connection', (socket) => {
                 playerInGame.size = player.size;
                 console.log(`✅ Updated player ${playerId} in gameState with loaded data: score=${player.score}, size=${player.size}`);
               }
+            } else {
+              console.log(`❌ No playerStats found for ${playerId}`);
             }
           })
           .catch(error => {
             console.error('Error loading player data from Firestore:', error);
           });
+      } else {
+        console.log(`⚠️ No playerId provided for ${name}`);
       }
       
       // Add player to game state
