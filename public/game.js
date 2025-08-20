@@ -4741,6 +4741,7 @@ function updateBoosterStatusDisplay() {
                 <div class="text-xs opacity-90">remaining</div>
             </div>
         `;
+        speedBooster.style.display = 'none';
         boosterContainer.appendChild(speedBooster);
     }
     
@@ -4765,6 +4766,7 @@ function updateBoosterStatusDisplay() {
                 <div class="text-xs opacity-90">remaining</div>
             </div>
         `;
+        coinBooster.style.display = 'none';
         boosterContainer.appendChild(coinBooster);
     }
     
@@ -4773,6 +4775,7 @@ function updateBoosterStatusDisplay() {
         const noBoosters = document.createElement('div');
         noBoosters.className = 'bg-gray-600 text-white px-3 py-2 rounded-lg shadow-lg text-center text-sm opacity-75';
         noBoosters.textContent = 'No active boosters';
+        noBoosters.style.display = 'none';
         boosterContainer.appendChild(noBoosters);
     }
     
