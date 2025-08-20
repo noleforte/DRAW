@@ -402,118 +402,120 @@ function updateBots() {
     let targetX = 0, targetY = 0;
     let isFleeingFromThreat = false;
     
-    // FIRST PRIORITY: Check for threats that can eat us and flee if needed
-    let nearestThreat = null;
-    let nearestThreatDistance = Infinity;
+    // FIRST PRIORITY: Check for threats that can eat us and flee if needed - DISABLED
+    // let nearestThreat = null;
+    // let nearestThreatDistance = Infinity;
     
-    const allEntities = [...gameState.players.values(), ...gameState.bots.values()];
-    allEntities.forEach(entity => {
-      if (entity.id !== bot.id) {
-        const distance = Math.sqrt((entity.x - bot.x) ** 2 + (entity.y - bot.y) ** 2);
+    // const allEntities = [...gameState.players.values(), ...gameState.bots.values()];
+    // allEntities.forEach(entity => {
+    //   if (entity.id !== bot.id) {
+    //     const distance = Math.sqrt((entity.x - bot.x) ** 2 + (entity.y - bot.y) ** 2);
         
-        // Check if this entity can eat us (has more coins) and is close enough to be a threat
-        if (entity.score > bot.score && distance < 300) { // 300 pixel threat detection range
-          if (distance < nearestThreatDistance) {
-            nearestThreat = entity;
-            nearestThreatDistance = distance;
-          }
-        }
-      }
-    });
+    //     // Check if this entity can eat us (has more coins) and is close enough to be a threat
+    //     if (entity.score > bot.score && distance < 300) { // 300 pixel threat detection range
+    //       if (distance < nearestThreatDistance) {
+    //         nearestThreat = entity;
+    //         nearestThreatDistance = distance;
+    //       }
+    //     }
+    //   }
+    // });
     
-    // If there's a threat, flee from it (highest priority)
-    if (nearestThreat) {
-      const dx = bot.x - nearestThreat.x; // Opposite direction
-      const dy = bot.y - nearestThreat.y; // Opposite direction
-      const distance = Math.sqrt(dx * dx + dy * dy);
+    // // If there's a threat, flee from it (highest priority)
+    // if (nearestThreat) {
+    //   const dx = bot.x - nearestThreat.x; // Opposite direction
+    //   const dy = bot.y - nearestThreat.y; // Opposite direction
+    //   const distance = Math.sqrt(dx * dx + dy * dy);
       
-      if (distance > 0) {
-        // Calculate safe flee target considering world boundaries
-        const fleeTarget = calculateSafeFleeTarget(bot, nearestThreat, gameState.worldSize);
-        targetX = fleeTarget.x;
-        targetY = fleeTarget.y;
-        targetFound = true;
-        isFleeingFromThreat = true;
+    //   if (distance > 0) {
+    //     // Calculate safe flee target considering world boundaries
+    //     const fleeTarget = calculateSafeFleeTarget(bot, nearestThreat, gameState.worldSize);
+    //     targetX = fleeTarget.x;
+    //     targetY = fleeTarget.y;
+    //     targetFound = true;
+    //     isFleeingFromThreat = true;
         
-        // Console logging for debugging  
+    //     // Console logging for debugging  
        
-        // Occasionally send flee message
-        const now = Date.now();
-        if (now - bot.lastMessageTime > 25000 && Math.random() < 0.15) { // 15% chance every 25 seconds
-          const fleeMessages = [
-            "Help! Someone's chasing me! 😱",
-            "Running away! 🏃‍♂️💨",
-            "Too dangerous here! 😰",
-            "Retreat! Retreat! 🏃‍♀️",
-            "Getting out of here! 😨",
-            "Nope nope nope! 🏃‍♂️",
-            "Tactical retreat! 📍",
-            "Save yourselves! 😱💨"
-          ];
-          const fleeMessage = fleeMessages[Math.floor(Math.random() * fleeMessages.length)];
-          bot.lastMessageTime = now;
+    //     // Occasionally send flee message
+    //     const now = Date.now();
+    //     if (now - bot.lastMessageTime > 25000 && Math.random() < 0.15) { // 15% chance every 25 seconds
+    //       const fleeMessages = [
+    //         "Help! Someone's chasing me! 😱",
+    //         "Running away! 🏃‍♂️💨",
+    //         "Too dangerous here! 😰",
+    //         "Retreat! Retreat! 🏃‍♀️",
+    //         "Getting out of here! 😨",
+    //         "Nope nope nope! 🏃‍♂️",
+    //         "Tactical retreat! 📍",
+    //         "Save yourselves! 😱💨"
+    //       ];
+    //       const fleeMessage = fleeMessages[Math.floor(Math.random() * fleeMessages.length)];
+    //       bot.lastMessageTime = now;
           
-          io.emit('chatMessage', {
-            playerId: bot.id,
-            playerName: bot.name,
-            message: fleeMessage,
-            timestamp: now
-          });
-        }
-      }
-    }
+    //       io.emit('chatMessage', {
+    //         playerId: bot.id,
+    //         playerName: bot.name,
+    //         message: fleeMessage,
+    //         timestamp: now
+    //       });
+    //     }
+    //   }
+    // }
     
-    // SECOND PRIORITY: Look for targets to eat (only if not fleeing)
-    let bestTarget = null;
-    if (!isFleeingFromThreat) {
-      let bestTargetDistance = Infinity;
-      let bestTargetReward = 0;
+    // Note: Threat detection disabled since eating mechanics are disabled
     
-      // Check all entities for potential targets
-      const potentialTargets = [...gameState.players.values(), ...gameState.bots.values()];
-      potentialTargets.forEach(target => {
-        if (target.id !== bot.id) {
-          const distance = Math.sqrt((target.x - bot.x) ** 2 + (target.y - bot.y) ** 2);
-          const sizeRatio = bot.size / target.size;
+    // SECOND PRIORITY: Look for targets to eat (only if not fleeing) - DISABLED
+    // let bestTarget = null;
+    // if (!isFleeingFromThreat) {
+    //   let bestTargetDistance = Infinity;
+    //   let bestTargetReward = 0;
+    
+    //   // Check all entities for potential targets
+    //   const potentialTargets = [...gameState.players.values(), ...gameState.bots.values()];
+    //   potentialTargets.forEach(target => {
+    //     if (target.id !== bot.id) {
+    //       const distance = Math.sqrt((target.x - bot.x) ** 2 + (target.y - bot.y) ** 2);
+    //       const sizeRatio = bot.size / target.size;
           
-          // Only consider targets we can eat (have more coins) and that are worth pursuing
-          if (bot.score > target.score && target.score > 5 && distance < 400) { // 400 pixel pursuit range
-            const reward = target.score / Math.max(distance, 1); // Score per distance unit
-            if (reward > bestTargetReward) {
-              bestTarget = target;
-              bestTargetDistance = distance;
-              bestTargetReward = reward;
-            }
-          }
-        }
-      });
+    //       // Only consider targets we can eat (have more coins) and that are worth pursuing
+    //       if (bot.score > target.score && target.score > 5 && distance < 400) { // 400 pixel pursuit range
+    //         const reward = target.score / Math.max(distance, 1); // Score per distance unit
+    //         if (reward > bestTargetReward) {
+    //           bestTarget = target;
+    //           bestTargetDistance = distance;
+    //           bestTargetReward = reward;
+    //         }
+    //       }
+    //     }
+    //   });
       
-      // If we found a good target to eat, go for it
-      if (bestTarget) {
-        // Check if hunting target is safe from boundaries
-        const huntingSafe = isTargetSafeFromBoundaries(bot, bestTarget, gameState.worldSize);
-        if (huntingSafe) {
-          targetX = bestTarget.x;
-          targetY = bestTarget.y;
-          targetFound = true;
-        } else {
-          bestTarget = null; // Don't hunt if it's unsafe, fall back to coin collection
-        }
+    //   // If we found a good target to eat, go for it
+    //   if (bestTarget) {
+    //     // Check if hunting target is safe from boundaries
+    //     const huntingSafe = isTargetSafeFromBoundaries(bot, bestTarget, gameState.worldSize);
+    //     if (huntingSafe) {
+    //       targetX = bestTarget.x;
+    //       targetY = bestTarget.y;
+    //       targetFound = true;
+    //     } else {
+    //       bestTarget = null; // Don't hunt if it's unsafe, fall back to coin collection
+    //     }
         
-        // Occasionally taunt the target
-        const now = Date.now();
-        if (now - bot.lastMessageTime > 30000 && Math.random() < 0.1) { // 10% chance every 30 seconds
-          const huntMessage = botHuntingMessages[Math.floor(Math.random() * botHuntingMessages.length)];
-          bot.lastMessageTime = now;
+    //     // Occasionally taunt the target
+    //     const now = Date.now();
+    //     if (now - bot.lastMessageTime > 30000 && Math.random() < 0.1) { // 10% chance every 30 seconds
+    //       const huntMessage = botHuntingMessages[Math.floor(Math.random() * botHuntingMessages.length)];
+    //       bot.lastMessageTime = now;
           
-          io.emit('chatMessage', {
-            playerId: bot.id,
-            playerName: bot.name,
-            message: huntMessage,
-            timestamp: now
-          });
-        }
-      } else {
+    //       io.emit('chatMessage', {
+    //         playerId: bot.id,
+    //         playerName: bot.name,
+    //         message: huntMessage,
+    //         timestamp: now
+    //       });
+    //     }
+    //   } else {
         // Otherwise, find nearest coin
         let nearestCoin = null;
         let nearestDistance = Infinity;
@@ -548,8 +550,7 @@ function updateBots() {
             }
           }
         }
-      }
-    }
+      // }
 
     // Move towards target with individual speed variation
     if (targetFound) {
@@ -780,85 +781,41 @@ function updatePlayers(deltaTime) {
     // const entitiesToRemove = [];
     
     // allEntities.forEach(target => {
-    //             if (target.id !== player.id) { // Can eat anyone except yourself
-    //         const distance = Math.sqrt((target.x - player.x) ** 2 + (target.y - player.y) ** 2);
+    //   if (target.id !== player.id) { // Can eat anyone except yourself
+    //     const distance = Math.sqrt((target.x - player.x) ** 2 + (target.y - player.y) ** 2);
          
-    //         // Can eat if you have more coins and touching
-    //         if (player.score > target.score && distance < (player.size + target.size) * 0.7) {
-    //          // Transfer victim's score to player
-    //          const coinsGained = target.score;
-    //          player.score += coinsGained;
-    //          player.size = Math.min(50, 20 + Math.sqrt(player.score) * 2);
+    //     // Can eat if you have more coins and touching
+    //     if (player.score > target.score && distance < (player.size + target.size) * 0.7) {
+    //       // Transfer victim's score to player
+    //       const coinsGained = target.score;
+    //       player.score += coinsGained;
+    //       player.size = Math.min(50, 20 + Math.sqrt(player.score) * 2);
           
-    //          // Mark entity for removal
-    //          entitiesToRemove.push(target);
+    //       // Mark entity for removal
+    //       entitiesToRemove.push(target);
           
-    //          // Save gained coins to Firebase if player is authenticated
-    //          if (player.firebaseId && coinsGained > 0) {
-    //            setTimeout(async () => {
-    //              try {
-    //                await GameDataService.savePlayerCoin(player.firebaseId, coinsGained);
-    //              } catch (error) {
-    //              }
-    //            }, 0);
-    //          }
+    //       // Save gained coins to Firebase if player is authenticated
+    //       if (player.firebaseId && coinsGained > 0) {
+    //         setTimeout(async () => {
+    //           try {
+    //             await GameDataService.savePlayerCoin(player.firebaseId, coinsGained);
+    //           } catch (error) {
+    //           }
+    //         }, 0);
+    //       }
           
-    //                     // Send eating notification
-    //           io.emit('chatMessage', {
-    //             playerId: player.id,
-    //             playerName: player.name,
-    //             message: `Ate ${target.name}! (+${coinsGained} coins) [Size: ${Math.round(player.size)}]`,
-    //             timestamp: Date.now()
-    //           });
-           
-    //        }
-    //      }
+    //       // Send eating notification
+    //       io.emit('chatMessage', {
+    //         playerId: player.id,
+    //         playerName: player.name,
+    //         message: `Ate ${target.name}! (+${coinsGained} coins) [Size: ${Math.round(player.size)}]`,
+    //         timestamp: Date.now()
+    //       });
+    //     }
+    //   }
     // });
     
-         // Remove eaten entities
-     entitiesToRemove.forEach(target => {
-       if (target.isBot) {
-         gameState.bots.delete(target.id);
-         // Respawn a new bot after a delay to maintain population
-         setTimeout(() => {
-           if (gameState.bots.size < 15) { // Maintain bot population
-             const newBot = createBot(gameState.nextBotId++);
-             gameState.bots.set(newBot.id, newBot);
-           }
-         }, 5000 + Math.random() * 10000); // 5-15 seconds delay
-             } else {
-        // Save player's coins to Firestore before death
-        if (target.score > 0 && (target.firebaseId || target.playerId)) {
-          const playerIdForSave = target.firebaseId || target.playerId;
-          GameDataService.savePlayerCoin(playerIdForSave, target.score)
-            .then(() => {
-            })
-            .catch((error) => {
-            });
-        }
-        
-        // Save game session (match) when player dies to player
-        if ((target.firebaseId || target.playerId)) {
-          const playerIdForSave = target.firebaseId || target.playerId;
-          GameDataService.saveGameSession(playerIdForSave, {
-            playerName: target.name,
-            score: target.score,
-            walletAddress: target.wallet || ''
-          }).then(() => {
-          }).catch((error) => {
-          });
-        }
-        
-        gameState.players.delete(target.id);
-        // If it was a player, send them a death message
-        io.emit('playerEaten', {
-          victimId: target.id,
-          eatenByPlayer: player.name,
-          coinsLost: target.score, // Keep for backward compatibility
-          coinsSaved: target.score // New field to indicate coins are saved
-        });
-      }
-     });
+    // Note: Eating mechanics are disabled, so no entity removal needed
   });
 }
 
