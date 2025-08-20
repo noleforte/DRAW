@@ -768,6 +768,11 @@ function setupSocketListeners() {
         // Store socket.id for proper player identification
         currentSocketId = socket.id;
         console.log('🔗 Socket connected with ID:', currentSocketId);
+        
+        // Validate socket connection
+        if (!currentSocketId) {
+            console.error('❌ Socket connected but currentSocketId is null!');
+        }
     });
     
     // Note: connect_error handler is now in setupSocketListeners
@@ -782,12 +787,55 @@ function setupSocketListeners() {
         // If not found by socketId, try data.playerId as fallback
         if (!localPlayer && data.playerId) {
             localPlayer = gameState.players.find(p => p.socketId === data.playerId);
+            if (localPlayer) {
+                console.log('🔄 Found localPlayer by data.playerId fallback:', localPlayer.name);
+            }
+        }
+        
+        // If still not found, try to find by name (for reconnection scenarios)
+        if (!localPlayer) {
+            const currentUser = nicknameAuth.getCurrentUserSync();
+            if (currentUser && currentUser.nickname) {
+                localPlayer = gameState.players.find(p => p.name === currentUser.nickname);
+                if (localPlayer) {
+                    console.log('🔄 Found localPlayer by nickname fallback:', localPlayer.name);
+                }
+            }
         }
         
         // Log player identification for debugging
         if (!localPlayer) {
             console.log('⚠️ Could not identify localPlayer. Current socketId:', currentSocketId, 'Data playerId:', data.playerId);
             console.log('Available players:', gameState.players.map(p => ({id: p.id, socketId: p.socketId, name: p.name})));
+            
+            // Try to recover by using nickname as fallback
+            const currentUser = nicknameAuth.getCurrentUserSync();
+            if (currentUser && currentUser.nickname) {
+                console.log('🔄 Attempting to recover localPlayer by nickname in gameState');
+                localPlayer = gameState.players.find(p => p.name === currentUser.nickname);
+                if (localPlayer) {
+                    console.log('✅ Recovered localPlayer by nickname:', localPlayer.name);
+                    window.localPlayer = localPlayer;
+                    
+                    // Validate recovered player coordinates
+                    if (typeof localPlayer.x === 'number' && typeof localPlayer.y === 'number' && 
+                        !isNaN(localPlayer.x) && !isNaN(localPlayer.y)) {
+                        console.log('✅ Recovered localPlayer has valid coordinates:', Math.round(localPlayer.x), Math.round(localPlayer.y));
+                    } else {
+                        console.warn('⚠️ Recovered localPlayer has invalid coordinates:', localPlayer.x, localPlayer.y);
+                    }
+                }
+            }
+        } else {
+            console.log('✅ localPlayer identified in gameState:', localPlayer.name, 'socketId:', localPlayer.socketId);
+            
+            // Validate player coordinates
+            if (typeof localPlayer.x !== 'number' || typeof localPlayer.y !== 'number' || 
+                isNaN(localPlayer.x) || isNaN(localPlayer.y)) {
+                console.warn('⚠️ localPlayer has invalid coordinates in gameState:', localPlayer.x, localPlayer.y);
+            } else {
+                console.log('📍 Player coordinates valid in gameState:', Math.round(localPlayer.x), Math.round(localPlayer.y));
+            }
         }
         
         window.localPlayer = localPlayer; // Update global reference
@@ -838,14 +886,52 @@ function setupSocketListeners() {
         // Find localPlayer by current socket.id (this is the correct player for this client)
         localPlayer = gameState.players.find(p => p.socketId === currentSocketId);
         
-        // If not found by socketId, try gameState.playerId as fallback
-        if (!localPlayer && gameState.playerId) {
-            localPlayer = gameState.players.find(p => p.socketId === gameState.playerId);
+        // If not found by socketId, try to find by name (fallback for reconnection)
+        if (!localPlayer && previousLocalPlayer) {
+            localPlayer = gameState.players.find(p => p.name === previousLocalPlayer.name);
+            if (localPlayer) {
+                console.log('🔄 Found localPlayer by name fallback:', localPlayer.name);
+            }
         }
         
-        // Log player identification for debugging if not found
+        // If still not found, try gameState.playerId as last resort
+        if (!localPlayer && gameState.playerId) {
+            localPlayer = gameState.players.find(p => p.socketId === gameState.playerId);
+            if (localPlayer) {
+                console.log('🔄 Found localPlayer by gameState.playerId fallback:', localPlayer.name);
+            }
+        }
+        
+        // Log player identification for debugging
         if (!localPlayer) {
             console.log('⚠️ Could not identify localPlayer in gameUpdate. Current socketId:', currentSocketId, 'GameState playerId:', gameState.playerId);
+            console.log('Available players:', gameState.players.map(p => ({id: p.id, socketId: p.socketId, name: p.name})));
+            console.log('Previous localPlayer:', previousLocalPlayer ? {name: previousLocalPlayer.name, socketId: previousLocalPlayer.socketId} : 'null');
+            
+            // Try to recover by using previous localPlayer if available
+            if (previousLocalPlayer) {
+                console.log('🔄 Attempting to recover localPlayer from previous state');
+                localPlayer = previousLocalPlayer;
+                window.localPlayer = localPlayer;
+                
+                // Validate recovered player coordinates
+                if (typeof localPlayer.x === 'number' && typeof localPlayer.y === 'number' && 
+                    !isNaN(localPlayer.x) && !isNaN(localPlayer.y)) {
+                    console.log('✅ Successfully recovered localPlayer with valid coordinates:', Math.round(localPlayer.x), Math.round(localPlayer.y));
+                } else {
+                    console.warn('⚠️ Recovered localPlayer has invalid coordinates:', localPlayer.x, localPlayer.y);
+                }
+            }
+        } else {
+            console.log('✅ localPlayer identified in gameUpdate:', localPlayer.name, 'socketId:', localPlayer.socketId);
+            
+            // Validate player coordinates
+            if (typeof localPlayer.x !== 'number' || typeof localPlayer.y !== 'number' || 
+                isNaN(localPlayer.x) || isNaN(localPlayer.y)) {
+                console.warn('⚠️ localPlayer has invalid coordinates:', localPlayer.x, localPlayer.y);
+            } else {
+                console.log('📍 Player coordinates valid:', Math.round(localPlayer.x), Math.round(localPlayer.y));
+            }
         }
         
         window.localPlayer = localPlayer; // Update global reference
@@ -899,6 +985,9 @@ function setupSocketListeners() {
             
             // Update all player stats display
             updatePlayerStatsDisplay(currentSpeed, localPlayer);
+            
+            // Camera update is handled in gameLoop via updateCamera() function
+            // This ensures smooth camera following without duplication
             
             updatePlayerInfoPanelStats(localPlayer);
             // Force immediate display update
@@ -2273,14 +2362,33 @@ function updateMovement() {
 }
 
 function updateCamera() {
+    // Comprehensive validation of localPlayer
     if (!localPlayer) {
+        console.log('📷 updateCamera: No localPlayer available');
+        return;
+    }
+    
+    // Validate player object structure
+    if (typeof localPlayer !== 'object' || localPlayer === null) {
+        console.warn('📷 updateCamera: localPlayer is not a valid object:', localPlayer);
         return;
     }
     
     // Validate player coordinates
     if (typeof localPlayer.x !== 'number' || typeof localPlayer.y !== 'number' || 
         isNaN(localPlayer.x) || isNaN(localPlayer.y)) {
-        console.warn('⚠️ Invalid player coordinates:', localPlayer.x, localPlayer.y);
+        console.warn('⚠️ Invalid player coordinates in updateCamera:', localPlayer.x, localPlayer.y);
+        return;
+    }
+    
+    // Validate camera state
+    if (typeof camera.x !== 'number' || typeof camera.y !== 'number' || 
+        isNaN(camera.x) || isNaN(camera.y)) {
+        console.warn('⚠️ Invalid camera coordinates in updateCamera:', camera.x, camera.y);
+        // Reset camera to player position
+        camera.x = localPlayer.x;
+        camera.y = localPlayer.y;
+        console.log('📷 Camera reset to player position:', camera.x, camera.y);
         return;
     }
     
@@ -2317,8 +2425,25 @@ function updateCamera() {
         return speedMultiplier;
     }
     
-    // Update all player stats display elements
-    updatePlayerStatsDisplay(speed, localPlayer);
+    // Update speed display elements
+    const speedElement = document.getElementById('speedValue');
+    const maxSpeedElement = document.getElementById('maxSpeedValue');
+    const playerSizeElement = document.getElementById('playerSizeValue');
+    
+    if (speedElement) {
+        speedElement.textContent = isNaN(speed) ? '0.0' : (Math.round(speed * 10) / 10).toString();
+    }
+    
+    if (maxSpeedElement && localPlayer) {
+        const baseSpeed = 200;
+        const sizeMultiplier = calculateSpeedMultiplier(localPlayer.size || 20);
+        const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
+        maxSpeedElement.textContent = maxSpeed.toString();
+    }
+    
+    if (playerSizeElement && localPlayer) {
+        playerSizeElement.textContent = Math.round(localPlayer.size || 20).toString();
+    }
 }
 
 // Function to update all player stats display elements
@@ -3261,14 +3386,28 @@ function gameLoop() {
         }
     }
     
-    // Update camera to follow player
-    updateCamera();
-    
-    // Debug: test camera following
-    if (localPlayer && Math.random() < 0.001) { // Very rare logging to avoid spam
-        const distance = Math.sqrt((localPlayer.x - camera.x) ** 2 + (localPlayer.y - camera.y) ** 2);
-        if (distance > 100) {
-            console.log('⚠️ Camera may not be following player properly. Distance:', Math.round(distance), 'Player:', Math.round(localPlayer.x), Math.round(localPlayer.y), 'Camera:', Math.round(camera.x), Math.round(camera.y));
+    // Update camera to follow player (only if localPlayer exists and has valid coordinates)
+    if (localPlayer && typeof localPlayer.x === 'number' && typeof localPlayer.y === 'number' && 
+        !isNaN(localPlayer.x) && !isNaN(localPlayer.y)) {
+        updateCamera();
+        
+        // Debug: test camera following (very rare to avoid spam)
+        if (Math.random() < 0.0001) { // Extremely rare logging
+            const distance = Math.sqrt((localPlayer.x - camera.x) ** 2 + (localPlayer.y - camera.y) ** 2);
+            if (distance > 100) {
+                console.log('⚠️ Camera may not be following player properly. Distance:', Math.round(distance), 'Player:', Math.round(localPlayer.x), Math.round(localPlayer.y), 'Camera:', Math.round(camera.x), Math.round(camera.y));
+            } else {
+                console.log('📷 Camera following player correctly. Distance:', Math.round(distance));
+            }
+        }
+    } else {
+        // Log when localPlayer is not available for camera update (rare to avoid spam)
+        if (Math.random() < 0.001) { // Very rare logging
+            if (!localPlayer) {
+                console.log('📷 Camera update skipped - no localPlayer');
+            } else {
+                console.log('📷 Camera update skipped - invalid coordinates:', localPlayer.x, localPlayer.y);
+            }
         }
     }
     
