@@ -723,14 +723,7 @@ async function sendCoinsToFirestore(coinsGained) {
     try {
         const playerId = currentUser.nickname;
         
-        // Apply coin multiplier if active
-        let actualCoinsGained = coinsGained;
-        if (activeBoosters.coins.active) {
-            actualCoinsGained = coinsGained * activeBoosters.coins.multiplier;
-            console.log(`💰 Coin multiplier applied: ${coinsGained} → ${actualCoinsGained} coins`);
-        }
-        
-        console.log(`💾 Saving ${actualCoinsGained} coins to Firestore for player: ${playerId}`);
+        console.log(`💾 Saving ${coinsGained} coins to Firestore for player: ${playerId}`);
         
         // Update Firestore directly
         const playerRef = window.firebaseDb.collection('players').doc(playerId);
@@ -739,21 +732,21 @@ async function sendCoinsToFirestore(coinsGained) {
         if (playerDoc.exists) {
             // Update existing player's total coins
             await playerRef.update({
-                totalScore: window.firebase.firestore.FieldValue.increment(actualCoinsGained),
+                totalScore: window.firebase.firestore.FieldValue.increment(coinsGained),
                 lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
             });
-            console.log(`✅ Added ${actualCoinsGained} coins to Firestore for ${playerId}`);
+            console.log(`✅ Added ${coinsGained} coins to Firestore for ${playerId}`);
         } else {
             // Create new player document
             await playerRef.set({
                 playerName: playerId,
-                totalScore: actualCoinsGained,
+                totalScore: coinsGained,
                 gamesPlayed: 0,
                 bestScore: 0,
                 firstPlayed: window.firebase.firestore.FieldValue.serverTimestamp(),
                 lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
             });
-            console.log(`🆕 Created new player ${playerId} with ${actualCoinsGained} coins`);
+            console.log(`🆕 Created new player ${playerId} with ${coinsGained} coins`);
         }
         
         // Force refresh stats from Firestore
@@ -4811,7 +4804,7 @@ function updateBoosterStatusDisplay() {
             const coinItem = document.createElement('div');
             coinItem.className = 'flex justify-between items-center text-sm bg-yellow-600 bg-opacity-70 rounded px-3 py-1';
             coinItem.innerHTML = `
-                <span class="text-white">💰 Coin Multiplier</span>
+                <span class="text-white">💰 Coin Multiplier (x2)</span>
                 <span class="font-mono text-white font-bold">${timeText}</span>
             `;
             boostersListCenter.appendChild(coinItem);

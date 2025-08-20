@@ -640,16 +640,23 @@ function updatePlayers(deltaTime) {
     gameState.coins.forEach((coin) => {
       const distance = Math.sqrt((coin.x - player.x) ** 2 + (coin.y - player.y) ** 2);
       if (distance < player.size) {
-        player.score += coin.value;
+        // Apply coin multiplier if active
+        let actualCoinValue = coin.value;
+        if (player.coinBoost) {
+          actualCoinValue = coin.value * 2; // Double coins
+          console.log(`💰 Coin multiplier applied for ${player.name}: ${coin.value} → ${actualCoinValue} coins`);
+        }
+        
+        player.score += actualCoinValue;
         coinsToDelete.push(coin.id);
         
         // Update activity when player collects coin
         player.lastActivity = Date.now();
         
-        // Queue coin for Firebase saving
+        // Queue coin for Firebase saving (save the actual value received)
         const playerIdForFirebase = player.firebaseId || player.playerId || player.id;
         if (playerIdForFirebase) {
-          coinsToSave.push({ playerId: playerIdForFirebase, value: coin.value, playerName: player.name });
+          coinsToSave.push({ playerId: playerIdForFirebase, value: actualCoinValue, playerName: player.name });
         } else {
         }
         
@@ -695,12 +702,28 @@ function updatePlayers(deltaTime) {
                         // Mark player as having speed boost
                         player.speedBoost = true;
                         player.speedBoostEndTime = Date.now() + 120000;
+                        
+                        // Send notification to all players
+                        io.emit('chatMessage', {
+                            playerId: 'system',
+                            playerName: 'System',
+                            message: `🚀 ${player.name} collected Speed Boost! (x2 speed for 2 minutes)`,
+                            timestamp: Date.now()
+                        });
                     } else if (booster.type === 'coins') {
                         // Coin multiplier effect (will be handled on client)
                         console.log(`💰 Player ${player.name} collected Coin Multiplier`);
                         // Mark player as having coin boost
                         player.coinBoost = true;
                         player.coinBoostEndTime = Date.now() + 120000;
+                        
+                        // Send notification to all players
+                        io.emit('chatMessage', {
+                            playerId: 'system',
+                            playerName: 'System',
+                            message: `💰 ${player.name} collected Coin Multiplier! (x2 coins for 2 minutes)`,
+                            timestamp: Date.now()
+                        });
                     }
         
         boostersToDelete.push(booster.id);
