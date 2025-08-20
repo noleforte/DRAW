@@ -135,6 +135,11 @@ function calculateSpeedMultiplier(size) {
   return speedMultiplier;
 }
 
+// Helper function to calculate player size based on score
+function calculatePlayerSize(score) {
+  return Math.min(50, 20 + Math.sqrt(score) * 2);
+}
+
 // Check for AFK players and kick them
 function checkAFKPlayers() {
   const now = Date.now();
@@ -594,7 +599,7 @@ function updateBots() {
         gameState.coins.set(newCoin.id, newCoin);
         
         // Player growth based on score (Agar.io style)
-        bot.size = Math.min(50, 20 + Math.sqrt(bot.score) * 2);
+        bot.size = calculatePlayerSize(bot.score);
       }
     });
 
@@ -732,7 +737,7 @@ function updatePlayers(deltaTime) {
         }
         
         // Player growth based on score (Agar.io style)
-        player.size = Math.min(50, 20 + Math.sqrt(player.score) * 2);
+        player.size = calculatePlayerSize(player.score);
         
         // Save player size for next game
         if (player.firebaseId || player.playerId) {
@@ -1116,6 +1121,32 @@ io.on('connection', (socket) => {
       player = disconnectedPlayers.get(playerId);
       player.id = socket.id; // Update socket ID
       disconnectedPlayers.delete(playerId);
+      
+      // Load fresh data from Firestore for reconnected player
+      if (playerId) {
+        setTimeout(async () => {
+          try {
+            const playerStats = await GameDataService.getPlayerStats(playerId);
+            if (playerStats) {
+              // Update size if newer data exists
+              if (playerStats.lastSize && playerStats.lastSize > player.size) {
+                player.size = playerStats.lastSize;
+                console.log(`🎯 Reconnected player ${playerId} - Updated size to ${playerStats.lastSize}`);
+              }
+              
+              // Update score from Total Coins if it's higher
+              if (playerStats.totalScore && playerStats.totalScore > player.score) {
+                player.score = playerStats.totalScore;
+                // Update size based on new score
+                player.size = calculatePlayerSize(playerStats.totalScore);
+                console.log(`💰 Reconnected player ${playerId} - Updated score to ${playerStats.totalScore}, calculated size: ${player.size}`);
+              }
+            }
+          } catch (error) {
+            console.error('Error loading reconnected player data from Firestore:', error);
+          }
+        }, 0);
+      }
     } else {
       // New player
       player = {
@@ -1129,7 +1160,7 @@ io.on('connection', (socket) => {
         vy: 0,
         targetVx: 0, // Add target velocity for smooth 60fps movement
         targetVy: 0,
-        score: 0,
+        score: 0, // Will be updated with Total Coins if player exists
         size: 20, // Default size, will be updated if saved size exists
         color: `hsl(${colorHue}, 70%, 50%)`,
         isBot: false,
@@ -1140,17 +1171,28 @@ io.on('connection', (socket) => {
       // Initialize last position
       player.lastPosition = { x: player.x, y: player.y };
       
-      // Load saved player size from Firestore if player exists
+      // Load saved player data from Firestore if player exists
       if (playerId) {
         setTimeout(async () => {
           try {
             const playerStats = await GameDataService.getPlayerStats(playerId);
-            if (playerStats && playerStats.lastSize) {
-              player.size = playerStats.lastSize;
-              console.log(`Loaded saved size ${playerStats.lastSize} for player ${playerId}`);
+            if (playerStats) {
+              // Load saved size
+              if (playerStats.lastSize) {
+                player.size = playerStats.lastSize;
+                console.log(`🎯 Loaded saved size ${playerStats.lastSize} for player ${playerId}`);
+              }
+              
+              // Load score from Total Coins
+              if (playerStats.totalScore) {
+                player.score = playerStats.totalScore;
+                // Update size based on loaded score
+                player.size = calculatePlayerSize(playerStats.totalScore);
+                console.log(`💰 Loaded score ${playerStats.totalScore} from Total Coins for player ${playerId}, calculated size: ${player.size}`);
+              }
             }
           } catch (error) {
-            console.error('Error loading player size:', error);
+            console.error('Error loading player data from Firestore:', error);
           }
         }, 0);
       }

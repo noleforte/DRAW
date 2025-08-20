@@ -808,6 +808,11 @@ function setupSocketListeners() {
             const coinsGained = localPlayer.score - previousLocalPlayer.score;
             console.log(`🪙 Coins gained: ${coinsGained} (${previousLocalPlayer.score} → ${localPlayer.score})`);
             
+            // Check if size also increased
+            if (localPlayer.size > previousLocalPlayer.size) {
+                console.log(`📏 Size increased: ${Math.round(previousLocalPlayer.size)} → ${Math.round(localPlayer.size)}`);
+            }
+            
             // Send coins to Firestore immediately
             sendCoinsToFirestore(coinsGained);
         }
@@ -3322,6 +3327,18 @@ async function updatePlayerInfoPanelStats(player) {
             
             console.log('🏆 New best score recorded:', currentGameScore);
         }
+    } else {
+        console.log('❌ bestScoreElement not found');
+    }
+    
+    // Update current game size
+    const currentGameSizeElement = document.getElementById('currentGameSize');
+    if (currentGameSizeElement && player.size) {
+        currentGameSizeElement.textContent = Math.round(player.size);
+        console.log('📏 Updated current game size to:', Math.round(player.size));
+    } else if (currentGameSizeElement) {
+        currentGameSizeElement.textContent = '...';
+        console.log('📏 Current game size not available yet');
     }
     
     // Update current game rank (if PanelManager exists)
@@ -3459,6 +3476,16 @@ function forceUpdateGameStatsDisplay(player) {
         console.log('🏆 Updated best score to:', displayScore, '(saved:', savedBestScore, 'current:', currentGameScore, ')');
     } else {
         console.log('❌ bestScoreElement not found');
+    }
+    
+    // Force update current game size display
+    const currentGameSizeElement = document.getElementById('currentGameSize');
+    if (currentGameSizeElement && player.size) {
+        currentGameSizeElement.textContent = Math.round(player.size);
+        console.log('📏 Force updated current game size to:', Math.round(player.size));
+    } else if (currentGameSizeElement) {
+        currentGameSizeElement.textContent = '...';
+        console.log('📏 Current game size not available for force update');
     }
     
     // Also update total coins from auth system if available
