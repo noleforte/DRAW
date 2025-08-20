@@ -720,7 +720,7 @@ function updatePlayers(deltaTime) {
           isBooster: true
         };
         gameState.boosters.set(newBooster.id, newBooster);
-      }, 10000); // Respawn after 10 seconds
+      }, 120000); // Respawn after 2 minutes (120 seconds)
     });
     
     // Save coins to Firebase in batch (non-blocking)
