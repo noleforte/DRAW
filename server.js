@@ -1108,7 +1108,7 @@ io.on('connection', (socket) => {
     socket.emit('pong');
   });
 
-  socket.on('joinGame', (playerData) => {
+  socket.on('joinGame', async (playerData) => {
     const name = typeof playerData === 'string' ? playerData : playerData.name;
     const wallet = typeof playerData === 'object' ? playerData.wallet : '';
     const colorHue = typeof playerData === 'object' ? playerData.color : Math.random() * 360;
@@ -1122,33 +1122,36 @@ io.on('connection', (socket) => {
       player.id = socket.id; // Update socket ID
       disconnectedPlayers.delete(playerId);
       
+      console.log(`🔄 Reconnected player ${playerId} - Current score: ${player.score}, size: ${player.size}`);
+      
       // Load fresh data from Firestore for reconnected player
       if (playerId) {
-        setTimeout(async () => {
-          try {
-            const playerStats = await GameDataService.getPlayerStats(playerId);
-            if (playerStats) {
-              // Update size if newer data exists
-              if (playerStats.lastSize && playerStats.lastSize > player.size) {
-                player.size = playerStats.lastSize;
-                console.log(`🎯 Reconnected player ${playerId} - Updated size to ${playerStats.lastSize}`);
-              }
-              
-              // Update score from Total Coins if it's higher
-              if (playerStats.totalScore && playerStats.totalScore > player.score) {
-                player.score = playerStats.totalScore;
-                // Update size based on new score
-                player.size = calculatePlayerSize(playerStats.totalScore);
-                console.log(`💰 Reconnected player ${playerId} - Updated score to ${playerStats.totalScore}, calculated size: ${player.size}`);
-              }
+        // Load data synchronously to avoid race conditions
+        try {
+          const playerStats = await GameDataService.getPlayerStats(playerId);
+          if (playerStats) {
+            // Update size if newer data exists
+            if (playerStats.lastSize && playerStats.lastSize > player.size) {
+              player.size = playerStats.lastSize;
+              console.log(`🎯 Reconnected player ${playerId} - Updated size to ${playerStats.lastSize}`);
             }
-          } catch (error) {
-            console.error('Error loading reconnected player data from Firestore:', error);
+            
+            // Update score from Total Coins if it's higher
+            if (playerStats.totalScore && playerStats.totalScore > player.score) {
+              player.score = playerStats.totalScore;
+              // Update size based on new score
+              player.size = calculatePlayerSize(playerStats.totalScore);
+              console.log(`💰 Reconnected player ${playerId} - Updated score to ${playerStats.totalScore}, calculated size: ${player.size}`);
+            }
           }
-        }, 0);
+        } catch (error) {
+          console.error('Error loading reconnected player data from Firestore:', error);
+        }
       }
     } else {
       // New player
+      console.log(`🆕 Creating new player ${playerId || 'guest'} - Name: ${name}`);
+      
       player = {
         id: socket.id,
         firebaseId: playerId, // Store Firebase user ID separately from socket ID
@@ -1173,29 +1176,30 @@ io.on('connection', (socket) => {
       
       // Load saved player data from Firestore if player exists
       if (playerId) {
-        setTimeout(async () => {
-          try {
-            const playerStats = await GameDataService.getPlayerStats(playerId);
-            if (playerStats) {
-              // Load saved size
-              if (playerStats.lastSize) {
-                player.size = playerStats.lastSize;
-                console.log(`🎯 Loaded saved size ${playerStats.lastSize} for player ${playerId}`);
-              }
-              
-              // Load score from Total Coins
-              if (playerStats.totalScore) {
-                player.score = playerStats.totalScore;
-                // Update size based on loaded score
-                player.size = calculatePlayerSize(playerStats.totalScore);
-                console.log(`💰 Loaded score ${playerStats.totalScore} from Total Coins for player ${playerId}, calculated size: ${player.size}`);
-              }
+        // Load data synchronously to avoid race conditions
+        try {
+          const playerStats = await GameDataService.getPlayerStats(playerId);
+          if (playerStats) {
+            // Load saved size
+            if (playerStats.lastSize) {
+              player.size = playerStats.lastSize;
+              console.log(`🎯 Loaded saved size ${playerStats.lastSize} for player ${playerId}`);
             }
-          } catch (error) {
-            console.error('Error loading player data from Firestore:', error);
+            
+            // Load score from Total Coins
+            if (playerStats.totalScore) {
+              player.score = playerStats.totalScore;
+              // Update size based on loaded score
+              player.size = calculatePlayerSize(playerStats.totalScore);
+              console.log(`💰 Loaded score ${playerStats.totalScore} from Total Coins for player ${playerId}, calculated size: ${player.size}`);
+            }
           }
-        }, 0);
+        } catch (error) {
+          console.error('Error loading player data from Firestore:', error);
+        }
       }
+      
+      console.log(`✅ New player created - Final score: ${player.score}, size: ${player.size}`);
     }
     
     gameState.players.set(socket.id, player);
