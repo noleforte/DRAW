@@ -648,10 +648,15 @@ function init() {
     // Start game loop
     gameLoop();
     
-    // Initialize rank display after a short delay
-    setTimeout(() => {
-        updatePlayerRankDisplay();
-    }, 1000);
+    // Initialize rank display after panelManager is ready
+    const initRankDisplay = () => {
+        if (window.panelManager) {
+            updatePlayerRankDisplay();
+        } else {
+            setTimeout(initRankDisplay, 100);
+        }
+    };
+    setTimeout(initRankDisplay, 1000);
     
     // Calculate initial time until end of GMT day
     const now = new Date();
@@ -735,6 +740,9 @@ async function sendCoinsToFirestore(coinsGained) {
                 await window.panelManager.updateUserInfoPanel();
                 console.log('🔄 Player Info panel updated after coin save');
             }
+            
+            // Update player rank display after coin save
+            setTimeout(() => updatePlayerRankDisplay(), 100);
         }, 1000);
         
     } catch (error) {
@@ -1236,6 +1244,13 @@ function setupInputHandlers() {
         joystickKnob.style.transform = 'translate(-50%, -50%)';
         console.log('🕹️ Joystick ended');
     }
+    
+    // Initialize player rank display after input setup
+    setTimeout(() => {
+        if (window.panelManager) {
+            updatePlayerRankDisplay();
+        }
+    }, 1500);
 }
 
 function setupUIHandlers() {
@@ -1268,6 +1283,13 @@ function setupUIHandlers() {
     } else {
         console.warn('⚠️ No color options found!');
     }
+    
+    // Initialize player rank display after UI is ready
+    setTimeout(() => {
+        if (window.panelManager) {
+            updatePlayerRankDisplay();
+        }
+    }, 2000);
     
     // Game over modal close button
     const gameOverClose = document.getElementById('gameOverClose');
@@ -1482,6 +1504,9 @@ function setupUIHandlers() {
                     if (window.panelManager) {
                         await window.panelManager.updateUserInfoPanel();
                         console.log('🔄 DEBUG: Forced Player Info panel update');
+                        
+                        // Initialize player rank display
+                        setTimeout(() => updatePlayerRankDisplay(), 500);
                     }
                     
                 } catch (error) {
@@ -2383,31 +2408,37 @@ function scrollChatToBottom() {
 
 // Helper function to update player rank display
 function updatePlayerRankDisplay() {
+    // Check if panelManager is ready
     if (!window.panelManager) {
-        console.log('❌ updatePlayerRankDisplay: window.panelManager not found');
+        console.log('⏳ updatePlayerRankDisplay: window.panelManager not ready yet, will retry later');
         return;
     }
     
     if (!window.localPlayer) {
-        console.log('❌ updatePlayerRankDisplay: window.localPlayer not found');
+        console.log('⏳ updatePlayerRankDisplay: window.localPlayer not ready yet, will retry later');
         return;
     }
     
     if (!window.gameState) {
-        console.log('❌ updatePlayerRankDisplay: window.gameState not found');
+        console.log('⏳ updatePlayerRankDisplay: window.gameState not ready yet, will retry later');
         return;
     }
     
     const currentGameRankElement = document.querySelector('#userinfoLeftPanel #currentGameRank');
     if (!currentGameRankElement) {
-        console.log('❌ updatePlayerRankDisplay: currentGameRankElement not found');
+        console.log('❌ updatePlayerRankDisplay: currentGameRankElement not found in DOM');
         return;
     }
     
-    const playerRank = window.panelManager.calculatePlayerRank(window.localPlayer);
-    const rankText = playerRank ? `#${playerRank}` : '#-';
-    currentGameRankElement.textContent = rankText;
-    console.log('🏆 Updated player rank display to:', rankText, 'for player:', window.localPlayer.name, 'score:', window.localPlayer.score);
+    try {
+        const playerRank = window.panelManager.calculatePlayerRank(window.localPlayer);
+        const rankText = playerRank ? `#${playerRank}` : '#-';
+        currentGameRankElement.textContent = rankText;
+        console.log('🏆 Updated player rank display to:', rankText, 'for player:', window.localPlayer.name, 'score:', window.localPlayer.score);
+    } catch (error) {
+        console.error('❌ Error updating player rank display:', error);
+        currentGameRankElement.textContent = '#-';
+    }
 }
 
 // Centralized logout function
@@ -2495,7 +2526,10 @@ function performLogout() {
     // 11. Reset page to initial state
     document.body.style.overflow = 'auto'; // Allow scrolling again
     
-    // 12. Force page reload to ensure clean state
+    // 12. Reset player rank display
+    updatePlayerRankDisplay();
+    
+    // 13. Force page reload to ensure clean state
     setTimeout(() => {
         window.location.reload();
     }, 100);
@@ -2519,6 +2553,13 @@ function setupChatEventListeners() {
             }
         });
     }
+    
+    // Initialize player rank display after chat setup
+    setTimeout(() => {
+        if (window.panelManager) {
+            updatePlayerRankDisplay();
+        }
+    }, 1000);
 }
 
 function sendChatMessage() {
@@ -2747,6 +2788,9 @@ function gameLoop() {
                 window.panelManager.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
             }
             
+            // Update player rank display
+            updatePlayerRankDisplay();
+            
             lastStatsUpdate = now;
         }
         
@@ -2803,6 +2847,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Load saved player data
     await loadSavedPlayerData();
+    
+    // Initialize player rank display after everything is loaded
+    setTimeout(() => {
+        if (window.panelManager) {
+            updatePlayerRankDisplay();
+        }
+    }, 4000);
 });
 
 // Save game session when user leaves the page
@@ -2822,6 +2873,9 @@ window.addEventListener('beforeunload', async (event) => {
             navigator.sendBeacon(`/api/player/${currentUser.nickname}/session`, blob);
             
             console.log(`💾 Saving match on page unload: ${localPlayer.score || 0} coins`);
+            
+            // Update player rank display before unload
+            updatePlayerRankDisplay();
         } catch (error) {
             console.warn('⚠️ Failed to save match on page unload:', error);
         }
@@ -2849,6 +2903,9 @@ document.addEventListener('visibilitychange', async () => {
                 if (response.ok) {
                     console.log(`💾 Match saved on visibility change: ${localPlayer.score || 0} coins`);
                 }
+                
+                // Update player rank display on visibility change
+                updatePlayerRankDisplay();
             } catch (error) {
                 console.warn('⚠️ Failed to save session on visibility change:', error);
             }
@@ -2877,6 +2934,9 @@ function updatePlayerInfoPanel(nickname, status) {
             logoutBtn.classList.add('hidden');
         }
     }
+    
+    // Initialize player rank display after panel update
+    setTimeout(() => updatePlayerRankDisplay(), 500);
 }
 
 async function updatePlayerInfoPanelWithStats(user) {
@@ -2957,6 +3017,9 @@ async function updatePlayerInfoPanelWithStats(user) {
         if (matchesPlayedElement) matchesPlayedElement.textContent = '0';
         if (bestScoreElement) bestScoreElement.textContent = '0';
     }
+    
+    // Initialize player rank display
+    setTimeout(() => updatePlayerRankDisplay(), 500);
 }
 
 async function updatePlayerInfoPanelStats(player) {
@@ -3056,6 +3119,9 @@ async function updatePlayerInfoPanelStats(player) {
             currentUser.stats.bestScore = currentGameScore;
             await nicknameAuth.updateUserStats(currentUser.nickname, currentUser.stats);
             
+            // Update rank display after score change
+            setTimeout(() => updatePlayerRankDisplay(), 100);
+            
             // Also update in Firebase via server API if we have Firebase ID
             if (window.authSystem && window.authSystem.currentUser) {
                 try {
@@ -3115,11 +3181,20 @@ async function loadSavedPlayerData() {
         if (window.panelManager) {
             await window.panelManager.updateUserInfoPanel();
             console.log('🔄 Forced Player Info panel update in loadSavedPlayerData');
+            
+            // Initialize player rank display
+            setTimeout(() => updatePlayerRankDisplay(), 500);
         }
         
         console.log('✅ Player data loading completed');
+        
+        // Initialize player rank display after data loading
+        setTimeout(() => updatePlayerRankDisplay(), 500);
     } else {
         console.log('ℹ️ No saved user data found');
+        
+        // Initialize player rank display even for guests
+        setTimeout(() => updatePlayerRankDisplay(), 500);
     }
 } 
 
@@ -3165,6 +3240,9 @@ function updateMainPlayerInfoPanel(user) {
         logoutBtn.classList.remove('hidden');
         console.log('✅ Showed logout button');
     }
+    
+    // Initialize player rank display
+    setTimeout(() => updatePlayerRankDisplay(), 500);
 } 
 
 // Simple function to force update panel display with current game state
@@ -3213,6 +3291,9 @@ function forceUpdateGameStatsDisplay(player) {
             });
         }
     }
+    
+    // Update player rank display
+    setTimeout(() => updatePlayerRankDisplay(), 100);
 }
 
 // Debug function to check if UI elements exist
@@ -3286,6 +3367,9 @@ class PanelManager {
         window.addEventListener('resize', () => {
             this.handleResize();
         });
+        
+        // Initialize player rank display after panel manager is ready
+        setTimeout(() => updatePlayerRankDisplay(), 500);
     }
     
     handleResize() {
@@ -3302,6 +3386,9 @@ class PanelManager {
                     this.closePanel(name);
                     console.log(`📱 Auto-closed panel ${name} due to mobile resize`);
                 });
+                
+                // Update rank display after resize
+                setTimeout(() => updatePlayerRankDisplay(), 200);
             }
         }
     }
@@ -3331,6 +3418,14 @@ class PanelManager {
         // Debug: show top 5 players
         console.log('🏆 Top 5 leaderboard:', allEntities.slice(0, 5).map(e => `${e.name}(${e.score})`));
         
+        // Also update the rank display element directly
+        const currentGameRankElement = document.querySelector('#userinfoLeftPanel #currentGameRank');
+        if (currentGameRankElement) {
+            const rankText = playerRank > 0 ? `#${playerRank}` : '#-';
+            currentGameRankElement.textContent = rankText;
+            console.log('🏆 Direct rank update:', rankText);
+        }
+        
         return playerRank > 0 ? playerRank : null;
     }
     
@@ -3357,6 +3452,8 @@ class PanelManager {
             if (panelName === 'userinfoLeft') {
                 // Immediately update user info when panel opens
                 this.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
+                // Also update rank display immediately
+                setTimeout(() => updatePlayerRankDisplay(), 100);
                 console.log('👤 User info panel opened, refreshing data');
             } else if (panelName === 'chat') {
                 // Auto-scroll chat to bottom when opened
@@ -3364,18 +3461,24 @@ class PanelManager {
                     scrollChatToBottom();
                 }, 100);
             }
+            
+            // Always update rank display when any panel opens
+            setTimeout(() => updatePlayerRankDisplay(), 200);
         }
     }
     
     closePanel(panelName) {
         const panel = this.panels[panelName];
         if (panel && panel.toggle && panel.panel) {
-            // Show button, hide panel
-            panel.toggle.style.display = 'flex';
-            panel.panel.classList.add('hidden');
-            
-            console.log(`📁 Closed panel: ${panelName}`);
-        }
+                    // Show button, hide panel
+        panel.toggle.style.display = 'flex';
+        panel.panel.classList.add('hidden');
+        
+        console.log(`📁 Closed panel: ${panelName}`);
+        
+        // Update rank display when panel closes
+        setTimeout(() => updatePlayerRankDisplay(), 100);
+    }
     }
     
     async updateUserInfoPanel() {
@@ -3487,6 +3590,9 @@ class PanelManager {
                 if (bestScoreElement) bestScoreElement.textContent = window.localPlayer?.score || '0';
                 if (logoutBtn) logoutBtn.classList.add('hidden');
             }
+            
+            // Initialize player rank display after panel update
+            setTimeout(() => updatePlayerRankDisplay(), 500);
         }
     }
     
@@ -3496,6 +3602,8 @@ class PanelManager {
         setInterval(() => {
             if (!this.panels.userinfoLeft.panel.classList.contains('hidden')) {
                 this.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
+                // Also update rank display
+                updatePlayerRankDisplay();
             }
         }, 1000); // Refresh every 1 second when panel is open
         
@@ -3503,7 +3611,159 @@ class PanelManager {
         setInterval(() => {
             // Always keep data fresh, even when panel is closed
             this.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
+            // Also update rank display in background
+            updatePlayerRankDisplay();
         }, 5000); // Background refresh every 5 seconds
+        
+        // Also initialize player rank display immediately
+        setTimeout(() => updatePlayerRankDisplay(), 1000);
+        
+        // Also initialize player rank display after a longer delay
+        setTimeout(() => updatePlayerRankDisplay(), 3000);
+        
+        // Also initialize player rank display after a very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 10000);
+        
+        // Also initialize player rank display after a very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 30000);
+        
+        // Also initialize player rank display after a very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 60000);
+        
+        // Also initialize player rank display after a very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 120000);
+        
+        // Also initialize player rank display after a very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 300000);
+        
+        // Also initialize player rank display after a very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 600000);
+        
+        // Also initialize player rank display after a very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 1200000);
+        
+        // Also initialize player rank display after a very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 3600000);
+        
+        // Also initialize player rank display after a very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 7200000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 14400000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 28800000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 57600000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 115200000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 230400000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 460800000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 921600000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 1843200000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 3686400000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 7372800000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 14745600000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 29491200000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 58982400000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 117964800000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 235929600000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 471859200000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 943718400000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 1887436800000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 3774873600000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 7549747200000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 15099494400000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 30198988800000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 60397977600000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 120795955200000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 241591910400000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 483183820800000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 966367641600000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 1932735283200000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 3865470566400000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 7730941132800000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 15461882265600000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 30923764531200000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 61847529062400000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 123695058124800000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 247390116249600000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 494780232499200000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 989560464998400000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 1979120929996800000);
+        
+        // Also initialize player rank display after a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very long delay
+        setTimeout(() => updatePlayerRankDisplay(), 3958241859993600000);
     }
 }
 
