@@ -61,8 +61,21 @@ class GameDataService {
     // Get player statistics
     async getPlayerStats(playerId) {
         try {
+            console.log(`🔍 getPlayerStats called for playerId: ${playerId}`);
             const playerDoc = await db.collection('players').doc(playerId).get();
-            return playerDoc.exists ? playerDoc.data() : null;
+            
+            if (playerDoc.exists) {
+                const data = playerDoc.data();
+                console.log(`✅ getPlayerStats found data for ${playerId}:`, {
+                    totalScore: data.totalScore,
+                    lastSize: data.lastSize,
+                    bestScore: data.bestScore
+                });
+                return data;
+            } else {
+                console.log(`❌ getPlayerStats: No document found for playerId: ${playerId}`);
+                return null;
+            }
         } catch (error) {
             console.error('Error getting player stats:', error);
             return null;
