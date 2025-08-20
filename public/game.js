@@ -7,6 +7,7 @@ let gameState = {
     worldSize: 4000,
     playerId: null
 };
+let currentSocketId = null; // Store current socket.id for proper player identification
 
 let camera = {
     x: 0,
@@ -764,7 +765,9 @@ async function sendCoinsToFirestore(coinsGained) {
 
 function setupSocketListeners() {
     socket.on('connect', () => {
-        // Connected to server - no logs
+        // Store socket.id for proper player identification
+        currentSocketId = socket.id;
+        console.log('🔗 Socket connected with ID:', currentSocketId);
     });
     
     // Note: connect_error handler is now in setupSocketListeners
@@ -773,10 +776,19 @@ function setupSocketListeners() {
         gameState = data;
         window.gameState = gameState; // Make gameState globally available
         
-        // Try to find localPlayer by socket.id first, then by any available player
-        localPlayer = gameState.players.find(p => p.socketId === data.playerId) || 
-                     gameState.players.find(p => p.id === data.playerId) ||
-                     gameState.players[0]; // Fallback to first player if available
+        // Find localPlayer by current socket.id (this is the correct player for this client)
+        localPlayer = gameState.players.find(p => p.socketId === currentSocketId);
+        
+        // If not found by socketId, try data.playerId as fallback
+        if (!localPlayer && data.playerId) {
+            localPlayer = gameState.players.find(p => p.socketId === data.playerId);
+        }
+        
+        // Log player identification for debugging
+        if (!localPlayer) {
+            console.log('⚠️ Could not identify localPlayer. Current socketId:', currentSocketId, 'Data playerId:', data.playerId);
+            console.log('Available players:', gameState.players.map(p => ({id: p.id, socketId: p.socketId, name: p.name})));
+        }
         
         window.localPlayer = localPlayer; // Update global reference
         
@@ -806,10 +818,18 @@ function setupSocketListeners() {
         
         const previousLocalPlayer = localPlayer;
         
-        // Try to find localPlayer by socket.id first, then by any available player
-        localPlayer = gameState.players.find(p => p.socketId === gameState.playerId) || 
-                     gameState.players.find(p => p.id === gameState.playerId) ||
-                     gameState.players[0]; // Fallback to first player if available
+        // Find localPlayer by current socket.id (this is the correct player for this client)
+        localPlayer = gameState.players.find(p => p.socketId === currentSocketId);
+        
+        // If not found by socketId, try gameState.playerId as fallback
+        if (!localPlayer && gameState.playerId) {
+            localPlayer = gameState.players.find(p => p.socketId === gameState.playerId);
+        }
+        
+        // Log player identification for debugging if not found
+        if (!localPlayer) {
+            console.log('⚠️ Could not identify localPlayer in gameUpdate. Current socketId:', currentSocketId, 'GameState playerId:', gameState.playerId);
+        }
         
         window.localPlayer = localPlayer; // Update global reference
         
@@ -1044,6 +1064,10 @@ function setupSocketListeners() {
     });
     
     socket.on('disconnect', () => {
+        // Clear current socket ID when disconnected
+        currentSocketId = null;
+        console.log('🔌 Socket disconnected, clearing currentSocketId');
+        
         // Try to reconnect after short delay
         setTimeout(() => {
             if (!socket.connected) {
@@ -1525,7 +1549,8 @@ function setupUIHandlers() {
             // Wait for connection
             await new Promise((resolve) => {
                 socket.on('connect', () => {
-                    console.log('✅ Socket reconnected successfully');
+                    currentSocketId = socket.id;
+                    console.log('✅ Socket reconnected successfully with ID:', currentSocketId);
                     resolve();
                 });
             });

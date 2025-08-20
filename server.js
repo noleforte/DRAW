@@ -270,7 +270,7 @@ function createBot(id) {
   const bot = {
     id: `bot_${id}`,
     name: botNames[Math.floor(Math.random() * botNames.length)],
-    ...getRandomPosition(),
+    ...getRandomPosition(), // This already uses proper spawn logic
     vx: 0,
     vy: 0,
     score: 0,
@@ -1009,32 +1009,39 @@ io.on('connection', (socket) => {
     const existingPlayer = Array.from(gameState.players.values()).find(p => p.name === name);
     
     if (existingPlayer) {
-      // Player reconnecting - update socket and send current game state
+      // Player reconnecting - preserve their current game state
+      console.log(`🔄 Player ${name} reconnecting - Current score: ${existingPlayer.score}, size: ${existingPlayer.size}`);
       existingPlayer.socketId = socket.id;
       existingPlayer.lastSeen = Date.now();
       existingPlayer.lastActivity = Date.now();
       
-      // Load fresh data from Firestore for reconnected player
+      // Load fresh data from Firestore for reconnected player (but preserve current game score)
       if (existingPlayer.id) {
-        console.log(`🔍 Loading data for reconnected player: ${existingPlayer.id}`);
+        console.log(`🔍 Loading data for reconnected player: ${existingPlayer.id} (current score: ${existingPlayer.score})`);
         // Load data asynchronously but update player immediately
         GameDataService.getPlayerStats(existingPlayer.id)
           .then(playerStats => {
             console.log(`📊 Received playerStats for reconnected ${existingPlayer.id}:`, playerStats);
             if (playerStats) {
-              // Update size if newer data exists
+              // Update size if newer data exists (but preserve current game score)
               if (playerStats.lastSize && playerStats.lastSize > existingPlayer.size) {
                 existingPlayer.size = playerStats.lastSize;
-                console.log(`🎯 Reconnected player ${existingPlayer.id} - Updated size to ${playerStats.lastSize}`);
+                console.log(`🎯 Reconnected player ${existingPlayer.id} - Updated size to ${playerStats.lastSize} (current game score preserved: ${existingPlayer.score})`);
               }
               
-              // Update score from Total Coins if it's higher
-              if (playerStats.totalScore && playerStats.totalScore > existingPlayer.score) {
-                existingPlayer.score = playerStats.totalScore;
-                // Update size based on new score
-                existingPlayer.size = calculatePlayerSize(playerStats.totalScore);
-                console.log(`💰 Reconnected player ${existingPlayer.id} - Updated score to ${playerStats.totalScore}, calculated size: ${existingPlayer.size}`);
+              // Don't update score from Total Coins - this would cause score doubling
+              // existingPlayer.score should remain as current game score
+              // Only update size based on totalScore if it's higher (represents player's progress)
+              if (playerStats.totalScore) {
+                const calculatedSize = calculatePlayerSize(playerStats.totalScore);
+                if (calculatedSize > existingPlayer.size) {
+                  existingPlayer.size = calculatedSize;
+                  console.log(`💰 Reconnected player ${existingPlayer.id} - Updated size to ${calculatedSize} based on totalScore ${playerStats.totalScore} (current game score remains ${existingPlayer.score})`);
+                }
               }
+              
+              // Log final state for debugging
+              console.log(`✅ Reconnected player ${existingPlayer.id} final state - Score: ${existingPlayer.score}, Size: ${existingPlayer.size}`);
             } else {
               console.log(`❌ No playerStats found for reconnected ${existingPlayer.id}`);
             }
@@ -1059,7 +1066,7 @@ io.on('connection', (socket) => {
       };
       
       socket.emit('gameState', gameStateForClient);
-      console.log(`🔄 Player ${name} reconnected`);
+      console.log(`🔄 Player ${name} reconnected with preserved score: ${existingPlayer.score}`);
     } else {
       // New player joining - create player object
       const playerId = wallet || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -1068,8 +1075,7 @@ io.on('connection', (socket) => {
       const player = {
         id: playerId,
         name: name,
-        x: Math.random() * (gameState.worldSize - 200) + 100,
-        y: Math.random() * (gameState.worldSize - 200) + 100,
+        ...getRandomPosition(), // Use the same spawn logic as coins to ensure proper positioning
         vx: 0,
         vy: 0,
         targetVx: 0,
@@ -1088,34 +1094,38 @@ io.on('connection', (socket) => {
       // Initialize last position
       player.lastPosition = { x: player.x, y: player.y };
       
-      // Load saved player data from Firestore if player exists
+      // Load saved player data from Firestore if player exists (but don't set score)
       if (playerId) {
-        console.log(`🔍 Loading data for playerId: ${playerId}`);
+        console.log(`🔍 Loading data for playerId: ${playerId} (new game, score starts at 0)`);
         // Load data synchronously to avoid race conditions
         GameDataService.getPlayerStats(playerId)
           .then(playerStats => {
             console.log(`📊 Received playerStats for ${playerId}:`, playerStats);
             if (playerStats) {
-              // Load saved size
+              // Load saved size (but preserve current game score at 0)
               if (playerStats.lastSize) {
                 player.size = playerStats.lastSize;
-                console.log(`🎯 Loaded saved size ${playerStats.lastSize} for player ${playerId}`);
+                console.log(`🎯 Loaded saved size ${playerStats.lastSize} for player ${playerId} (current game score remains 0)`);
               }
               
-              // Load score from Total Coins
+              // Load size based on Total Coins (but don't set current game score)
               if (playerStats.totalScore) {
-                player.score = playerStats.totalScore;
-                // Update size based on loaded score
+                // Don't set current game score to totalScore - keep it at 0 for new game
+                // player.score = playerStats.totalScore; // REMOVED - this was causing score doubling
+                // Update size based on loaded totalScore (this represents player's progress)
                 player.size = calculatePlayerSize(playerStats.totalScore);
-                console.log(`💰 Loaded score ${playerStats.totalScore} from Total Coins for player ${playerId}, calculated size: ${player.size}`);
+                console.log(`💰 Loaded totalScore ${playerStats.totalScore} from Firestore for player ${playerId}, calculated size: ${player.size} (current game score remains 0)`);
               }
               
-              // Update the player in gameState with loaded data
+              // Log final state for debugging
+              console.log(`✅ New player ${playerId} final state - Score: ${player.score}, Size: ${player.size}`);
+              
+              // Update the player in gameState with loaded data (but don't change score)
               const playerInGame = gameState.players.get(socket.id);
               if (playerInGame) {
-                playerInGame.score = player.score;
+                // Only update size, not score (score should remain 0 for new game)
                 playerInGame.size = player.size;
-                console.log(`✅ Updated player ${playerId} in gameState with loaded data: score=${player.score}, size=${player.size}`);
+                console.log(`✅ Updated player ${playerId} in gameState with loaded data: size=${player.size} (score remains 0 for new game)`);
               }
             } else {
               console.log(`❌ No playerStats found for ${playerId}`);
@@ -1154,7 +1164,7 @@ io.on('connection', (socket) => {
       // Broadcast new player to all other players
       socket.broadcast.emit('playerJoined', player);
       
-      console.log(`🎮 New player ${name} joined with ID: ${playerId}, initial score: ${player.score}, initial size: ${player.size}`);
+      console.log(`🎮 New player ${name} joined with ID: ${playerId}, initial score: ${player.score}, initial size: ${player.size} (score starts at 0 for new game)`);
     }
   });
 
