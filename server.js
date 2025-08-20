@@ -1223,8 +1223,8 @@ io.on('connection', (socket) => {
         console.log(`⚠️ No playerId provided for ${name}`);
       }
       
-      // Add player to game state
-      gameState.players.set(playerId, player);
+      // Add player to game state using socket.id as key (for compatibility with existing code)
+      gameState.players.set(socket.id, player);
       
       // Send game state to new player
       socket.emit('gameState', gameState);
