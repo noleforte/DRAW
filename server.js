@@ -1113,7 +1113,7 @@ io.on('connection', (socket) => {
     const wallet = typeof playerData === 'string' ? '' : playerData.wallet;
     
     // Check if player is already in the game
-    const existingPlayer = gameState.players.find(p => p.name === name);
+    const existingPlayer = Array.from(gameState.players.values()).find(p => p.name === name);
     
     if (existingPlayer) {
       // Player reconnecting - update socket and send current game state
@@ -1206,7 +1206,7 @@ io.on('connection', (socket) => {
               }
               
               // Update the player in gameState with loaded data
-              const playerInGame = gameState.players.find(p => p.id === playerId);
+              const playerInGame = gameState.players.get(playerId);
               if (playerInGame) {
                 playerInGame.score = player.score;
                 playerInGame.size = player.size;
@@ -1224,7 +1224,7 @@ io.on('connection', (socket) => {
       }
       
       // Add player to game state
-      gameState.players.push(player);
+      gameState.players.set(playerId, player);
       
       // Send game state to new player
       socket.emit('gameState', gameState);
