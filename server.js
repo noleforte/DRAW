@@ -203,9 +203,11 @@ const gameState = {
   players: new Map(),
   coins: new Map(),
   bots: new Map(),
+  boosters: new Map(),
   worldSize: 4000, // Large world size
   nextCoinId: 0,
   nextBotId: 0,
+  nextBoosterId: 0,
   matchTimeLeft: getTimeUntilEndOfGMTDay(), // Time until end of current GMT day
   matchStartTime: null, // When the current match started
   matchDuration: getTimeUntilEndOfGMTDay(), // Duration until end of GMT day
@@ -262,6 +264,28 @@ function generateCoins(count = 300) {
       value: 1
     };
     gameState.coins.set(coin.id, coin);
+  }
+}
+
+// Generate boosters
+function generateBoosters(count = 3) {
+  const boosterTypes = [
+    { type: 'speed', name: 'Speed Boost', color: '#00ff00', effect: 'x2 Speed' },
+    { type: 'coins', name: 'Coin Multiplier', color: '#ffff00', effect: 'x2 Coins' }
+  ];
+  
+  for (let i = 0; i < count; i++) {
+    const boosterType = boosterTypes[Math.floor(Math.random() * boosterTypes.length)];
+    const booster = {
+      id: `booster_${gameState.nextBoosterId++}`,
+      ...getRandomPosition(),
+      type: boosterType.type,
+      name: boosterType.name,
+      color: boosterType.color,
+      effect: boosterType.effect,
+      isBooster: true
+    };
+    gameState.boosters.set(booster.id, booster);
   }
 }
 
@@ -659,6 +683,46 @@ function updatePlayers(deltaTime) {
       gameState.coins.set(newCoin.id, newCoin);
     });
     
+    // Check booster collection
+    const boostersToDelete = [];
+    gameState.boosters.forEach((booster) => {
+      const distance = Math.sqrt((booster.x - player.x) ** 2 + (booster.y - player.y) ** 2);
+      if (distance < player.size) {
+        // Apply booster effect
+        if (booster.type === 'speed') {
+          // Speed boost effect (will be handled on client)
+          console.log(`🚀 Player ${player.name} collected Speed Boost`);
+        } else if (booster.type === 'coins') {
+          // Coin multiplier effect (will be handled on client)
+          console.log(`💰 Player ${player.name} collected Coin Multiplier`);
+        }
+        
+        boostersToDelete.push(booster.id);
+        
+        // Update activity when player collects booster
+        player.lastActivity = Date.now();
+      }
+    });
+    
+    // Process collected boosters
+    boostersToDelete.forEach(boosterId => {
+      gameState.boosters.delete(boosterId);
+      
+      // Respawn booster after some time
+      setTimeout(() => {
+        const newBooster = {
+          id: `booster_${gameState.nextBoosterId++}`,
+          ...getRandomPosition(),
+          type: Math.random() < 0.5 ? 'speed' : 'coins',
+          name: Math.random() < 0.5 ? 'Speed Boost' : 'Coin Multiplier',
+          color: Math.random() < 0.5 ? '#00ff00' : '#ffff00',
+          effect: Math.random() < 0.5 ? 'x2 Speed' : 'x2 Coins',
+          isBooster: true
+        };
+        gameState.boosters.set(newBooster.id, newBooster);
+      }, 10000); // Respawn after 10 seconds
+    });
+    
     // Save coins to Firebase in batch (non-blocking)
     if (coinsToSave.length > 0) {
       // Use setTimeout to avoid blocking the game loop
@@ -885,6 +949,11 @@ function startNewMatch() {
   gameState.nextCoinId = 0;
   generateCoins(300);
   
+  // Regenerate boosters
+  gameState.boosters.clear();
+  gameState.nextBoosterId = 0;
+  generateBoosters(3);
+  
   // Notify all clients
   const matchStartNow = new Date();
   const matchEndOfDay = new Date(matchStartNow);
@@ -1058,6 +1127,7 @@ io.on('connection', (socket) => {
         players: Array.from(gameState.players.values()),
         bots: Array.from(gameState.bots.values()),
         coins: Array.from(gameState.coins.values()),
+        boosters: Array.from(gameState.boosters.values()),
         worldSize: gameState.worldSize,
         playerId: socket.id,
         matchTimeLeft: gameState.matchTimeLeft,
@@ -1152,6 +1222,7 @@ io.on('connection', (socket) => {
         players: Array.from(gameState.players.values()),
         bots: Array.from(gameState.bots.values()),
         coins: Array.from(gameState.coins.values()),
+        boosters: Array.from(gameState.boosters.values()),
         worldSize: gameState.worldSize,
         playerId: socket.id,
         matchTimeLeft: gameState.matchTimeLeft,
@@ -1182,7 +1253,13 @@ io.on('connection', (socket) => {
       // Calculate speed based on player size (bigger = slower)
       const baseSpeed = 200; // base pixels per second
       const sizeSpeedMultiplier = calculateSpeedMultiplier(player.size);
-      const speed = baseSpeed * sizeSpeedMultiplier;
+      let speed = baseSpeed * sizeSpeedMultiplier;
+      
+      // Apply speed booster if active (client will send booster status)
+      if (movement.speedBooster) {
+        speed *= 2; // Double speed
+        console.log(`🚀 Speed boost applied for player ${player.name}`);
+      }
       
       // Set target velocity instead of instant position update
       player.targetVx = movement.x * speed;
@@ -1251,6 +1328,15 @@ io.on('connection', (socket) => {
           x: Math.round(c.x),
           y: Math.round(c.y),
           value: c.value
+        })),
+        boosters: Array.from(gameState.boosters.values()).map(b => ({
+          id: b.id,
+          x: Math.round(b.x),
+          y: Math.round(b.y),
+          type: b.type,
+          name: b.name,
+          color: b.color,
+          effect: b.effect
         }))
       });
     }
@@ -1290,6 +1376,15 @@ io.on('connection', (socket) => {
           x: Math.round(c.x),
           y: Math.round(c.y),
           value: c.value
+        })),
+        boosters: Array.from(gameState.boosters.values()).map(b => ({
+          id: b.id,
+          x: Math.round(b.x),
+          y: Math.round(b.y),
+          type: b.type,
+          name: b.name,
+          color: b.color,
+          effect: b.effect
         }))
       });
     }
@@ -1393,6 +1488,15 @@ setInterval(() => {
         id: c.id,
         x: Math.round(c.x),
         y: Math.round(c.y)
+      })),
+      boosters: Array.from(gameState.boosters.values()).map(b => ({
+        id: b.id,
+        x: Math.round(b.x),
+        y: Math.round(b.y),
+        type: b.type,
+        name: b.name,
+        color: b.color,
+        effect: b.effect
       }))
     };
     

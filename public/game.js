@@ -4,6 +4,7 @@ let gameState = {
     players: [],
     bots: [],
     coins: [],
+    boosters: [],
     worldSize: 4000,
     playerId: null
 };
@@ -32,6 +33,10 @@ let matchStartTime = null;
 let clientTimerInterval = null;
 let timeOffset = 0; // Offset between client and server time
 let gamePaused = false; // Game pause state
+let activeBoosters = {
+    speed: { active: false, multiplier: 1, endTime: 0 },
+    coins: { active: false, multiplier: 1, endTime: 0 }
+};
 
 // Background image
 let backgroundImage = null;
@@ -793,6 +798,7 @@ function setupSocketListeners() {
     
     socket.on('gameState', (data) => {
         gameState = data;
+        gameState.boosters = data.boosters || [];
         window.gameState = gameState; // Make gameState globally available
         
         // Find localPlayer by current socket.id (this is the correct player for this client)
@@ -924,6 +930,7 @@ function setupSocketListeners() {
         gameState.players = data.players;
         gameState.bots = data.bots;
         gameState.coins = data.coins;
+        gameState.boosters = data.boosters || [];
         window.gameState = gameState; // Update global reference
         
         const previousLocalPlayer = localPlayer;
@@ -1017,6 +1024,29 @@ function setupSocketListeners() {
             } else {
                 console.log(`⚠️ Skipping Firestore update - unreasonable score increase: ${coinsGained} (likely initialization)`);
             }
+        }
+        
+        // Check for booster collection
+        if (gameState.boosters && localPlayer) {
+            gameState.boosters.forEach(booster => {
+                const distance = Math.sqrt((booster.x - localPlayer.x) ** 2 + (booster.y - localPlayer.y) ** 2);
+                if (distance < localPlayer.size) {
+                    console.log(`🚀 Player collected booster: ${booster.name} (${booster.effect})`);
+                    
+                    // Apply booster effect
+                    if (booster.type === 'speed') {
+                        activeBoosters.speed.active = true;
+                        activeBoosters.speed.multiplier = 2;
+                        activeBoosters.speed.endTime = Date.now() + 10000; // 10 seconds
+                        console.log(`🚀 Speed boost activated for 10 seconds`);
+                    } else if (booster.type === 'coins') {
+                        activeBoosters.coins.active = true;
+                        activeBoosters.coins.multiplier = 2;
+                        activeBoosters.coins.endTime = Date.now() + 15000; // 15 seconds
+                        console.log(`💰 Coin multiplier activated for 15 seconds`);
+                    }
+                }
+            });
         }
         
         if (!localPlayer) {
@@ -2414,6 +2444,10 @@ function updateMovement() {
         movement.x /= length;
         movement.y /= length;
     }
+    
+    // Add booster status to movement data
+    movement.speedBooster = activeBoosters.speed.active;
+    movement.coinBooster = activeBoosters.coins.active;
 }
 
 function updateCamera() {
@@ -2597,6 +2631,13 @@ function render() {
         drawCoin(coin);
     });
     
+    // Draw boosters
+    if (gameState.boosters) {
+        gameState.boosters.forEach(booster => {
+            drawBooster(booster);
+        });
+    }
+    
     // Draw players and bots
     const players = gameState.players || [];
     const bots = gameState.bots || [];
@@ -2754,6 +2795,48 @@ function drawCoin(coin) {
     ctx.beginPath();
     ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
     ctx.stroke();
+}
+
+function drawBooster(booster) {
+    const screenPos = worldToScreen(booster.x, booster.y);
+    const radius = 12 * camera.zoom; // Slightly larger than coins
+    
+    // Skip if off-screen
+    if (screenPos.x < -radius || screenPos.x > canvas.width + radius ||
+        screenPos.y < -radius || screenPos.y > canvas.height + radius) {
+        return;
+    }
+    
+    // Booster body
+    ctx.fillStyle = booster.color;
+    ctx.beginPath();
+    ctx.arc(screenPos.x, screenPos.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Booster pulse effect
+    const time = Date.now() * 0.005;
+    const pulseScale = 1 + 0.2 * Math.sin(time + booster.id);
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 3 * camera.zoom;
+    ctx.beginPath();
+    ctx.arc(screenPos.x, screenPos.y, radius * pulseScale, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Booster effect text
+    ctx.fillStyle = 'white';
+    ctx.font = `${Math.max(10, 12 * camera.zoom)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Text background
+    const textWidth = ctx.measureText(booster.effect).width + 8;
+    const textHeight = 16 * camera.zoom;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(screenPos.x - textWidth / 2, screenPos.y + radius + 5, textWidth, textHeight);
+    
+    // Text
+    ctx.fillStyle = 'white';
+    ctx.fillText(booster.effect, screenPos.x, screenPos.y + radius + textHeight / 2 + 5);
 }
 
 function drawEntity(entity) {
@@ -3473,6 +3556,20 @@ function gameLoop() {
                 console.log('📷 Camera update skipped - invalid coordinates:', localPlayer.x, localPlayer.y);
             }
         }
+    }
+    
+    // Check and update active boosters
+    const now = Date.now();
+    if (activeBoosters.speed.active && now > activeBoosters.speed.endTime) {
+        activeBoosters.speed.active = false;
+        activeBoosters.speed.multiplier = 1;
+        console.log('🚀 Speed boost expired');
+    }
+    
+    if (activeBoosters.coins.active && now > activeBoosters.coins.endTime) {
+        activeBoosters.coins.active = false;
+        activeBoosters.coins.multiplier = 1;
+        console.log('💰 Coin multiplier expired');
     }
     
     // Update player stats display in real-time (every few frames)
@@ -4561,3 +4658,40 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('🚀 Panel system ready and globally accessible');
     }, 500); // Delay to ensure all elements are loaded
 });
+
+// Function to update booster status display
+function updateBoosterStatusDisplay() {
+    // Create or update booster status elements
+    let boosterContainer = document.getElementById('boosterStatusContainer');
+    
+    if (!boosterContainer) {
+        boosterContainer = document.createElement('div');
+        boosterContainer.id = 'boosterStatusContainer';
+        boosterContainer.className = 'fixed top-4 right-4 z-50 space-y-2';
+        document.body.appendChild(boosterContainer);
+    }
+    
+    // Clear existing booster displays
+    boosterContainer.innerHTML = '';
+    
+    // Show active boosters
+    if (activeBoosters.speed.active) {
+        const speedBooster = document.createElement('div');
+        speedBooster.className = 'bg-green-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center space-x-2';
+        speedBooster.innerHTML = `
+            <span>🚀</span>
+            <span>Speed Boost (${Math.ceil((activeBoosters.speed.endTime - Date.now()) / 1000)}s)</span>
+        `;
+        boosterContainer.appendChild(speedBooster);
+    }
+    
+    if (activeBoosters.coins.active) {
+        const coinBooster = document.createElement('div');
+        coinBooster.className = 'bg-yellow-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center space-x-2';
+        coinBooster.innerHTML = `
+            <span>💰</span>
+            <span>Coin Multiplier (${Math.ceil((activeBoosters.coins.endTime - Date.now()) / 1000)}s)</span>
+        `;
+        boosterContainer.appendChild(coinBooster);
+    }
+}
