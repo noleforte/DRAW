@@ -240,9 +240,16 @@ const botHuntingMessages = [
 
 // Generate random position within world bounds
 function getRandomPosition() {
+  // Ensure coins spawn within the visible game field (not at the very edges)
+  const margin = 100; // Keep coins 100 pixels away from world boundaries
+  const minX = -gameState.worldSize/2 + margin;
+  const maxX = gameState.worldSize/2 - margin;
+  const minY = -gameState.worldSize/2 + margin;
+  const maxY = gameState.worldSize/2 - margin;
+  
   return {
-    x: Math.random() * gameState.worldSize - gameState.worldSize / 2,
-    y: Math.random() * gameState.worldSize - gameState.worldSize / 2
+    x: Math.random() * (maxX - minX) + minX,
+    y: Math.random() * (maxY - minY) + minY
   };
 }
 
