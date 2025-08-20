@@ -1138,11 +1138,15 @@ function preventZoom() {
 }
 
 function setupInputHandlers() {
+    console.log('🎮 setupInputHandlers called - setting up keyboard event listeners');
+    
     // Prevent zoom/scale events
     preventZoom();
     
     // Keyboard input
     document.addEventListener('keydown', (e) => {
+        console.log('🎮 Key pressed:', e.code, 'key:', e.key, 'target:', e.target?.tagName);
+        
         // Check if user is typing in an input field
         const activeElement = document.activeElement;
         const isTyping = activeElement && (
@@ -1167,6 +1171,7 @@ function setupInputHandlers() {
             
             // Escape key to blur chat input (but don't interfere with pause system)
             if (e.code === 'Escape') {
+                console.log('🎮 ESC key detected in setupInputHandlers!');
                 const chatInput = document.getElementById('chatInput');
                 if (chatInput && document.activeElement === chatInput) {
                     chatInput.blur();
@@ -1198,10 +1203,21 @@ function setupInputHandlers() {
                     !gameOverModal.classList.contains('hidden')
                 );
                 
-                console.log('🎮 Modal check - anyModalVisible:', anyModalVisible, 'localPlayer:', !!localPlayer, 'nameModal display:', nameModal?.style.display);
+                console.log('🎮 Modal check details:');
+                console.log('  - nameModal:', nameModal ? 'found' : 'not found');
+                console.log('  - nameModal.classList.contains("hidden"):', nameModal?.classList.contains('hidden'));
+                console.log('  - nameModal.style.display:', nameModal?.style.display);
+                console.log('  - authModal.classList.contains("hidden"):', authModal?.classList.contains('hidden'));
+                console.log('  - registrationModal.classList.contains("hidden"):', registrationModal?.classList.contains('hidden'));
+                console.log('  - gameOverModal.classList.contains("hidden"):', gameOverModal?.classList.contains('hidden'));
+                console.log('  - anyModalVisible:', anyModalVisible);
+                console.log('  - gameEnded:', gameEnded);
+                console.log('  - localPlayer:', !!localPlayer);
                 
                 // Allow pause if: no modals visible, game not ended, and either localPlayer exists OR nameModal is hidden (game started)
                 const canPause = !anyModalVisible && !gameEnded && (localPlayer || nameModal?.style.display === 'none');
+                
+                console.log('🎮 canPause calculation:', canPause, '=', '!anyModalVisible:', !anyModalVisible, '&& !gameEnded:', !gameEnded, '&& (localPlayer || nameModal?.style.display === "none"):', (localPlayer || nameModal?.style.display === 'none'));
                 
                 if (canPause) {
                     console.log('🎮 All conditions met, pausing game...');
@@ -1219,6 +1235,8 @@ function setupInputHandlers() {
             }
         }
     });
+    
+    console.log('🎮 setupInputHandlers completed - keyboard event listeners added');
     
     document.addEventListener('keyup', (e) => {
         // Check if user is typing in an input field
