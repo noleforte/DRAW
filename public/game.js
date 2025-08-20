@@ -1073,9 +1073,6 @@ function setupSocketListeners() {
                 activeBoosters.coins.multiplier = 1;
                 activeBoosters.coins.endTime = 0;
             }
-            
-            // Update booster display after updating status
-            updateBoosterStatusDisplay();
         }
         
         if (!localPlayer) {
@@ -2623,6 +2620,9 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
     
     // Log updates for debugging
     console.log('📊 Updated player stats display - Score:', player.score, 'Size:', player.size, 'Speed:', currentSpeed);
+    
+    // Update booster status in stats if elements exist
+    updateBoosterStatusDisplay();
 }
 
 function worldToScreen(worldX, worldY) {
@@ -3601,10 +3601,8 @@ function gameLoop() {
         console.log('💰 Coin multiplier expired');
     }
     
-    // Update booster display every few frames for smooth countdown
-    if (updateCounter % 10 === 0) { // Update every 10 frames instead of every frame
-        updateBoosterStatusDisplay();
-    }
+    // Update booster display every frame for smooth countdown
+    updateBoosterStatusDisplay();
     
     // Update player stats display in real-time (every few frames)
     if (localPlayer && Math.random() < 0.1) { // 10% chance each frame
@@ -4699,6 +4697,84 @@ function updateBoosterStatusDisplay() {
     console.log('🔄 updateBoosterStatusDisplay called');
     console.log('🚀 Speed booster state:', activeBoosters.speed);
     console.log('💰 Coin booster state:', activeBoosters.coins);
+    
+    // Create or update booster status elements
+    let boosterContainer = document.getElementById('boosterStatusContainer');
+    
+    if (!boosterContainer) {
+        boosterContainer = document.createElement('div');
+        boosterContainer.id = 'boosterStatusContainer';
+        boosterContainer.className = 'fixed top-4 right-4 z-50 space-y-2';
+        document.body.appendChild(boosterContainer);
+        console.log('✅ Created new booster container');
+    }
+    
+    // Clear existing booster displays
+    boosterContainer.innerHTML = '';
+    
+    // Add header
+    const header = document.createElement('div');
+    header.className = 'bg-gray-800 text-white px-3 py-2 rounded-lg shadow-lg text-center font-bold';
+    header.textContent = '🚀 Active Boosters';
+    header.style.display = 'none';
+    boosterContainer.appendChild(header);
+    
+    // Show active boosters
+    if (activeBoosters.speed.active) {
+        const timeLeft = Math.ceil((activeBoosters.speed.endTime - Date.now()) / 1000);
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        const speedBooster = document.createElement('div');
+        speedBooster.className = 'bg-green-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center justify-between min-w-[200px]';
+        speedBooster.innerHTML = `
+            <div class="flex items-center space-x-2">
+                <span class="text-xl">🚀</span>
+                <div>
+                    <div class="font-bold">Speed Boost</div>
+                    <div class="text-xs opacity-90">x2 Movement Speed</div>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="font-mono text-lg font-bold">${timeText}</div>
+                <div class="text-xs opacity-90">remaining</div>
+            </div>
+        `;
+        boosterContainer.appendChild(speedBooster);
+    }
+    
+    if (activeBoosters.coins.active) {
+        const timeLeft = Math.ceil((activeBoosters.coins.endTime - Date.now()) / 1000);
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        const coinBooster = document.createElement('div');
+        coinBooster.className = 'bg-yellow-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center justify-between min-w-[200px]';
+        coinBooster.innerHTML = `
+            <div class="flex items-center space-x-2">
+                <span class="text-xl">💰</span>
+                <div>
+                    <div class="font-bold">Coin Multiplier</div>
+                    <div class="text-xs opacity-90">x2 Coins Collected</div>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="font-mono text-lg font-bold">${timeText}</div>
+                <div class="text-xs opacity-90">remaining</div>
+            </div>
+        `;
+        boosterContainer.appendChild(coinBooster);
+    }
+    
+    // Show message if no boosters active
+    if (!activeBoosters.speed.active && !activeBoosters.coins.active) {
+        const noBoosters = document.createElement('div');
+        noBoosters.className = 'bg-gray-600 text-white px-3 py-2 rounded-lg shadow-lg text-center text-sm opacity-75';
+        noBoosters.textContent = 'No active boosters';
+        boosterContainer.appendChild(noBoosters);
+    }
     
     // Update center panel boosters list
     const boostersListCenter = document.getElementById('boostersListCenter');
