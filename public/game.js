@@ -795,8 +795,25 @@ function setupSocketListeners() {
         // DEBUG: Log player info
         if (localPlayer) {
             console.log('🎮 gameState received - Player score:', localPlayer.score, 'size:', localPlayer.size, 'playerId:', data.playerId, 'socketId:', localPlayer.socketId);
+            console.log('🎯 Player position:', localPlayer.x, localPlayer.y);
+            
+            // Initialize camera to player position
             camera.x = localPlayer.x;
             camera.y = localPlayer.y;
+            console.log('📷 Camera initialized to player position:', camera.x, camera.y);
+            
+            // Validate camera initialization
+            if (isNaN(camera.x) || isNaN(camera.y)) {
+                console.error('❌ Camera initialization failed - invalid coordinates:', camera.x, camera.y);
+            } else {
+                console.log('✅ Camera initialized successfully');
+            }
+            
+            // Update all player stats display
+            const vx = localPlayer.vx || 0;
+            const vy = localPlayer.vy || 0;
+            const currentSpeed = Math.sqrt(vx * vx + vy * vy);
+            updatePlayerStatsDisplay(currentSpeed, localPlayer);
             
             // Update user info panel with fresh game data
             if (window.panelManager) {
@@ -841,7 +858,25 @@ function setupSocketListeners() {
             // Check if size also increased
             if (localPlayer.size > previousLocalPlayer.size) {
                 console.log(`📏 Size increased: ${Math.round(previousLocalPlayer.size)} → ${Math.round(localPlayer.size)}`);
+                
+                            // Update display immediately when size changes
+            const vx = localPlayer.vx || 0;
+            const vy = localPlayer.vy || 0;
+            const currentSpeed = Math.sqrt(vx * vx + vy * vy);
+            updatePlayerStatsDisplay(currentSpeed, localPlayer);
+            
+            // Log size changes for debugging
+            console.log('📏 Size display updated:', Math.round(previousLocalPlayer.size), '→', Math.round(localPlayer.size));
             }
+            
+            // Update display immediately when score changes
+            const vx = localPlayer.vx || 0;
+            const vy = localPlayer.vy || 0;
+            const currentSpeed = Math.sqrt(vx * vx + vy * vy);
+            updatePlayerStatsDisplay(currentSpeed, localPlayer);
+            
+            // Log score changes for debugging
+            console.log('💰 Score display updated:', previousLocalPlayer.score, '→', localPlayer.score);
             
             // Send coins to Firestore immediately
             sendCoinsToFirestore(coinsGained);
@@ -857,6 +892,14 @@ function setupSocketListeners() {
         
         // Update Player Info Panel with current game stats
         if (localPlayer) {
+            // Calculate current speed for display
+            const vx = localPlayer.vx || 0;
+            const vy = localPlayer.vy || 0;
+            const currentSpeed = Math.sqrt(vx * vx + vy * vy);
+            
+            // Update all player stats display
+            updatePlayerStatsDisplay(currentSpeed, localPlayer);
+            
             updatePlayerInfoPanelStats(localPlayer);
             // Force immediate display update
             forceUpdateGameStatsDisplay(localPlayer);
@@ -900,60 +943,218 @@ function setupSocketListeners() {
                 
                 // Show AFK kick notification
                 showServerMessage(`⏰ You were kicked for being inactive for 2 minutes! 💰 ${data.coinsLost} coins saved to your Total Coins! Returning to main menu in 3 seconds...`, 'warning');
-            
-            // Force refresh Total Coins from Firestore to show the updated balance
-            setTimeout(async () => {
-                try {
-                    await window.nicknameAuth.syncUserStatsFromFirestore();
-                        console.log('💰 Total Coins refreshed after AFK kick');
-                    
-                    // Update Player Info panel if open
-                    if (window.panelManager) {
-                        await window.panelManager.updateUserInfoPanel();
-                    }
-                } catch (error) {
-                        console.warn('⚠️ Failed to refresh Total Coins after AFK kick:', error);
-                }
-            }, 1500); // Refresh after 1.5 seconds to allow server to save
-            
-            // Disconnect from game and return to main menu after a short delay
-            setTimeout(() => {
-                // Disconnect socket
-                if (socket) {
-                    socket.disconnect();
-                }
                 
-                // Reset game state
-                gameEnded = true;
-                    localPlayer = null; // Will be recreated by server with saved size
-                window.localPlayer = null;
-                
-                // Hide game canvas
-                const canvas = document.getElementById('gameCanvas');
-                if (canvas) {
-                    canvas.style.display = 'none';
-                }
-                
-                // Show main menu
-                const nameModal = document.getElementById('nameModal');
-                if (nameModal) {
-                    nameModal.style.display = 'flex';
-                }
-                
-                // Clear leaderboard
-                const leaderboardList = document.getElementById('leaderboardList');
-                if (leaderboardList) {
-                    leaderboardList.innerHTML = '';
-                }
-                
-                // Refresh player data on main menu to show updated Total Coins
+                // Force refresh Total Coins from Firestore to show the updated balance
                 setTimeout(async () => {
-                    await loadSavedPlayerData();
-                        console.log('💰 Player data refreshed on main menu after AFK kick');
-                }, 500);
+                    try {
+                        await window.nicknameAuth.syncUserStatsFromFirestore();
+                        console.log('💰 Total Coins refreshed after AFK kick');
+                        
+                        // Update Player Info panel if open
+                        if (window.panelManager) {
+                            await window.panelManager.updateUserInfoPanel();
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Failed to refresh Total Coins after AFK kick:', error);
+                    }
+                }, 1500); // Refresh after 1.5 seconds to allow server to save
                 
+                // Disconnect from game and return to main menu after a short delay
+                setTimeout(() => {
+                    // Disconnect socket
+                    if (socket) {
+                        socket.disconnect();
+                    }
+                    
+                    // Reset game state
+                    gameEnded = true;
+                    localPlayer = null; // Will be recreated by server with saved size
+                    window.localPlayer = null;
+                    
+                    // Reset camera
+                    camera.x = 0;
+                    camera.y = 0;
+                    camera.zoom = 1;
+                    
+                    // Reset movement
+                    movement.x = 0;
+                    movement.y = 0;
+                    
+                    // Clear keys
+                    keys = {};
+                    
+                    // Hide game canvas
+                    const canvas = document.getElementById('gameCanvas');
+                    if (canvas) {
+                        canvas.style.display = 'none';
+                    }
+                    
+                    // Hide all game panels
+                    const gamePanels = document.querySelectorAll('.game-panel, .panel');
+                    gamePanels.forEach(panel => {
+                        if (panel.style.display !== 'none') {
+                            panel.style.display = 'none';
+                        }
+                    });
+                    
+                    // Show main menu
+                    const nameModal = document.getElementById('nameModal');
+                    if (nameModal) {
+                        nameModal.style.display = 'flex';
+                    }
+                    
+                    // Clear leaderboard
+                    const leaderboardList = document.getElementById('leaderboardList');
+                    if (leaderboardList) {
+                        leaderboardList.innerHTML = '';
+                    }
+                    
+                    // Reset game state variables
+                    gameState = {
+                        players: [],
+                        bots: [],
+                        coins: [],
+                        worldSize: 4000,
+                        playerId: null
+                    };
+                    
+                    // Clear chat messages
+                    chatMessages = [];
+                    speechBubbles.clear();
+                    
+                    // Reset pause state
+                    gamePaused = false;
+                    const pauseModal = document.getElementById('pauseModal');
+                    if (pauseModal) {
+                        pauseModal.style.display = 'none';
+                    }
+                    
+                    // Reset timers
+                    if (clientTimerInterval) {
+                        clearInterval(clientTimerInterval);
+                        clientTimerInterval = null;
+                    }
+                    matchTimeLeft = null;
+                    matchStartTime = null;
+                    
+                    // Reset panel manager if exists
+                    if (window.panelManager) {
+                        window.panelManager.resetAllPanels();
+                    }
+                    
+                    // Reset rank display
+                    const currentGameRankElement = document.getElementById('currentGameRank');
+                    if (currentGameRankElement) {
+                        currentGameRankElement.textContent = '#-';
+                    }
+                    
+                    // Reset current game stats display
+                    const currentScoreElement = document.getElementById('currentScore');
+                    const currentSizeElement = document.getElementById('currentSize');
+                    const currentGameScoreElement = document.getElementById('currentGameScore');
+                    
+                    if (currentScoreElement) {
+                        currentScoreElement.textContent = '0';
+                    }
+                    if (currentSizeElement) {
+                        currentSizeElement.textContent = '...';
+                    }
+                    if (currentGameScoreElement) {
+                        currentGameScoreElement.textContent = '0';
+                    }
+                    
+                    // Reset speed and size display
+                    const speedElement = document.getElementById('speedValue');
+                    const maxSpeedElement = document.getElementById('maxSpeedValue');
+                    const playerSizeElement = document.getElementById('playerSizeValue');
+                    
+                    if (speedElement) {
+                        speedElement.textContent = '0.0';
+                    }
+                    if (maxSpeedElement) {
+                        maxSpeedElement.textContent = '200';
+                    }
+                    if (playerSizeElement) {
+                        playerSizeElement.textContent = '20';
+                    }
+                    
+                    // Reset background
+                    backgroundLoaded = false;
+                    backgroundImage = null;
+                    
+                    // Reset mobile joystick
+                    joystickActive = false;
+                    joystickCenter = { x: 0, y: 0 };
+                    
+                    // Reset chat interface
+                    chatCollapsed = false;
+                    const chatContent = document.getElementById('chatContent');
+                    if (chatContent) {
+                        chatContent.innerHTML = '';
+                    }
+                    
+                    // Reset user info panel
+                    const userInfoPanel = document.getElementById('userinfoLeftPanel');
+                    if (userInfoPanel) {
+                        userInfoPanel.style.display = 'none';
+                    }
+                    
+                    // Reset player info panel
+                    const playerInfoPanel = document.getElementById('playerInfoPanel');
+                    if (playerInfoPanel) {
+                        playerInfoPanel.style.display = 'none';
+                    }
+                    
+                    // Reset leaderboard panel
+                    const leaderboardPanel = document.getElementById('leaderboardPanel');
+                    if (leaderboardPanel) {
+                        leaderboardPanel.style.display = 'none';
+                    }
+                    
+                    // Reset controls panel
+                    const controlsPanel = document.getElementById('controlsPanel');
+                    if (controlsPanel) {
+                        controlsPanel.style.display = 'none';
+                    }
+                    
+                    // Reset chat panel
+                    const chatPanel = document.getElementById('chatPanel');
+                    if (chatPanel) {
+                        chatPanel.style.display = 'none';
+                    }
+                    
+                    // Reset mobile chat panel
+                    const mobileChatModal = document.getElementById('mobileChatModal');
+                    if (mobileChatModal) {
+                        mobileChatModal.classList.add('hidden');
+                    }
+                    
+                    // Reset mobile joystick panel
+                    const joystick = document.getElementById('joystick');
+                    if (joystick) {
+                        joystick.style.display = 'none';
+                    }
+                    
+                    // Reset mobile chat toggle
+                    const mobileChatToggle = document.getElementById('mobileChatToggle');
+                    if (mobileChatToggle) {
+                        mobileChatToggle.style.display = 'none';
+                    }
+                    
+                    // Reset mobile joystick toggle
+                    const mobileJoystickToggle = document.getElementById('mobileJoystickToggle');
+                    if (mobileJoystickToggle) {
+                        mobileJoystickToggle.style.display = 'none';
+                    }
+                    
+                    // Refresh player data on main menu to show updated Total Coins
+                    setTimeout(async () => {
+                        await loadSavedPlayerData();
+                        console.log('💰 Player data refreshed on main menu after AFK kick');
+                    }, 500);
+                    
                     console.log('🔄 Returned to main menu after AFK kick');
-            }, 3000); // 3 second delay to show message
+                }, 3000); // 3 second delay to show message
             }
             // Note: Eating mechanics are disabled, so no other death handling needed
         }
@@ -2070,10 +2271,24 @@ function updateCamera() {
         return;
     }
     
+    // Validate player coordinates
+    if (typeof localPlayer.x !== 'number' || typeof localPlayer.y !== 'number' || 
+        isNaN(localPlayer.x) || isNaN(localPlayer.y)) {
+        console.warn('⚠️ Invalid player coordinates:', localPlayer.x, localPlayer.y);
+        return;
+    }
+    
     // Smooth camera follow
     const lerpFactor = 0.1;
+    const oldCameraX = camera.x;
+    const oldCameraY = camera.y;
     camera.x += (localPlayer.x - camera.x) * lerpFactor;
     camera.y += (localPlayer.y - camera.y) * lerpFactor;
+    
+    // Log camera movement for debugging (only when significant movement occurs)
+    if (Math.abs(camera.x - oldCameraX) > 1 || Math.abs(camera.y - oldCameraY) > 1) {
+        console.log('📷 Camera following player:', localPlayer.name, 'Player pos:', Math.round(localPlayer.x), Math.round(localPlayer.y), 'Camera pos:', Math.round(camera.x), Math.round(camera.y));
+    }
     
     // Dynamic zoom based on speed (with safety checks)
     const vx = localPlayer.vx || 0;
@@ -2096,33 +2311,83 @@ function updateCamera() {
         return speedMultiplier;
     }
     
-    // Update speed indicator (with safety check)
-    const speedElement = document.getElementById('speedValue');
-    const maxSpeedElement = document.getElementById('maxSpeedValue');
-    const playerSizeElement = document.getElementById('playerSizeValue');
-    
-    if (speedElement) {
-        speedElement.textContent = isNaN(speed) ? '0.0' : (Math.round(speed * 10) / 10).toString();
+    // Update all player stats display elements
+    updatePlayerStatsDisplay(speed, localPlayer);
+}
+
+// Function to update all player stats display elements
+function updatePlayerStatsDisplay(currentSpeed, player) {
+    if (!player) {
+        console.warn('⚠️ updatePlayerStatsDisplay: No player provided');
+        return;
     }
     
-    if (maxSpeedElement && localPlayer) {
+    // Calculate speed multiplier for max speed calculation
+    function calculateSpeedMultiplier(size) {
+        const minSize = 20;
+        const maxSize = 50;
+        const minSpeedMultiplier = 0.4; // 40% of base speed for maximum size
+        const maxSpeedMultiplier = 1.0; // 100% of base speed for minimum size
+        
+        const clampedSize = Math.max(minSize, Math.min(maxSize, size));
+        const sizeProgress = (clampedSize - minSize) / (maxSize - minSize);
+        const speedMultiplier = maxSpeedMultiplier - (sizeProgress * (maxSpeedMultiplier - minSpeedMultiplier));
+        
+        return speedMultiplier;
+    }
+    
+    // Update current game score
+    const currentGameScoreElement = document.getElementById('currentGameScore');
+    if (currentGameScoreElement) {
+        currentGameScoreElement.textContent = player.score || 0;
+    } else {
+        console.warn('⚠️ currentGameScore element not found');
+    }
+    
+    // Update player size
+    const playerSizeElement = document.getElementById('playerSizeValue');
+    if (playerSizeElement) {
+        playerSizeElement.textContent = Math.round(player.size || 20);
+    } else {
+        console.warn('⚠️ playerSizeValue element not found');
+    }
+    
+    // Update current speed
+    const speedElement = document.getElementById('speedValue');
+    if (speedElement) {
+        const speedText = isNaN(currentSpeed) ? '0.0' : (Math.round(currentSpeed * 10) / 10).toString();
+        speedElement.textContent = speedText;
+    } else {
+        console.warn('⚠️ speedValue element not found');
+    }
+    
+    // Update max speed
+    const maxSpeedElement = document.getElementById('maxSpeedValue');
+    if (maxSpeedElement) {
         const baseSpeed = 200;
-        const sizeMultiplier = calculateSpeedMultiplier(localPlayer.size || 20);
+        const sizeMultiplier = calculateSpeedMultiplier(player.size || 20);
         const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
         maxSpeedElement.textContent = maxSpeed.toString();
+    } else {
+        console.warn('⚠️ maxSpeedValue element not found');
     }
     
-    if (playerSizeElement && localPlayer) {
-        playerSizeElement.textContent = Math.round(localPlayer.size || 20).toString();
-    }
+    // Log updates for debugging
+    console.log('📊 Updated player stats display - Score:', player.score, 'Size:', player.size, 'Speed:', currentSpeed);
 }
 
 function worldToScreen(worldX, worldY) {
-    return {
-        x: (worldX - camera.x) * camera.zoom + canvas.width / 2,
-        y: (worldY - camera.y) * camera.zoom + canvas.height / 2
-    };
-}
+    // Validate camera state
+    if (isNaN(camera.x) || isNaN(camera.y) || isNaN(camera.zoom)) {
+        console.warn('⚠️ Invalid camera state in worldToScreen:', camera.x, camera.y, camera.zoom);
+        return { x: 0, y: 0 };
+    }
+    
+    const screenX = (worldX - camera.x) * camera.zoom + canvas.width / 2;
+    const screenY = (worldY - camera.y) * camera.zoom + canvas.height / 2;
+    
+    return { x: screenX, y: screenY };
+ }
 
 function render() {
     if (!ctx || !canvas) {
@@ -2151,7 +2416,11 @@ function render() {
     const bots = gameState.bots || [];
     const allEntities = [...players, ...bots];
     
-    // Silent rendering - no logs
+    // Debug: log camera state occasionally
+    if (Math.random() < 0.01 && localPlayer) { // 1% chance to avoid spam
+        console.log('🎬 Render - Camera pos:', Math.round(camera.x), Math.round(camera.y), 'Player pos:', Math.round(localPlayer.x), Math.round(localPlayer.y), 'Zoom:', camera.zoom.toFixed(2));
+    }
+    
     allEntities.forEach(entity => {
         if (entity) {
             drawEntity(entity);
@@ -2924,6 +3193,13 @@ function gameLoop() {
         // Update player stats every second during gameplay
         if (now - lastStatsUpdate > 1000 && localPlayer) {
             console.log('🔄 Updating player stats - Score:', localPlayer.score, 'User:', nicknameAuth.getCurrentUserSync()?.nickname);
+            
+            // Calculate current speed and update display
+            const vx = localPlayer.vx || 0;
+            const vy = localPlayer.vy || 0;
+            const currentSpeed = Math.sqrt(vx * vx + vy * vy);
+            updatePlayerStatsDisplay(currentSpeed, localPlayer);
+            
             updatePlayerInfoPanelStats(localPlayer);
             // Also force update display immediately
             forceUpdateGameStatsDisplay(localPlayer);
@@ -2979,10 +3255,38 @@ function gameLoop() {
         }
     }
     
+    // Update camera to follow player
     updateCamera();
+    
+    // Debug: test camera following
+    if (localPlayer && Math.random() < 0.001) { // Very rare logging to avoid spam
+        const distance = Math.sqrt((localPlayer.x - camera.x) ** 2 + (localPlayer.y - camera.y) ** 2);
+        if (distance > 100) {
+            console.log('⚠️ Camera may not be following player properly. Distance:', Math.round(distance), 'Player:', Math.round(localPlayer.x), Math.round(localPlayer.y), 'Camera:', Math.round(camera.x), Math.round(camera.y));
+        }
+    }
+    
+    // Update player stats display in real-time (every few frames)
+    if (localPlayer && Math.random() < 0.1) { // 10% chance each frame
+        const vx = localPlayer.vx || 0;
+        const vy = localPlayer.vy || 0;
+        const currentSpeed = Math.sqrt(vx * vx + vy * vy);
+        updatePlayerStatsDisplay(currentSpeed, localPlayer);
+        
+        // Log speed changes for debugging
+        if (Math.abs(currentSpeed - (localPlayer.lastLoggedSpeed || 0)) > 0.1) {
+            console.log('🏃 Speed changed:', (localPlayer.lastLoggedSpeed || 0).toFixed(1), '→', currentSpeed.toFixed(1));
+            localPlayer.lastLoggedSpeed = currentSpeed;
+        }
+    }
+    
+    // Update speech bubbles
     updateSpeechBubbles();
+    
+    // Render the game
     render();
     
+    // Continue the game loop
     requestAnimationFrame(gameLoop);
 }
 
