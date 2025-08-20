@@ -772,12 +772,17 @@ function setupSocketListeners() {
     socket.on('gameState', (data) => {
         gameState = data;
         window.gameState = gameState; // Make gameState globally available
-        localPlayer = gameState.players.find(p => p.id === data.playerId);
+        
+        // Try to find localPlayer by socket.id first, then by any available player
+        localPlayer = gameState.players.find(p => p.socketId === data.playerId) || 
+                     gameState.players.find(p => p.id === data.playerId) ||
+                     gameState.players[0]; // Fallback to first player if available
+        
         window.localPlayer = localPlayer; // Update global reference
         
         // DEBUG: Log player info
         if (localPlayer) {
-            console.log('🎮 gameState received - Player score:', localPlayer.score, 'size:', localPlayer.size, 'playerId:', data.playerId);
+            console.log('🎮 gameState received - Player score:', localPlayer.score, 'size:', localPlayer.size, 'playerId:', data.playerId, 'socketId:', localPlayer.socketId);
             camera.x = localPlayer.x;
             camera.y = localPlayer.y;
             
@@ -789,7 +794,7 @@ function setupSocketListeners() {
             // Update player rank display
             updatePlayerRankDisplay();
         } else {
-            console.log('⚠️ gameState received but no localPlayer found. PlayerId:', data.playerId, 'Available players:', gameState.players.map(p => p.id));
+            console.log('⚠️ gameState received but no localPlayer found. PlayerId:', data.playerId, 'Available players:', gameState.players.map(p => ({id: p.id, socketId: p.socketId, name: p.name})));
         }
     });
     
@@ -800,7 +805,12 @@ function setupSocketListeners() {
         window.gameState = gameState; // Update global reference
         
         const previousLocalPlayer = localPlayer;
-        localPlayer = gameState.players.find(p => p.id === gameState.playerId);
+        
+        // Try to find localPlayer by socket.id first, then by any available player
+        localPlayer = gameState.players.find(p => p.socketId === gameState.playerId) || 
+                     gameState.players.find(p => p.id === gameState.playerId) ||
+                     gameState.players[0]; // Fallback to first player if available
+        
         window.localPlayer = localPlayer; // Update global reference
         
         // Check if player score increased (coin collected)
