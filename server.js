@@ -1258,9 +1258,10 @@ function updatePlayers(deltaTime) {
     if (player.playerEater) {
       // Add cooldown to prevent spam eating
       const now = Date.now();
+      const entitiesToRemove = [];
+      
       if (!player.lastEatTime || (now - player.lastEatTime) > 2000) { // 2 second cooldown
         const allEntities = [...gameState.players.values(), ...gameState.bots.values()];
-        const entitiesToRemove = [];
         
         allEntities.forEach(target => {
           if (target.id !== player.id) { // Can eat anyone except yourself
