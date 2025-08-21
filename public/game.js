@@ -1004,11 +1004,17 @@ function setupSocketListeners() {
                 }
             }
             
-            // Update all player stats display
-            const vx = localPlayer.vx || 0;
-            const vy = localPlayer.vy || 0;
-            const currentSpeed = Math.sqrt(vx * vx + vy * vy);
-            updatePlayerStatsDisplay(currentSpeed, localPlayer);
+                    // Initialize lastSavedScore for tracking score changes
+        if (localPlayer && localPlayer.lastSavedScore === undefined) {
+            localPlayer.lastSavedScore = localPlayer.score || 0;
+            console.log('💰 Initialized lastSavedScore to:', localPlayer.lastSavedScore);
+        }
+        
+        // Update all player stats display
+        const vx = localPlayer.vx || 0;
+        const vy = localPlayer.vy || 0;
+        const currentSpeed = Math.sqrt(vx * vx + vy * vy);
+        updatePlayerStatsDisplay(currentSpeed, localPlayer);
             
             // Update user info panel with fresh game data
             if (window.panelManager) {
@@ -2051,6 +2057,16 @@ function setupUIHandlers() {
                         }
                     } else {
                         console.log('⚠️ Firebase stats not available or totalScore undefined');
+                    }
+                    
+                    // Also update gamesPlayed to at least 1 when starting a game
+                    if (user.stats.gamesPlayed === 0) {
+                        console.log('🎮 First game detected, updating gamesPlayed to 1');
+                        await nicknameAuth.updateUserStats(user.nickname, {
+                            ...user.stats,
+                            gamesPlayed: 1
+                        });
+                        user.stats.gamesPlayed = 1;
                     }
                 } catch (error) {
                     console.warn('⚠️ Failed to sync with Firebase before game start:', error);
@@ -3801,6 +3817,38 @@ function gameLoop() {
         // Update currentGameScore in real-time (every frame for smooth updates)
         if (localPlayer) {
             updateCurrentGameScoreDisplay(localPlayer.score || 0);
+            
+            // Also update totalScore in Firebase if score changed significantly
+            if (localPlayer.lastSavedScore !== localPlayer.score) {
+                const currentUser = nicknameAuth.getCurrentUserSync();
+                if (currentUser && window.authSystem?.currentUser && localPlayer.score > 0) {
+                    // Save totalScore update to Firebase
+                    fetch(`/api/player/${window.authSystem.currentUser.uid}/stats`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ 
+                            score: localPlayer.score,
+                            totalScore: localPlayer.score, // Score = Total Score
+                            gamesPlayed: Math.max((currentUser.stats.gamesPlayed || 0), 1)
+                        })
+                    }).then(response => {
+                        if (response.ok) {
+                            console.log(`💰 Real-time totalScore update: ${localPlayer.score}`);
+                            localPlayer.lastSavedScore = localPlayer.score;
+                            
+                            // Also update local stats
+                            if (currentUser.stats.totalScore !== localPlayer.score) {
+                                currentUser.stats.totalScore = localPlayer.score;
+                                nicknameAuth.updateUserStats(currentUser.nickname, currentUser.stats);
+                            }
+                        }
+                    }).catch(error => {
+                        console.warn('⚠️ Failed to update totalScore in real-time:', error);
+                    });
+                }
+            }
         }
         
         // Refresh user data from Firestore every 60 seconds
@@ -3828,11 +3876,11 @@ function gameLoop() {
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ 
-                            score: localPlayer.score,
-                            totalScore: localPlayer.score, // Score = Total Score
-                            gamesPlayed: (currentUser.stats.gamesPlayed || 0) + 1 // +1 for current active game
-                        })
+                                            body: JSON.stringify({ 
+                        score: localPlayer.score,
+                        totalScore: localPlayer.score, // Score = Total Score
+                        gamesPlayed: Math.max((currentUser.stats.gamesPlayed || 0), 1) // At least 1 game if playing
+                    })
                     }).then(response => {
                         if (response.ok) {
                             console.log(`📊 Periodic full stats backup saved: score=${localPlayer.score}, totalScore=${localPlayer.score}, gamesPlayed=${(currentUser.stats.gamesPlayed || 0) + 1}`);
@@ -4310,7 +4358,7 @@ async function updatePlayerInfoPanelStats(player) {
                         body: JSON.stringify({ 
                             score: currentGameScore,
                             totalScore: currentGameScore, // Score = Total Score
-                            gamesPlayed: (currentUser.stats.gamesPlayed || 0) + 1 // +1 for current active game
+                            gamesPlayed: Math.max((currentUser.stats.gamesPlayed || 0), 1) // At least 1 game if playing
                         })
                     });
                     if (response.ok) {
