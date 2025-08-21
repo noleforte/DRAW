@@ -1594,6 +1594,74 @@ function setupSocketListeners() {
             }
         }, 3000);
     });
+
+    // Handle AFK kick
+    socket.on('afkKick', (data) => {
+        console.log('⏰ AFK kick received:', data);
+        
+        // Show AFK kick notification
+        showNotification(`⏰ Вы были отключены за неактивность (AFK) - ${data.timeInactive}с`, 'warning', 5000);
+        
+        // Fade out game canvas
+        const canvas = document.getElementById('gameCanvas');
+        if (canvas) {
+            canvas.style.transition = 'opacity 1s ease-out';
+            canvas.style.opacity = '0.3';
+        }
+        
+        // Clear game state gradually
+        if (localPlayer) {
+            localPlayer.score = 0;
+            localPlayer.size = 20;
+        }
+        
+        // Remove all players from the game with fade effect
+        players.forEach(player => {
+            if (player.element) {
+                player.element.style.transition = 'opacity 0.5s ease-out';
+                player.element.style.opacity = '0';
+            }
+        });
+        
+        bots.forEach(bot => {
+            if (bot.element) {
+                bot.element.style.transition = 'opacity 0.5s ease-out';
+                bot.element.style.opacity = '0';
+            }
+        });
+        
+        // Clear arrays after fade effect
+        setTimeout(() => {
+            players = [];
+            bots = [];
+        }, 500);
+        
+        // Stop game loop
+        if (gameLoopInterval) {
+            clearInterval(gameLoopInterval);
+            gameLoopInterval = null;
+        }
+        
+        // Disconnect socket
+        if (socket) {
+            socket.disconnect();
+        }
+        
+        // Redirect to main menu after fade effects
+        setTimeout(() => {
+            // Reset game state
+            resetGameState();
+            
+            // Show main menu or redirect to login
+            if (window.authSystem && window.authSystem.currentUser) {
+                // User is logged in, show game menu
+                showGameMenu();
+            } else {
+                // User is not logged in, show login
+                showLoginForm();
+            }
+        }, 1500);
+    });
     
     socket.on('connect_error', (error) => {
         // Show user-friendly message for connection issues
@@ -1607,6 +1675,118 @@ function setupSocketListeners() {
     socket.on('ping', () => {
         socket.emit('pong');
     });
+}
+
+// Reset game state after AFK kick or game end
+function resetGameState() {
+    console.log('🔄 Resetting game state...');
+    
+    // Reset local player
+    if (localPlayer) {
+        localPlayer.score = 0;
+        localPlayer.size = 20;
+        localPlayer.x = 0;
+        localPlayer.y = 0;
+    }
+    
+    // Clear game arrays
+    players = [];
+    bots = [];
+    coins = [];
+    
+    // Reset game loop
+    if (gameLoopInterval) {
+        clearInterval(gameLoopInterval);
+        gameLoopInterval = null;
+    }
+    
+    // Reset canvas
+    const canvas = document.getElementById('gameCanvas');
+    if (canvas) {
+        canvas.style.opacity = '1';
+        canvas.style.transition = 'none';
+    }
+    
+    // Clear any notifications
+    clearNotifications();
+    
+    console.log('✅ Game state reset complete');
+}
+
+// Show game menu (after login)
+function showGameMenu() {
+    console.log('🎮 Showing game menu...');
+    
+    // Hide game canvas
+    const gameCanvas = document.getElementById('gameCanvas');
+    if (gameCanvas) {
+        gameCanvas.style.display = 'none';
+    }
+    
+    // Show main menu container
+    const mainMenu = document.getElementById('mainMenu');
+    if (mainMenu) {
+        mainMenu.style.display = 'block';
+    }
+    
+    // Update user info in menu
+    if (window.authSystem && window.authSystem.currentUser) {
+        updateUserInfoInMenu(window.authSystem.currentUser);
+    }
+}
+
+// Show login form
+function showLoginForm() {
+    console.log('🔐 Showing login form...');
+    
+    // Hide game canvas
+    const gameCanvas = document.getElementById('gameCanvas');
+    if (gameCanvas) {
+        gameCanvas.style.display = 'none';
+    }
+    
+    // Show login container
+    const loginContainer = document.getElementById('loginContainer');
+    if (loginContainer) {
+        loginContainer.style.display = 'block';
+    }
+}
+
+// Clear all notifications
+function clearNotifications() {
+    const notifications = document.querySelectorAll('.notification');
+    notifications.forEach(notification => {
+        notification.remove();
+    });
+}
+
+// Update user info in main menu
+function updateUserInfoInMenu(user) {
+    console.log('👤 Updating user info in menu:', user);
+    
+    // Update user stats display
+    if (user.stats) {
+        const totalCoinsElement = document.getElementById('totalCoins');
+        if (totalCoinsElement) {
+            totalCoinsElement.textContent = user.stats.totalScore || 0;
+        }
+        
+        const matchesPlayedElement = document.getElementById('matchesPlayed');
+        if (matchesPlayedElement) {
+            matchesPlayedElement.textContent = user.stats.gamesPlayed || 0;
+        }
+        
+        const bestScoreElement = document.getElementById('bestScore');
+        if (bestScoreElement) {
+            bestScoreElement.textContent = user.stats.bestScore || 0;
+        }
+    }
+    
+    // Update player name
+    const playerNameElement = document.getElementById('playerInfoName');
+    if (playerNameElement) {
+        playerNameElement.textContent = user.nickname || 'Player';
+    }
 }
 
 // Prevent zoom/scaling to maintain fair gameplay

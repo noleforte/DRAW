@@ -203,13 +203,17 @@ function checkAFKPlayers() {
 
   // Kick AFK players
   playersToKick.forEach(({ player, socketId }) => {
+    console.log(`⏰ Kicking AFK player: ${player.name} (${player.score} coins, inactive for ${Math.floor((now - player.lastActivity) / 1000)}s)`);
+    
     // Save player's coins before kicking (same as death)
     if (player.score > 0 && (player.firebaseId || player.playerId)) {
       const playerIdForSave = player.firebaseId || player.playerId;
       GameDataService.savePlayerCoin(playerIdForSave, player.score)
         .then(() => {
+          console.log(`💰 Saved ${player.score} coins for AFK player: ${player.name}`);
         })
         .catch((error) => {
+          console.error(`❌ Failed to save coins for AFK player ${player.name}:`, error);
         });
     }
     
@@ -221,13 +225,28 @@ function checkAFKPlayers() {
         score: player.score,
         walletAddress: player.wallet || ''
       }).then(() => {
+        console.log(`💾 Saved game session for AFK player: ${player.name}`);
       }).catch((error) => {
+        console.error(`❌ Failed to save game session for AFK player ${player.name}:`, error);
       });
     }
 
     // Send AFK kick message to player
     const socket = io.sockets.sockets.get(socketId);
     if (socket) {
+      console.log(`📤 Sending AFK kick to player: ${player.name}`);
+      
+      // Send AFK kick event first
+      socket.emit('afkKick', {
+        reason: 'AFK timeout',
+        score: player.score,
+        timeInactive: Math.floor((now - player.lastActivity) / 1000),
+        playerName: player.name,
+        lastActivity: player.lastActivity,
+        kickTime: now
+      });
+      
+      // Also send playerEaten event for compatibility
       socket.emit('playerEaten', {
         victimId: socketId,
         eatenByBot: 'AFK System',
@@ -235,11 +254,18 @@ function checkAFKPlayers() {
         coinsSaved: player.score,
         afkKick: true // Special flag for AFK kick
       });
+      
+      console.log(`✅ AFK kick sent to player: ${player.name}`);
     }
 
     // Remove player from game
     gameState.players.delete(socketId);
+    console.log(`🗑️ Removed AFK player from game: ${player.name}`);
   });
+  
+  if (playersToKick.length > 0) {
+    console.log(`⏰ AFK check completed: kicked ${playersToKick.length} inactive players`);
+  }
 }
 
 // Game state
