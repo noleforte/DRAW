@@ -1649,18 +1649,22 @@ function setupSocketListeners() {
         
         // Redirect to main menu after fade effects
         setTimeout(() => {
+            console.log('🔄 AFK kick timeout completed, redirecting to main menu...');
+            
             // Reset game state
             resetGameState();
             
-            // Show main menu or redirect to login
-            if (window.authSystem && window.authSystem.currentUser) {
-                // User is logged in, show game menu
-                showGameMenu();
-            } else {
-                // User is not logged in, show login
-                showLoginForm();
-            }
+            // Force redirect to main menu
+            forceRedirectToMainMenu();
         }, 1500);
+        
+        // Additional safety redirect after 5 seconds
+        setTimeout(() => {
+            console.log('⚠️ Safety redirect after 5 seconds...');
+            if (canvas && canvas.style.opacity !== '0.3') {
+                forceRedirectToMainMenu();
+            }
+        }, 5000);
     });
     
     socket.on('connect_error', (error) => {
@@ -1786,6 +1790,297 @@ function updateUserInfoInMenu(user) {
     const playerNameElement = document.getElementById('playerInfoName');
     if (playerNameElement) {
         playerNameElement.textContent = user.nickname || 'Player';
+    }
+}
+
+// Force redirect to main menu (reliable method)
+function forceRedirectToMainMenu() {
+    console.log('🏠 Force redirecting to main menu...');
+    
+    try {
+        // Method 1: Try to hide game canvas and show main menu
+        const gameCanvas = document.getElementById('gameCanvas');
+        const mainMenu = document.getElementById('mainMenu');
+        const loginContainer = document.getElementById('loginContainer');
+        
+        if (gameCanvas) {
+            gameCanvas.style.display = 'none';
+            console.log('✅ Game canvas hidden');
+        }
+        
+        // Method 2: Try to show main menu
+        if (mainMenu) {
+            mainMenu.style.display = 'block';
+            console.log('✅ Main menu shown');
+        }
+        
+        // Method 3: Try to show login if main menu not found
+        if (!mainMenu && loginContainer) {
+            loginContainer.style.display = 'block';
+            console.log('✅ Login container shown');
+        }
+        
+        // Method 4: Hide all game-related elements
+        const gameElements = document.querySelectorAll('.game-element, .player, .bot, .coin, .booster');
+        gameElements.forEach(element => {
+            if (element && element.style) {
+                element.style.display = 'none';
+            }
+        });
+        console.log(`✅ Hidden ${gameElements.length} game elements`);
+        
+        // Method 4.5: Hide game UI panels
+        const gameUIPanels = document.querySelectorAll('#playerInfoPanel, #gameStatusPanel, #leaderboardPanel, #controlsPanel, #chatPanel');
+        gameUIPanels.forEach(panel => {
+            if (panel && panel.style) {
+                panel.style.display = 'none';
+            }
+        });
+        console.log(`✅ Hidden ${gameUIPanels.length} game UI panels`);
+        
+        // Method 4.6: Hide any remaining game elements by class
+        const remainingGameElements = document.querySelectorAll('[class*="game"], [class*="player"], [class*="bot"], [class*="coin"]');
+        remainingGameElements.forEach(element => {
+            if (element && element.style && !element.classList.contains('main-menu')) {
+                element.style.display = 'none';
+            }
+        });
+        console.log(`✅ Hidden ${remainingGameElements.length} remaining game elements`);
+        
+        // Method 4.7: Hide game container if exists
+        const gameContainer = document.getElementById('gameContainer') || document.querySelector('.game-container');
+        if (gameContainer) {
+            gameContainer.style.display = 'none';
+            console.log('✅ Game container hidden');
+        }
+        
+        // Method 4.8: Hide specific game elements by ID
+        const gameElementIds = ['gameCanvas', 'playerInfoPanel', 'gameStatusPanel', 'leaderboardPanel', 'controlsPanel', 'chatPanel', 'gameContainer'];
+        gameElementIds.forEach(id => {
+            const element = document.getElementById(id);
+            if (element && element.style) {
+                element.style.display = 'none';
+                console.log(`✅ Hidden game element: ${id}`);
+            }
+        });
+        
+        // Method 4.9: Hide all elements with game-related classes
+        const gameClasses = ['game', 'player', 'bot', 'coin', 'booster', 'game-canvas', 'game-panel', 'game-ui'];
+        gameClasses.forEach(className => {
+            const elements = document.querySelectorAll(`.${className}`);
+            elements.forEach(element => {
+                if (element && element.style && !element.classList.contains('main-menu')) {
+                    element.style.display = 'none';
+                }
+            });
+            console.log(`✅ Hidden ${elements.length} elements with class: ${className}`);
+        });
+        
+        // Method 4.10: Hide all elements with game-related data attributes
+        const gameDataElements = document.querySelectorAll('[data-game], [data-player], [data-bot], [data-coin]');
+        gameDataElements.forEach(element => {
+            if (element && element.style) {
+                element.style.display = 'none';
+            }
+        });
+        console.log(`✅ Hidden ${gameDataElements.length} elements with game data attributes`);
+        
+        // Method 4.11: Hide all elements with game-related inline styles
+        const allElements = document.querySelectorAll('*');
+        let hiddenByStyle = 0;
+        allElements.forEach(element => {
+            if (element && element.style && 
+                (element.style.position === 'absolute' || 
+                 element.style.zIndex > 1000 || 
+                 element.style.backgroundColor === 'yellow' ||
+                 element.style.borderRadius === '50%')) {
+                if (!element.classList.contains('main-menu') && 
+                    !element.classList.contains('notification')) {
+                    element.style.display = 'none';
+                    hiddenByStyle++;
+                }
+            }
+        });
+        console.log(`✅ Hidden ${hiddenByStyle} elements by style analysis`);
+        
+        // Method 4.12: Hide all elements with game-related positions
+        const positionedElements = document.querySelectorAll('[style*="position: absolute"], [style*="position:fixed"]');
+        let hiddenByPosition = 0;
+        positionedElements.forEach(element => {
+            if (element && element.style && 
+                !element.classList.contains('main-menu') && 
+                !element.classList.contains('notification')) {
+                element.style.display = 'none';
+                hiddenByPosition++;
+            }
+        });
+        console.log(`✅ Hidden ${hiddenByPosition} elements by position analysis`);
+        
+        // Method 4.13: Hide all elements with game-related colors
+        const coloredElements = document.querySelectorAll('[style*="background-color: yellow"], [style*="background-color: #ffff00"], [style*="background-color: rgb(255, 255, 0)"]');
+        let hiddenByColor = 0;
+        coloredElements.forEach(element => {
+            if (element && element.style && 
+                !element.classList.contains('main-menu') && 
+                !element.classList.contains('notification')) {
+                element.style.display = 'none';
+                hiddenByColor++;
+            }
+        });
+        console.log(`✅ Hidden ${hiddenByColor} elements by color analysis`);
+        
+        // Method 4.14: Hide all elements with game-related sizes
+        const sizedElements = document.querySelectorAll('[style*="width: 20px"], [style*="height: 20px"], [style*="width: 50px"], [style*="height: 50px"]');
+        let hiddenBySize = 0;
+        sizedElements.forEach(element => {
+            if (element && element.style && 
+                !element.classList.contains('main-menu') && 
+                !element.classList.contains('notification')) {
+                element.style.display = 'none';
+                hiddenBySize++;
+            }
+        });
+        console.log(`✅ Hidden ${hiddenBySize} elements by size analysis`);
+        
+        // Method 4.15: Hide all elements with game-related borders
+        const borderedElements = document.querySelectorAll('[style*="border-radius: 50%"], [style*="border-radius: 50px"], [style*="border: 2px solid"]');
+        let hiddenByBorder = 0;
+        borderedElements.forEach(element => {
+            if (element && element.style && 
+                !element.classList.contains('main-menu') && 
+                !element.classList.contains('notification')) {
+                element.style.display = 'none';
+                hiddenByBorder++;
+            }
+        });
+        console.log(`✅ Hidden ${hiddenByBorder} elements by border analysis`);
+        
+        // Method 4.16: Hide all elements with game-related z-index
+        const zIndexElements = document.querySelectorAll('[style*="z-index: 1000"], [style*="z-index: 999"], [style*="z-index: 1001"]');
+        let hiddenByZIndex = 0;
+        zIndexElements.forEach(element => {
+            if (element && element.style && 
+                !element.classList.contains('main-menu') && 
+                !element.classList.contains('notification')) {
+                element.style.display = 'none';
+                hiddenByZIndex++;
+            }
+        });
+        console.log(`✅ Hidden ${hiddenByZIndex} elements by z-index analysis`);
+        
+        // Method 4.17: Hide all elements with game-related coordinates
+        const coordinateElements = document.querySelectorAll('[style*="left: 0px"], [style*="top: 0px"], [style*="left: 100px"], [style*="top: 100px"]');
+        let hiddenByCoordinate = 0;
+        coordinateElements.forEach(element => {
+            if (element && element.style && 
+                !element.classList.contains('main-menu') && 
+                !element.classList.contains('notification')) {
+                element.style.display = 'none';
+                hiddenByCoordinate++;
+            }
+        });
+        console.log(`✅ Hidden ${hiddenByCoordinate} elements by coordinate analysis`);
+        
+        // Method 4.18: Hide all elements with game-related transformations
+        const transformElements = document.querySelectorAll('[style*="transform: translate"], [style*="transform: scale"], [style*="transform: rotate"]');
+        let hiddenByTransform = 0;
+        transformElements.forEach(element => {
+            if (element && element.style && 
+                !element.classList.contains('main-menu') && 
+                !element.classList.contains('notification')) {
+                element.style.display = 'none';
+                hiddenByTransform++;
+            }
+        });
+        console.log(`✅ Hidden ${hiddenByTransform} elements by transform analysis`);
+        
+        // Method 4.19: Hide all elements with game-related animations
+        const animationElements = document.querySelectorAll('[style*="animation"], [style*="transition"]');
+        let hiddenByAnimation = 0;
+        animationElements.forEach(element => {
+            if (element && element.style && 
+                !element.classList.contains('main-menu') && 
+                !element.classList.contains('notification')) {
+                element.style.display = 'none';
+                hiddenByAnimation++;
+            }
+        });
+        console.log(`✅ Hidden ${hiddenByAnimation} elements by animation analysis`);
+        
+        // Method 4.20: Hide all elements with game-related filters
+        const filterElements = document.querySelectorAll('[style*="filter"], [style*="backdrop-filter"]');
+        let hiddenByFilter = 0;
+        filterElements.forEach(element => {
+            if (element && element.style && 
+                !element.classList.contains('main-menu') && 
+                !element.classList.contains('notification')) {
+                element.style.display = 'none';
+                hiddenByFilter++;
+            }
+        });
+        console.log(`✅ Hidden ${hiddenByFilter} elements by filter analysis`);
+        
+        // Method 4.21: Hide all elements with game-related shadows
+        const shadowElements = document.querySelectorAll('[style*="box-shadow"], [style*="text-shadow"], [style*="drop-shadow"]');
+        let hiddenByShadow = 0;
+        shadowElements.forEach(element => {
+            if (element && element.style && 
+                !element.classList.contains('main-menu') && 
+                !element.classList.contains('notification')) {
+                element.style.display = 'none';
+                hiddenByShadow++;
+            }
+        });
+        console.log(`✅ Hidden ${hiddenByShadow} elements by shadow analysis`);
+        
+        // Method 4.22: Hide all elements with game-related gradients
+        const gradientElements = document.querySelectorAll('[style*="background: linear-gradient"], [style*="background: radial-gradient"], [style*="background-image"]');
+        let hiddenByGradient = 0;
+        gradientElements.forEach(element => {
+            if (element && element.style && 
+                !element.classList.contains('main-menu') && 
+                !element.classList.contains('notification')) {
+                element.style.display = 'none';
+                hiddenByGradient++;
+            }
+        });
+        console.log(`✅ Hidden ${hiddenByGradient} elements by gradient analysis`);
+        
+        // Method 4.23: Hide all elements with game-related fonts
+        const fontElements = document.querySelectorAll('[style*="font-family"], [style*="font-size"], [style*="font-weight"]');
+        let hiddenByFont = 0;
+        fontElements.forEach(element => {
+            if (element && element.style && 
+                !element.classList.contains('main-menu') && 
+                !element.classList.contains('notification')) {
+                element.style.display = 'none';
+                hiddenByFont++;
+            }
+        });
+        console.log(`✅ Hidden ${hiddenByFont} elements by font analysis`);
+        
+        // Method 5: If nothing works, try to reload the page
+        if (!mainMenu && !loginContainer) {
+            console.log('⚠️ No menu containers found, reloading page...');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+        
+        // Method 6: Force page reload as last resort
+        setTimeout(() => {
+            if (gameCanvas && gameCanvas.style.display !== 'none') {
+                console.log('🔄 Force reloading page as last resort...');
+                window.location.reload();
+            }
+        }, 3000);
+        
+    } catch (error) {
+        console.error('❌ Error in forceRedirectToMainMenu:', error);
+        // Last resort: reload page
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
     }
 }
 
