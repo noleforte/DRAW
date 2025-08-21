@@ -1200,47 +1200,63 @@ io.on('connection', (socket) => {
     if (existingPlayer) {
       // Player reconnecting - preserve their current game state
       console.log(`🔄 Player ${name} reconnecting - Current score: ${existingPlayer.score}, size: ${existingPlayer.size}`);
-      existingPlayer.socketId = socket.id;
-      existingPlayer.lastSeen = Date.now();
-      existingPlayer.lastActivity = Date.now();
       
-      // Load fresh data from Firestore for reconnected player (but preserve current game score)
-      if (existingPlayer.id) {
-        console.log(`🔍 Loading data for reconnected player: ${existingPlayer.id} (current score: ${existingPlayer.score})`);
-        // Load data asynchronously but update player immediately
-        GameDataService.getPlayerStats(existingPlayer.id)
-          .then(playerStats => {
-            console.log(`📊 Received playerStats for reconnected ${existingPlayer.id}:`, playerStats);
-            if (playerStats) {
-              // Update size if newer data exists (but preserve current game score)
-              if (playerStats.lastSize && playerStats.lastSize > existingPlayer.size) {
-                existingPlayer.size = playerStats.lastSize;
-                console.log(`🎯 Reconnected player ${existingPlayer.id} - Updated size to ${playerStats.lastSize} (current game score preserved: ${existingPlayer.score})`);
-              }
-              
-              // Don't update score from Total Coins - this would cause score doubling
-              // existingPlayer.score should remain as current game score
-              // Only update size based on totalScore if it's higher (represents player's progress)
-              if (playerStats.totalScore) {
-                const calculatedSize = calculatePlayerSize(playerStats.totalScore);
-                if (calculatedSize > existingPlayer.size) {
-                  existingPlayer.size = calculatedSize;
-                  console.log(`💰 Reconnected player ${existingPlayer.id} - Updated size to ${calculatedSize} based on totalScore ${playerStats.totalScore} (current game score remains ${existingPlayer.score})`);
-                }
-              }
-              
-              // Log final state for debugging
-              console.log(`✅ Reconnected player ${existingPlayer.id} final state - Score: ${existingPlayer.score}, Size: ${existingPlayer.size}`);
-    } else {
-              console.log(`❌ No playerStats found for reconnected ${existingPlayer.id}`);
-            }
-          })
-          .catch(error => {
-            console.error('Error loading reconnected player data from Firestore:', error);
-          });
-      } else {
-        console.log(`⚠️ No ID for reconnected player ${name}`);
+      // Remove old player entry and create new one with new socket.id
+      const oldSocketId = Array.from(gameState.players.entries()).find(([id, p]) => p.name === name)?.[0];
+      if (oldSocketId) {
+        gameState.players.delete(oldSocketId);
+        console.log(`🗑️ Removed old player entry with socketId: ${oldSocketId}`);
       }
+      
+      // Create new player entry with new socket.id
+      const reconnectedPlayer = {
+        ...existingPlayer,
+        socketId: socket.id,
+        lastSeen: Date.now(),
+        lastActivity: Date.now()
+      };
+      
+      // Add to gameState.players with new socket.id
+      gameState.players.set(socket.id, reconnectedPlayer);
+      console.log(`✅ Added reconnected player with new socketId: ${socket.id}`);
+      
+              // Load fresh data from Firestore for reconnected player (but preserve current game score)
+        if (reconnectedPlayer.id) {
+          console.log(`🔍 Loading data for reconnected player: ${reconnectedPlayer.id} (current score: ${reconnectedPlayer.score})`);
+          // Load data asynchronously but update player immediately
+          GameDataService.getPlayerStats(reconnectedPlayer.id)
+            .then(playerStats => {
+              console.log(`📊 Received playerStats for reconnected ${reconnectedPlayer.id}:`, playerStats);
+              if (playerStats) {
+                // Update size if newer data exists (but preserve current game score)
+                if (playerStats.lastSize && playerStats.lastSize > reconnectedPlayer.size) {
+                  reconnectedPlayer.size = playerStats.lastSize;
+                  console.log(`🎯 Reconnected player ${reconnectedPlayer.id} - Updated size to ${playerStats.lastSize} (current game score preserved: ${reconnectedPlayer.score})`);
+                }
+                
+                // Don't update score from Total Coins - this would cause score doubling
+                // reconnectedPlayer.score should remain as current game score
+                // Only update size based on totalScore if it's higher (represents player's progress)
+                if (playerStats.totalScore) {
+                  const calculatedSize = calculatePlayerSize(playerStats.totalScore);
+                  if (calculatedSize > reconnectedPlayer.size) {
+                    reconnectedPlayer.size = calculatedSize;
+                    console.log(`💰 Reconnected player ${reconnectedPlayer.id} - Updated size to ${calculatedSize} based on totalScore ${playerStats.totalScore} (current game score remains ${reconnectedPlayer.score})`);
+                  }
+                }
+                
+                // Log final state for debugging
+                console.log(`✅ Reconnected player ${reconnectedPlayer.id} final state - Score: ${reconnectedPlayer.score}, Size: ${reconnectedPlayer.size}`);
+              } else {
+                console.log(`❌ No playerStats found for reconnected ${reconnectedPlayer.id}`);
+              }
+            })
+            .catch(error => {
+              console.error('Error loading reconnected player data from Firestore:', error);
+            });
+        } else {
+          console.log(`⚠️ No ID for reconnected player ${name}`);
+        }
       
       // Send game state to reconnected player
       const gameStateForClient = {
@@ -1256,7 +1272,7 @@ io.on('connection', (socket) => {
       };
       
       socket.emit('gameState', gameStateForClient);
-      console.log(`🔄 Player ${name} reconnected with preserved score: ${existingPlayer.score}`);
+      console.log(`🔄 Player ${name} reconnected with preserved score: ${reconnectedPlayer.score}`);
     } else {
       // New player joining - create player object
       const playerId = wallet || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -1388,7 +1404,14 @@ io.on('connection', (socket) => {
       // Debug: Log calculated target velocity
       console.log(`🎮 Player ${player.name} target velocity: (${Math.round(player.targetVx * 10) / 10}, ${Math.round(player.targetVy * 10) / 10})`);
     } else {
-      console.log(`⚠️ playerMove ignored - Player: ${!!player}, GameStarted: ${gameState.gameStarted}, GameEnded: ${gameState.gameEnded}`);
+      // Enhanced debugging for playerMove issues
+      console.log(`⚠️ playerMove ignored - Socket ID: ${socket.id}`);
+      console.log(`⚠️ Player found: ${!!player}`);
+      console.log(`⚠️ GameStarted: ${gameState.gameStarted}`);
+      console.log(`⚠️ GameEnded: ${gameState.gameEnded}`);
+      console.log(`⚠️ Total players in game: ${gameState.players.size}`);
+      console.log(`⚠️ Available player names: ${Array.from(gameState.players.values()).map(p => p.name).join(', ')}`);
+      console.log(`⚠️ Available socket IDs: ${Array.from(gameState.players.keys()).join(', ')}`);
     }
   });
 
@@ -1511,16 +1534,22 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    console.log(`🔌 Socket ${socket.id} disconnected`);
+    
     // Save player state for potential reconnection (5 minutes)
     const player = gameState.players.get(socket.id);
     if (player && player.firebaseId) {
+      console.log(`💾 Saving state for disconnected player: ${player.name} (${player.score} coins, size: ${player.size})`);
+      
       // Save game session when player disconnects (regardless of score)
       GameDataService.saveGameSession(player.firebaseId, {
         playerName: player.name,
         score: player.score,
         walletAddress: player.wallet || ''
       }).then(() => {
+        console.log(`✅ Game session saved for ${player.name}`);
       }).catch(error => {
+        console.error(`❌ Failed to save game session for ${player.name}:`, error);
       });
       
       // Save player size when player disconnects
@@ -1529,6 +1558,7 @@ io.on('connection', (socket) => {
         setTimeout(async () => {
           try {
             await GameDataService.savePlayerSize(playerIdForSize, player.size);
+            console.log(`✅ Player size saved for ${player.name}: ${player.size}`);
           } catch (error) {
             console.error('Error saving player size on disconnect:', error);
           }
@@ -1539,11 +1569,16 @@ io.on('connection', (socket) => {
       setTimeout(() => {
         if (disconnectedPlayers.has(player.firebaseId)) {
           disconnectedPlayers.delete(player.firebaseId);
+          console.log(`🗑️ Cleaned up disconnected player data for: ${player.name}`);
         }
       }, 5 * 60 * 1000); // 5 minutes
+    } else {
+      console.log(`⚠️ No player found for disconnected socket: ${socket.id}`);
     }
     
-    gameState.players.delete(socket.id);
+    // Remove player from game state
+    const removed = gameState.players.delete(socket.id);
+    console.log(`🗑️ Player removed from game state: ${removed ? 'Yes' : 'No'} (socket: ${socket.id})`);
   });
 });
 
