@@ -36,7 +36,7 @@ class GameDataService {
             if (playerDoc.exists) {
                 const currentStats = playerDoc.data();
                 await playerRef.update({
-                    totalScore: (currentStats.totalScore || 0) + gameData.score,
+                    totalScore: gameData.score, // Score = Total Score, so just update to current value
                     gamesPlayed: (currentStats.gamesPlayed || 0) + 1,
                     bestScore: Math.max(currentStats.bestScore || 0, gameData.score),
                     lastPlayed: admin.firestore.FieldValue.serverTimestamp(),
@@ -135,23 +135,23 @@ class GameDataService {
         }
     }
 
-    // Save single coin to player's total (real-time)
-    async savePlayerCoin(playerId, coinValue = 1) {
+    // Save player's current total score (Score = Total Score)
+    async savePlayerCoin(playerId, currentTotalScore) {
         try {
             const playerRef = db.collection('players').doc(playerId);
             const playerDoc = await playerRef.get();
             
             if (playerDoc.exists) {
-                // Update existing player's total coins
+                // Update existing player's total score
                 await playerRef.update({
-                    totalScore: admin.firestore.FieldValue.increment(coinValue),
+                    totalScore: currentTotalScore, // Score = Total Score, update to current value
                     lastPlayed: admin.firestore.FieldValue.serverTimestamp()
                 });
             } else {
                 // Create new player if doesn't exist
                 await playerRef.set({
                     playerName: `Player_${playerId}`,
-                    totalScore: coinValue,
+                    totalScore: currentTotalScore,
                     gamesPlayed: 0,
                     bestScore: 0,
                     firstPlayed: admin.firestore.FieldValue.serverTimestamp(),
@@ -159,7 +159,7 @@ class GameDataService {
                 });
             }
         } catch (error) {
-            console.error('Error saving player coin:', error);
+            console.error('Error saving player total score:', error);
         }
     }
 
@@ -272,14 +272,14 @@ class GameDataService {
                 await playerRef.update({
                     gamesPlayed: (currentStats.gamesPlayed || 0) + 1,
                     bestScore: Math.max(currentStats.bestScore || 0, sessionData.score),
-                    totalScore: admin.firestore.FieldValue.increment(sessionData.score), // Add score to totalScore
+                    totalScore: sessionData.score, // Update totalScore to current score (Score = Total Score)
                     lastPlayed: admin.firestore.FieldValue.serverTimestamp()
                 });
             } else {
                 await playerRef.set({
                     playerName: sessionData.playerName,
                     walletAddress: sessionData.walletAddress || '',
-                    totalScore: sessionData.score, // Set initial totalScore to session score
+                    totalScore: sessionData.score, // Set totalScore to current score
                     gamesPlayed: 1,
                     bestScore: sessionData.score,
                     firstPlayed: admin.firestore.FieldValue.serverTimestamp(),

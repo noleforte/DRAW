@@ -712,41 +712,42 @@ function resizeCanvas() {
     canvas.height = window.innerHeight;
 }
 
-// Send coins to Firestore in real-time
+// Send total score to Firestore in real-time (Score = Total Score)
 async function sendCoinsToFirestore(coinsGained) {
     const currentUser = window.nicknameAuth?.getCurrentUserSync();
-    if (!currentUser || !window.firebaseDb) {
-        console.log('⚠️ Cannot save coins - no user or Firestore connection');
+    if (!currentUser || !window.firebaseDb || !window.localPlayer) {
+        console.log('⚠️ Cannot save score - no user, Firestore connection, or localPlayer');
         return;
     }
     
     try {
         const playerId = currentUser.nickname;
+        const totalScore = window.localPlayer.score; // Use total current score
         
-        console.log(`💾 Saving ${coinsGained} coins to Firestore for player: ${playerId}`);
+        console.log(`💾 Saving total score ${totalScore} to Firestore for player: ${playerId} (gained ${coinsGained})`);
         
         // Update Firestore directly
         const playerRef = window.firebaseDb.collection('players').doc(playerId);
         const playerDoc = await playerRef.get();
         
         if (playerDoc.exists) {
-            // Update existing player's total coins
+            // Update existing player's total score
             await playerRef.update({
-                totalScore: window.firebase.firestore.FieldValue.increment(coinsGained),
+                totalScore: totalScore, // Score = Total Score, update to current value
                 lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
             });
-            console.log(`✅ Added ${coinsGained} coins to Firestore for ${playerId}`);
+            console.log(`✅ Updated total score to ${totalScore} in Firestore for ${playerId}`);
         } else {
             // Create new player document
             await playerRef.set({
                 playerName: playerId,
-                totalScore: coinsGained,
+                totalScore: totalScore,
                 gamesPlayed: 0,
                 bestScore: 0,
                 firstPlayed: window.firebase.firestore.FieldValue.serverTimestamp(),
                 lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
             });
-            console.log(`🆕 Created new player ${playerId} with ${coinsGained} coins`);
+            console.log(`🆕 Created new player ${playerId} with total score ${totalScore}`);
         }
         
         // Force refresh stats from Firestore
@@ -883,20 +884,19 @@ function setupSocketListeners() {
                 console.log('✅ Camera initialized successfully');
             }
             
-            // Initialize player score from Total Coins if this is a new game
+            // Initialize player score from Total Score (Score = Total Score in this game)
             const currentUser = nicknameAuth.getCurrentUserSync();
             if (currentUser && currentUser.stats && currentUser.stats.totalScore && localPlayer.score === 0) {
-                // Don't initialize current game score from totalScore - this causes confusion
-                // localPlayer.score should start at 0 for each new game
-                console.log('💰 Current game score starts at 0 (totalScore is separate)');
+                console.log('💰 Initializing player score from Total Score:', currentUser.stats.totalScore);
+                localPlayer.score = currentUser.stats.totalScore;
                 
-                // Update server with initial score (should be 0)
+                // Update server with initial score
                 if (socket && socket.connected) {
                     socket.emit('updatePlayerScore', {
                         playerId: localPlayer.id,
-                        score: 0
+                        score: localPlayer.score
                     });
-                    console.log('📤 Sent initial score to server: 0');
+                    console.log('📤 Sent initial score to server:', localPlayer.score);
                 }
             }
             
@@ -1437,7 +1437,7 @@ function setupSocketListeners() {
                 
                 const newStats = {
                     gamesPlayed: (currentUser.stats.gamesPlayed || 0) + 1,
-                    totalScore: (currentUser.stats.totalScore || 0) + currentGameScore,
+                    totalScore: currentGameScore, // Score = Total Score, so just update to current value
                     bestScore: Math.max((currentUser.stats.bestScore || 0), currentGameScore),
                     wins: (currentUser.stats.wins || 0) + (finalResults.findIndex(p => p.id === localPlayer.id) === 0 ? 1 : 0)
                 };

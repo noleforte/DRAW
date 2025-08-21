@@ -653,10 +653,10 @@ function updatePlayers(deltaTime) {
         // Update activity when player collects coin
         player.lastActivity = Date.now();
         
-        // Queue coin for Firebase saving (save the actual value received)
+        // Queue player for Firebase saving (save total score, not individual coins)
         const playerIdForFirebase = player.firebaseId || player.playerId || player.id;
         if (playerIdForFirebase) {
-          coinsToSave.push({ playerId: playerIdForFirebase, value: actualCoinValue, playerName: player.name });
+          coinsToSave.push({ playerId: playerIdForFirebase, totalScore: player.score, playerName: player.name });
         } else {
         }
         
@@ -766,13 +766,20 @@ function updatePlayers(deltaTime) {
       console.log(`💰 Coin boost expired for player ${player.name}`);
     }
     
-    // Save coins to Firebase in batch (non-blocking)
+    // Save player total scores to Firebase in batch (non-blocking)
     if (coinsToSave.length > 0) {
       // Use setTimeout to avoid blocking the game loop
       setTimeout(async () => {
-        for (const coinData of coinsToSave) {
+        // Group by playerId to avoid multiple updates for the same player
+        const playerScores = new Map();
+        for (const playerData of coinsToSave) {
+          playerScores.set(playerData.playerId, playerData.totalScore);
+        }
+        
+        // Save the latest total score for each player
+        for (const [playerId, totalScore] of playerScores) {
           try {
-            await GameDataService.savePlayerCoin(coinData.playerId, coinData.value);
+            await GameDataService.savePlayerCoin(playerId, totalScore);
           } catch (error) {
           }
         }
