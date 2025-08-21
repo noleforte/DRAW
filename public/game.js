@@ -1595,76 +1595,17 @@ function setupSocketListeners() {
         }, 3000);
     });
 
-    // Handle AFK kick
+    // Handle AFK kick - simple page reload
     socket.on('afkKick', (data) => {
-        console.log('⏰ AFK kick received:', data);
+        console.log('⏰ AFK kick received, reloading page...', data);
         
-        // Show AFK kick notification
-        showNotification(`⏰ Вы были отключены за неактивность (AFK) - ${data.timeInactive}с`, 'warning', 5000);
+        // Show brief notification
+        showNotification(`⏰ Отключен за неактивность (AFK)`, 'warning', 1000);
         
-        // Fade out game canvas
-        const canvas = document.getElementById('gameCanvas');
-        if (canvas) {
-            canvas.style.transition = 'opacity 1s ease-out';
-            canvas.style.opacity = '0.3';
-        }
-        
-        // Clear game state gradually
-        if (localPlayer) {
-            localPlayer.score = 0;
-            localPlayer.size = 20;
-        }
-        
-        // Remove all players from the game with fade effect
-        players.forEach(player => {
-            if (player.element) {
-                player.element.style.transition = 'opacity 0.5s ease-out';
-                player.element.style.opacity = '0';
-            }
-        });
-        
-        bots.forEach(bot => {
-            if (bot.element) {
-                bot.element.style.transition = 'opacity 0.5s ease-out';
-                bot.element.style.opacity = '0';
-            }
-        });
-        
-        // Clear arrays after fade effect
+        // Simple page reload after short delay
         setTimeout(() => {
-            players = [];
-            bots = [];
-        }, 500);
-        
-        // Stop game loop
-        if (gameLoopInterval) {
-            clearInterval(gameLoopInterval);
-            gameLoopInterval = null;
-        }
-        
-        // Disconnect socket
-        if (socket) {
-            socket.disconnect();
-        }
-        
-        // Redirect to main menu after fade effects
-        setTimeout(() => {
-            console.log('🔄 AFK kick timeout completed, redirecting to main menu...');
-            
-            // Reset game state
-            resetGameState();
-            
-            // Force redirect to main menu
-            forceRedirectToMainMenu();
-        }, 1500);
-        
-        // Additional safety redirect after 5 seconds
-        setTimeout(() => {
-            console.log('⚠️ Safety redirect after 5 seconds...');
-            if (canvas && canvas.style.opacity !== '0.3') {
-                forceRedirectToMainMenu();
-            }
-        }, 5000);
+            window.location.reload();
+        }, 1000);
     });
     
     socket.on('connect_error', (error) => {

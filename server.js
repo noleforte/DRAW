@@ -313,27 +313,94 @@ const botHuntingMessages = [
 // Generate random position within world bounds
 function getRandomPosition() {
   // Ensure coins spawn within the visible game field (not at the very edges)
-  const margin = 100; // Keep coins 100 pixels away from world boundaries
+  const margin = 50; // Reduced margin for better distribution
   const minX = -gameState.worldSize/2 + margin;
   const maxX = gameState.worldSize/2 - margin;
   const minY = -gameState.worldSize/2 + margin;
   const maxY = gameState.worldSize/2 - margin;
   
-  return {
-    x: Math.random() * (maxX - minX) + minX,
-    y: Math.random() * (maxY - minY) + minY
-  };
+  // Use better random distribution (avoid clustering at edges)
+  const x = minX + (maxX - minX) * (0.1 + 0.8 * Math.random()); // 10% margin from edges
+  const y = minY + (maxY - minY) * (0.1 + 0.8 * Math.random()); // 10% margin from edges
+  
+  return { x, y };
 }
 
-// Generate coins
+// Generate coins with better distribution
 function generateCoins(count = 300) {
+  const margin = 50;
+  const minX = -gameState.worldSize/2 + margin;
+  const maxX = gameState.worldSize/2 - margin;
+  const minY = -gameState.worldSize/2 + margin;
+  const maxY = gameState.worldSize/2 - margin;
+  
+  // Create a grid-based distribution for more even spacing
+  const gridSize = Math.ceil(Math.sqrt(count));
+  const cellWidth = (maxX - minX) / gridSize;
+  const cellHeight = (maxY - minY) / gridSize;
+  
+  console.log(`🎯 Generating ${count} coins with grid size ${gridSize}x${gridSize}, cell size: ${cellWidth.toFixed(0)}x${cellHeight.toFixed(0)}`);
+  
   for (let i = 0; i < count; i++) {
+    // Calculate grid position
+    const gridX = i % gridSize;
+    const gridY = Math.floor(i / gridSize);
+    
+    // Add some randomness within each grid cell (but not too much)
+    const randomOffsetX = (Math.random() - 0.5) * cellWidth * 0.6;
+    const randomOffsetY = (Math.random() - 0.5) * cellHeight * 0.6;
+    
     const coin = {
       id: gameState.nextCoinId++,
-      ...getRandomPosition(),
+      x: minX + gridX * cellWidth + randomOffsetX,
+      y: minY + gridY * cellHeight + randomOffsetY,
       value: 1
     };
+    
+    // Ensure coin is within bounds
+    coin.x = Math.max(minX, Math.min(maxX, coin.x));
+    coin.y = Math.max(minY, Math.min(maxY, coin.y));
+    
     gameState.coins.set(coin.id, coin);
+  }
+  
+  console.log(`✅ Generated ${gameState.coins.size} coins with even distribution`);
+}
+
+// Function to redistribute coins if they get too clustered
+function redistributeCoinsIfNeeded() {
+  const coins = Array.from(gameState.coins.values());
+  if (coins.length < 10) return; // Not enough coins to redistribute
+  
+  // Check if coins are too clustered
+  let totalDistance = 0;
+  let pairCount = 0;
+  
+  for (let i = 0; i < coins.length; i++) {
+    for (let j = i + 1; j < coins.length; j++) {
+      const distance = Math.sqrt((coins[i].x - coins[j].x) ** 2 + (coins[i].y - coins[j].y) ** 2);
+      totalDistance += distance;
+      pairCount++;
+    }
+  }
+  
+  const averageDistance = totalDistance / pairCount;
+  const expectedDistance = gameState.worldSize / Math.sqrt(coins.length); // Expected distance for even distribution
+  
+  // If coins are too clustered (average distance is much less than expected), redistribute some
+  if (averageDistance < expectedDistance * 0.3) {
+    console.log('🔄 Redistributing clustered coins...');
+    
+    // Redistribute 20% of coins
+    const coinsToRedistribute = Math.floor(coins.length * 0.2);
+    const shuffledCoins = coins.sort(() => Math.random() - 0.5);
+    
+    for (let i = 0; i < coinsToRedistribute; i++) {
+      const coin = shuffledCoins[i];
+      const newPos = getRandomPosition();
+      coin.x = newPos.x;
+      coin.y = newPos.y;
+    }
   }
 }
 
@@ -381,7 +448,7 @@ function createBot(id) {
 // Calculate safe flee target that avoids world boundaries
 function calculateSafeFleeTarget(bot, threat, worldSize) {
   const halfWorld = worldSize / 2;
-  const safeMargin = 100; // Stay 100 pixels away from edges
+  const safeMargin = 50; // Reduced margin for better distribution
   const minX = -halfWorld + safeMargin;
   const maxX = halfWorld - safeMargin;
   const minY = -halfWorld + safeMargin;
@@ -650,12 +717,34 @@ function updateBots() {
         bot.score += coin.value;
         gameState.coins.delete(coin.id);
         
-        // Respawn coin
+        // Respawn coin with better positioning
         const newCoin = {
           id: gameState.nextCoinId++,
           ...getRandomPosition(),
           value: 1
         };
+        
+        // Try to avoid spawning too close to existing coins
+        let attempts = 0;
+        const maxAttempts = 10;
+        while (attempts < maxAttempts) {
+          let tooClose = false;
+          gameState.coins.forEach(existingCoin => {
+            const distance = Math.sqrt((existingCoin.x - newCoin.x) ** 2 + (existingCoin.y - newCoin.y) ** 2);
+            if (distance < 30) { // Minimum distance between coins
+              tooClose = true;
+            }
+          });
+          
+          if (!tooClose) break;
+          
+          // Try new position
+          const newPos = getRandomPosition();
+          newCoin.x = newPos.x;
+          newCoin.y = newPos.y;
+          attempts++;
+        }
+        
         gameState.coins.set(newCoin.id, newCoin);
         
         // Player growth based on score (Agar.io style)
@@ -751,13 +840,35 @@ function updatePlayers(deltaTime) {
     coinsToDelete.forEach(coinId => {
       gameState.coins.delete(coinId);
       
-      // Respawn coin
-      const newCoin = {
-        id: gameState.nextCoinId++,
-        ...getRandomPosition(),
-        value: 1
-      };
-      gameState.coins.set(newCoin.id, newCoin);
+              // Respawn coin with better positioning
+        const newCoin = {
+          id: gameState.nextCoinId++,
+          ...getRandomPosition(),
+          value: 1
+        };
+        
+        // Try to avoid spawning too close to existing coins
+        let attempts = 0;
+        const maxAttempts = 10;
+        while (attempts < maxAttempts) {
+          let tooClose = false;
+          gameState.coins.forEach(existingCoin => {
+            const distance = Math.sqrt((existingCoin.x - newCoin.x) ** 2 + (existingCoin.y - newCoin.y) ** 2);
+            if (distance < 30) { // Minimum distance between coins
+              tooClose = true;
+            }
+          });
+          
+          if (!tooClose) break;
+          
+          // Try new position
+          const newPos = getRandomPosition();
+          newCoin.x = newPos.x;
+          newCoin.y = newPos.y;
+          attempts++;
+        }
+        
+        gameState.coins.set(newCoin.id, newCoin);
     });
     
     // Check booster collection
@@ -1597,6 +1708,18 @@ setInterval(() => {
   // Debug: Log game state
   console.log(`🔄 Game loop - Players: ${gameState.players.size}, Bots: ${gameState.bots.size}, Coins: ${gameState.coins.size}`);
   
+  // Log coin distribution every 30 seconds
+  if (now % 30000 < 16) {
+    const coins = Array.from(gameState.coins.values());
+    if (coins.length > 0) {
+      const minX = Math.min(...coins.map(c => c.x));
+      const maxX = Math.max(...coins.map(c => c.x));
+      const minY = Math.min(...coins.map(c => c.y));
+      const maxY = Math.max(...coins.map(c => c.y));
+      console.log(`💰 Coin distribution - X: ${minX.toFixed(0)} to ${maxX.toFixed(0)}, Y: ${minY.toFixed(0)} to ${maxY.toFixed(0)}`);
+    }
+  }
+  
   // Update game logic with deltaTime for smooth 60fps movement
   updatePlayers(deltaTime);
   updateBots();
@@ -1605,6 +1728,11 @@ setInterval(() => {
   if (now - lastAFKCheck > 30000) {
     checkAFKPlayers();
     lastAFKCheck = now;
+  }
+  
+  // Check and redistribute coins if needed (every 10 seconds)
+  if (now % 10000 < 16) { // Every ~10 seconds (16ms is roughly one frame at 60fps)
+    redistributeCoinsIfNeeded();
   }
   
   // Only broadcast every 3rd frame (20 FPS instead of 60)
