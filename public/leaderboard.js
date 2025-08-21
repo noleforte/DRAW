@@ -15,12 +15,12 @@ class LeaderboardManager {
             });
         }
 
-        // Auto-refresh global leaderboard every 30 seconds
+        // Auto-refresh global leaderboard every 10 seconds for real-time online status
         setInterval(() => {
             if (this.currentType === 'global') {
                 this.loadGlobalLeaderboard();
             }
-        }, 30000);
+        }, 10000);
     }
 
     toggleLeaderboardType() {
@@ -28,7 +28,7 @@ class LeaderboardManager {
         const toggleBtn = document.getElementById('toggleLeaderboardType');
         
         if (toggleBtn) {
-            toggleBtn.textContent = this.currentType === 'match' ? 'Match' : 'Global';
+            toggleBtn.textContent = this.currentType === 'match' ? 'Match' : 'All Players';
         }
 
         if (this.currentType === 'global') {
@@ -75,6 +75,17 @@ class LeaderboardManager {
             return;
         }
 
+        // Update header text based on type
+        if (this.currentType === 'global') {
+            const onlineCount = data.filter(p => p.isOnline).length;
+            const totalCount = data.length;
+            const headerText = `All Players (${onlineCount} Online, ${totalCount - onlineCount} Offline)`;
+            const leaderboardHeader = document.querySelector('.leaderboard-header h2');
+            if (leaderboardHeader) {
+                leaderboardHeader.textContent = headerText;
+            }
+        }
+
         const html = data.map((player, index) => {
             const score = this.currentType === 'match' ? player.score : player.totalScore;
             const name = player.nickname || player.playerName || player.name || 'Unknown';
@@ -92,7 +103,8 @@ class LeaderboardManager {
                 nameDisplay = `🤖 ${name}`;
             } else if (this.currentType === 'global') {
                 const onlineStatus = isOnline ? '🟢' : '🔴';
-                nameDisplay = `${onlineStatus} ${name}`;
+                const statusText = isOnline ? 'Online' : 'Offline';
+                nameDisplay = `${onlineStatus} ${name} <span class="text-xs text-gray-400">(${statusText})</span>`;
             }
 
             return `
@@ -109,7 +121,7 @@ class LeaderboardManager {
         leaderboardList.innerHTML = html;
 
         // Add type indicator
-        const header = this.currentType === 'match' ? '🏆 Match Leaders' : '🌟 All Players (🟢 Online, 🔴 Offline)';
+        const header = this.currentType === 'match' ? '🏆 Match Leaders' : '🌟 All Players Database (🟢 Online, 🔴 Offline)';
         const headerElement = document.querySelector('#leaderboard h3');
         if (headerElement) {
             headerElement.textContent = header;

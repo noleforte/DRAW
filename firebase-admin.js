@@ -485,7 +485,8 @@ class GameDataService {
                     email: data.email || '',
                     lastLogin: data.lastLogin || null,
                     lastPlayed: data.lastPlayed || null,
-                    lastSize: data.lastSize || null
+                    lastSize: data.lastSize || null,
+                    isOnline: false // Will be updated by server
                 });
             });
             
