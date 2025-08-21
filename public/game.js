@@ -460,43 +460,88 @@ class HybridAuthSystem {
 
         try {
             const normalizedNickname = currentUser.nickname.toLowerCase().trim();
-            console.log('🔍 Fetching from Firestore collection players, doc:', normalizedNickname);
-            const doc = await window.firebaseDb.collection('players').doc(normalizedNickname).get();
+            let bestStats = {
+                totalScore: currentUser.stats?.totalScore || 0,
+                gamesPlayed: currentUser.stats?.gamesPlayed || 0,
+                bestScore: currentUser.stats?.bestScore || 0,
+                wins: currentUser.stats?.wins || 0
+            };
             
-            console.log('🔍 Firestore doc exists:', doc.exists);
-            if (doc.exists) {
-                const firestoreData = doc.data();
-                console.log('🔍 Firestore data:', JSON.stringify(firestoreData, null, 2));
+            // Try to get data from players collection (game data)
+            try {
+                console.log('🔍 Fetching from Firestore collection players, doc:', normalizedNickname);
+                const playersDoc = await window.firebaseDb.collection('players').doc(normalizedNickname).get();
                 
-                // Extract stats from Firestore (check both nested and root locations)
-                // Use the higher value between root and stats object
-                const rootTotalScore = firestoreData.totalScore || 0;
-                const statsTotalScore = firestoreData.stats?.totalScore || 0;
-                const totalScore = Math.max(rootTotalScore, statsTotalScore);
-                
-                const extractedStats = {
-                    totalScore: totalScore,
-                    gamesPlayed: firestoreData.stats?.gamesPlayed || firestoreData.gamesPlayed || 0,
-                    bestScore: firestoreData.stats?.bestScore || firestoreData.bestScore || 0,
-                    wins: firestoreData.stats?.wins || firestoreData.wins || 0
-                };
-                
-                console.log('📊 Extracted stats from Firestore:', extractedStats);
-                console.log('👤 Current user stats before update:', currentUser.stats);
-                
-                // Update localStorage user stats with Firestore data
-                currentUser.stats = extractedStats;
-                
-                console.log('👤 Current user stats after assignment:', currentUser.stats);
-                
-                // Save updated user back to localStorage
-                this.setCurrentUser(currentUser);
-                console.log('🔄 Synced user stats from Firestore:', currentUser.stats);
-                
-                return currentUser;
-            } else {
-                console.log('⚠️ No Firestore document found for user:', normalizedNickname);
+                if (playersDoc.exists) {
+                    const playersData = playersDoc.data();
+                    console.log('🔍 Players collection data:', JSON.stringify(playersData, null, 2));
+                    
+                    // Extract stats from players collection
+                    const playersStats = {
+                        totalScore: playersData.totalScore || 0,
+                        gamesPlayed: playersData.gamesPlayed || 0,
+                        bestScore: playersData.bestScore || 0,
+                        wins: playersData.wins || 0
+                    };
+                    
+                    console.log('📊 Players collection stats:', playersStats);
+                    
+                    // Use maximum values between players and current stats
+                    bestStats.totalScore = Math.max(bestStats.totalScore, playersStats.totalScore);
+                    bestStats.gamesPlayed = Math.max(bestStats.gamesPlayed, playersStats.gamesPlayed);
+                    bestStats.bestScore = Math.max(bestStats.bestScore, playersStats.bestScore);
+                    bestStats.wins = Math.max(bestStats.wins, playersStats.wins);
+                } else {
+                    console.log('⚠️ No players collection document found for user:', normalizedNickname);
+                }
+            } catch (error) {
+                console.warn('⚠️ Failed to fetch from players collection:', error);
             }
+            
+            // Try to get data from users collection (auth data)
+            try {
+                console.log('🔍 Fetching from Firestore collection users, doc:', normalizedNickname);
+                const usersDoc = await window.firebaseDb.collection('users').doc(normalizedNickname).get();
+                
+                if (usersDoc.exists) {
+                    const usersData = usersDoc.data();
+                    console.log('🔍 Users collection data:', JSON.stringify(usersData, null, 2));
+                    
+                    // Extract stats from users collection
+                    const usersStats = {
+                        totalScore: usersData.stats?.totalScore || 0,
+                        gamesPlayed: usersData.stats?.gamesPlayed || 0,
+                        bestScore: usersData.stats?.bestScore || 0,
+                        wins: usersData.stats?.wins || 0
+                    };
+                    
+                    console.log('📊 Users collection stats:', usersStats);
+                    
+                    // Use maximum values between users and best stats
+                    bestStats.totalScore = Math.max(bestStats.totalScore, usersStats.totalScore);
+                    bestStats.gamesPlayed = Math.max(bestStats.gamesPlayed, usersStats.gamesPlayed);
+                    bestStats.bestScore = Math.max(bestStats.bestScore, usersStats.bestScore);
+                    bestStats.wins = Math.max(bestStats.wins, usersStats.wins);
+                } else {
+                    console.log('⚠️ No users collection document found for user:', normalizedNickname);
+                }
+            } catch (error) {
+                console.warn('⚠️ Failed to fetch from users collection:', error);
+            }
+            
+            console.log('📊 Best combined stats:', bestStats);
+            console.log('👤 Current user stats before update:', currentUser.stats);
+            
+            // Update localStorage user stats with best combined data
+            currentUser.stats = bestStats;
+            
+            console.log('👤 Current user stats after assignment:', currentUser.stats);
+            
+            // Save updated user back to localStorage
+            this.setCurrentUser(currentUser);
+            console.log('🔄 Synced user stats from Firestore:', currentUser.stats);
+            
+            return currentUser;
         } catch (error) {
             console.error('❌ Failed to sync stats from Firestore:', error);
         }
