@@ -1647,22 +1647,22 @@ function setupSocketListeners() {
             socket.disconnect();
         }
         
-        // Redirect to main page after fade effects
+        // Redirect to main menu after fade effects
         setTimeout(() => {
-            console.log('🔄 AFK kick timeout completed, redirecting to main page...');
+            console.log('🔄 AFK kick timeout completed, redirecting to main menu...');
             
             // Reset game state
             resetGameState();
             
-            // Simple redirect to main page
-            window.location.href = '/';
+            // Force redirect to main menu
+            forceRedirectToMainMenu();
         }, 1500);
         
         // Additional safety redirect after 5 seconds
         setTimeout(() => {
             console.log('⚠️ Safety redirect after 5 seconds...');
             if (canvas && canvas.style.opacity !== '0.3') {
-                window.location.href = '/';
+                forceRedirectToMainMenu();
             }
         }, 5000);
     });
@@ -1717,7 +1717,44 @@ function resetGameState() {
     console.log('✅ Game state reset complete');
 }
 
-// These functions are no longer needed since we redirect to main page
+// Show game menu (after login)
+function showGameMenu() {
+    console.log('🎮 Showing game menu...');
+    
+    // Hide game canvas
+    const gameCanvas = document.getElementById('gameCanvas');
+    if (gameCanvas) {
+        gameCanvas.style.display = 'none';
+    }
+    
+    // Show main menu container
+    const mainMenu = document.getElementById('mainMenu');
+    if (mainMenu) {
+        mainMenu.style.display = 'block';
+    }
+    
+    // Update user info in menu
+    if (window.authSystem && window.authSystem.currentUser) {
+        updateUserInfoInMenu(window.authSystem.currentUser);
+    }
+}
+
+// Show login form
+function showLoginForm() {
+    console.log('🔐 Showing login form...');
+    
+    // Hide game canvas
+    const gameCanvas = document.getElementById('gameCanvas');
+    if (gameCanvas) {
+        gameCanvas.style.display = 'none';
+    }
+    
+    // Show login container
+    const loginContainer = document.getElementById('loginContainer');
+    if (loginContainer) {
+        loginContainer.style.display = 'block';
+    }
+}
 
 // Clear all notifications
 function clearNotifications() {
@@ -1727,9 +1764,40 @@ function clearNotifications() {
     });
 }
 
-// This function is no longer needed since we redirect to main page
+// Update user info in main menu
+function updateUserInfoInMenu(user) {
+    console.log('👤 Updating user info in menu:', user);
+    
+    // Update user stats display
+    if (user.stats) {
+        const totalCoinsElement = document.getElementById('totalCoins');
+        if (totalCoinsElement) {
+            totalCoinsElement.textContent = user.stats.totalScore || 0;
+        }
+        
+        const matchesPlayedElement = document.getElementById('matchesPlayed');
+        if (matchesPlayedElement) {
+            matchesPlayedElement.textContent = user.stats.gamesPlayed || 0;
+        }
+        
+        const bestScoreElement = document.getElementById('bestScore');
+        if (bestScoreElement) {
+            bestScoreElement.textContent = user.stats.bestScore || 0;
+        }
+    }
+    
+    // Update player name
+    const playerNameElement = document.getElementById('playerInfoName');
+    if (playerNameElement) {
+        playerNameElement.textContent = user.nickname || 'Player';
+    }
+}
 
-// This function is no longer needed since we use direct redirect
+// Force redirect to main menu (reliable method)
+function forceRedirectToMainMenu() {
+    console.log('🏠 Force redirecting to main menu...');
+    
+    try {
         // Method 1: Try to hide game canvas and show main menu
         const gameCanvas = document.getElementById('gameCanvas');
         const mainMenu = document.getElementById('mainMenu');
@@ -1991,7 +2059,30 @@ function clearNotifications() {
         });
         console.log(`✅ Hidden ${hiddenByFont} elements by font analysis`);
         
-        // All methods removed since function is no longer neede
+        // Method 5: If nothing works, try to reload the page
+        if (!mainMenu && !loginContainer) {
+            console.log('⚠️ No menu containers found, reloading page...');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+        
+        // Method 6: Force page reload as last resort
+        setTimeout(() => {
+            if (gameCanvas && gameCanvas.style.display !== 'none') {
+                console.log('🔄 Force reloading page as last resort...');
+                window.location.reload();
+            }
+        }, 3000);
+        
+    } catch (error) {
+        console.error('❌ Error in forceRedirectToMainMenu:', error);
+        // Last resort: reload page
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
+    }
+}
 
 // Prevent zoom/scaling to maintain fair gameplay
 function preventZoom() {
