@@ -948,20 +948,39 @@ function setupSocketListeners() {
                     }
                 }
                 
-                // Always set localPlayer.score to the highest totalScore available
-                if (maxTotalScore > 0) {
-                    console.log('💰 Setting localPlayer.score to highest totalScore:', maxTotalScore);
-                    localPlayer.score = maxTotalScore;
-                    
-                    // Update server with initial score
-                    if (socket && socket.connected) {
-                        socket.emit('updatePlayerScore', {
-                            playerId: localPlayer.id,
-                            score: localPlayer.score
-                        });
-                        console.log('📤 Sent initial score to server:', localPlayer.score);
-                    }
+                            // Always set localPlayer.score to the highest totalScore available
+            // If totalScore is 0 but bestScore exists, use bestScore as totalScore
+            if (maxTotalScore > 0) {
+                console.log('💰 Setting localPlayer.score to highest totalScore:', maxTotalScore);
+                localPlayer.score = maxTotalScore;
+                
+                // Update server with initial score
+                if (socket && socket.connected) {
+                    socket.emit('updatePlayerScore', {
+                        playerId: localPlayer.id,
+                        score: localPlayer.score
+                    });
+                    console.log('📤 Sent initial score to server:', localPlayer.score);
                 }
+            } else if (currentUser.stats.bestScore > 0) {
+                // If totalScore is 0 but bestScore exists, use bestScore
+                console.log('💰 totalScore is 0, but bestScore exists. Using bestScore as totalScore:', currentUser.stats.bestScore);
+                localPlayer.score = currentUser.stats.bestScore;
+                
+                // Update server with initial score
+                if (socket && socket.connected) {
+                    socket.emit('updatePlayerScore', {
+                        playerId: localPlayer.id,
+                        score: localPlayer.score
+                    });
+                    console.log('📤 Sent initial score to server (using bestScore):', localPlayer.score);
+                }
+                
+                // Also update local stats to reflect this
+                currentUser.stats.totalScore = currentUser.stats.bestScore;
+                nicknameAuth.updateUserStats(currentUser.nickname, currentUser.stats);
+                console.log('✅ Updated local stats: totalScore = bestScore');
+            }
             }
             
             // Note: Firebase sync is now handled above for all cases
