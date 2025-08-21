@@ -682,19 +682,48 @@ function updateBots() {
       }
     }
     
-    // Get final target (either original or alternative)
-    const finalTargetId = botTargets.get(bot.id);
-    if (finalTargetId) {
-      const targetCoin = gameState.coins.get(finalTargetId);
-      if (targetCoin) {
+    // Check if there are dangerous Player Eater players nearby
+    let dangerousPlayerNearby = false;
+    let escapeDirection = { x: 0, y: 0 };
+    
+    gameState.players.forEach(player => {
+      if (player.playerEater) {
+        const distanceToPlayer = Math.sqrt((player.x - bot.x) ** 2 + (player.y - bot.y) ** 2);
+        if (distanceToPlayer < 150) { // If Player Eater is within 150 pixels
+          dangerousPlayerNearby = true;
+          // Calculate escape direction (opposite to player)
+          const dx = bot.x - player.x;
+          const dy = bot.y - player.y;
+          const escapeDistance = Math.sqrt(dx * dx + dy * dy);
+          if (escapeDistance > 0) {
+            escapeDirection.x = dx / escapeDistance;
+            escapeDirection.y = dy / escapeDistance;
+          }
+        }
+      }
+    });
+    
+    // If dangerous player nearby, prioritize escaping over coin collection
+    if (dangerousPlayerNearby) {
+      targetFound = false; // Cancel coin target
+      // Move in escape direction
+      targetX = bot.x + escapeDirection.x * 100;
+      targetY = bot.y + escapeDirection.y * 100;
+      console.log(`🤖 Bot ${bot.name} escaping from Player Eater!`);
+    } else {
+      // Get final target (either original or alternative) - normal coin collection
+      const finalTargetId = botTargets.get(bot.id);
+      if (finalTargetId) {
+        const targetCoin = gameState.coins.get(finalTargetId);
+        if (targetCoin) {
           // Check if coin target would lead bot too close to boundaries
-        const targetSafe = isTargetSafeFromBoundaries(bot, targetCoin, gameState.worldSize);
+          const targetSafe = isTargetSafeFromBoundaries(bot, targetCoin, gameState.worldSize);
           if (targetSafe) {
-          targetX = targetCoin.x;
-          targetY = targetCoin.y;
+            targetX = targetCoin.x;
+            targetY = targetCoin.y;
             targetFound = true;
           } else {
-          // If target coin is unsafe, try to find a safer coin or move towards center
+            // If target coin is unsafe, try to find a safer coin or move towards center
             const safeCoin = findSafeCoinTarget(bot, gameState.coins, gameState.worldSize);
             if (safeCoin) {
               targetX = safeCoin.x;
@@ -705,6 +734,7 @@ function updateBots() {
               targetX = 0;
               targetY = 0;
               targetFound = true;
+            }
           }
         }
       }
@@ -783,8 +813,10 @@ function updateBots() {
         
         gameState.coins.set(newCoin.id, newCoin);
         
-        // Player growth based on score (Agar.io style)
-        bot.size = calculatePlayerSize(bot.score);
+        // Player growth based on score (Agar.io style) - but don't override Player Eater boost
+        if (!bot.playerEater) {
+          bot.size = calculatePlayerSize(bot.score);
+        }
       }
      });
      
@@ -804,8 +836,8 @@ function updateBots() {
           bot.playerEaterOriginalSize = bot.size;
           bot.playerEaterOriginalSpeed = bot.speed || 1;
           
-          // Set bot to Level 5 stats
-          bot.size = 50; // Level 5 size
+          // Set bot to Level 5 stats (minimum size for effectiveness)
+          bot.size = Math.max(50, bot.size); // At least Level 5 size, but can be bigger if bot already has more score
           bot.speed = 1.5; // Level 5 speed (50% faster than normal)
           
           // Send notification to all players
@@ -857,47 +889,54 @@ function updateBots() {
     
     // Check Player Eater mechanics for bots - can eat other players regardless of size
     if (bot.playerEater) {
-      const allEntities = [...gameState.players.values(), ...gameState.bots.values()];
-      const entitiesToRemove = [];
-      
-      allEntities.forEach(target => {
-        if (target.id !== bot.id) { // Can eat anyone except yourself
-          const distance = Math.sqrt((target.x - bot.x) ** 2 + (target.y - bot.y) ** 2);
-          
-          // Can eat if touching (Player Eater ignores size requirements)
-          if (distance < (bot.size + target.size) * 0.7) {
-            // Transfer 10% of victim's score to bot
-            const coinsGained = Math.floor(target.score * 0.1);
-            bot.score += coinsGained;
+      // Add cooldown to prevent spam eating
+      const now = Date.now();
+      if (!bot.lastEatTime || (now - bot.lastEatTime) > 3000) { // 3 second cooldown for bots
+        const allEntities = [...gameState.players.values(), ...gameState.bots.values()];
+        const entitiesToRemove = [];
+        
+        allEntities.forEach(target => {
+          if (target.id !== bot.id) { // Can eat anyone except yourself
+            const distance = Math.sqrt((target.x - bot.x) ** 2 + (target.y - bot.y) ** 2);
             
-            // Reduce victim's score by 10%
-            target.score = Math.floor(target.score * 0.9);
-            
-            // Mark entity for removal if score becomes 0
-            if (target.score <= 0) {
-              entitiesToRemove.push(target);
-            }
-            
-            // Send eating notification
-            io.emit('chatMessage', {
-              playerId: bot.id,
-              playerName: bot.name,
-              message: `👹 ${bot.name} ate ${target.name}! (+${coinsGained} coins, ${target.name} lost 10%)`,
-              timestamp: Date.now()
-            });
-            
-            // Send playerEaten event to victim if it's a player
-            if (target.socketId) {
-              io.to(target.socketId).emit('playerEaten', {
-                victimId: target.id,
-                eatenBy: bot.name,
-                coinsLost: Math.floor(target.score * 0.1),
-                remainingScore: target.score
+            // Can eat if touching (Player Eater ignores size requirements)
+            if (distance < (bot.size + target.size) * 0.7) {
+              // Transfer 10% of victim's score to bot
+              const coinsGained = Math.floor(target.score * 0.1);
+              bot.score += coinsGained;
+              
+              // Reduce victim's score by 10%
+              target.score = Math.floor(target.score * 0.9);
+              
+              // Mark entity for removal if score becomes 0
+              if (target.score <= 0) {
+                entitiesToRemove.push(target);
+              }
+              
+              // Send eating notification
+              io.emit('chatMessage', {
+                playerId: bot.id,
+                playerName: bot.name,
+                message: `👹 ${bot.name} ate ${target.name}! (+${coinsGained} coins, ${target.name} lost 10%)`,
+                timestamp: Date.now()
               });
+              
+              // Send playerEaten event to victim if it's a player
+              if (target.socketId) {
+                io.to(target.socketId).emit('playerEaten', {
+                  victimId: target.id,
+                  eatenBy: bot.name,
+                  coinsLost: Math.floor(target.score * 0.1),
+                  remainingScore: target.score
+                });
+              }
+              
+              // Set cooldown to prevent spam eating
+              bot.lastEatTime = now;
+              // Only eat one player per cooldown period
             }
           }
-        }
-      });
+        });
       
       // Remove entities with 0 score
       entitiesToRemove.forEach(entity => {
@@ -908,6 +947,7 @@ function updateBots() {
         }
       });
     }
+  }
     
     // Check and expire Player Eater for bots
     if (bot.playerEater && now > bot.playerEaterEndTime) {
@@ -986,8 +1026,10 @@ function updatePlayers(deltaTime) {
         } else {
         }
         
-        // Player growth based on score (Agar.io style)
-        player.size = calculatePlayerSize(player.score);
+        // Player growth based on score (Agar.io style) - but don't override Player Eater boost
+        if (!player.playerEater) {
+          player.size = calculatePlayerSize(player.score);
+        }
         
         // Save player size for next game
         if (player.firebaseId || player.playerId) {
@@ -1056,8 +1098,8 @@ function updatePlayers(deltaTime) {
                         player.playerEaterOriginalSize = player.size;
                         player.playerEaterOriginalSpeed = player.speed || 1;
                         
-                        // Set player to Level 5 stats
-                        player.size = 50; // Level 5 size
+                        // Set player to Level 5 stats (minimum size for effectiveness)
+                        player.size = Math.max(50, player.size); // At least Level 5 size, but can be bigger if player already has more score
                         player.speed = 1.5; // Level 5 speed (50% faster than normal)
                         
                         // Send notification to all players
@@ -1214,47 +1256,54 @@ function updatePlayers(deltaTime) {
     
     // Check Player Eater mechanics - can eat other players regardless of size
     if (player.playerEater) {
-    const allEntities = [...gameState.players.values(), ...gameState.bots.values()];
-    const entitiesToRemove = [];
-    
-    allEntities.forEach(target => {
-             if (target.id !== player.id) { // Can eat anyone except yourself
-         const distance = Math.sqrt((target.x - player.x) ** 2 + (target.y - player.y) ** 2);
-         
-          // Can eat if touching (Player Eater ignores size requirements)
-          if (distance < (player.size + target.size) * 0.7) {
-            // Transfer 10% of victim's score to player
-            const coinsGained = Math.floor(target.score * 0.1);
-          player.score += coinsGained;
+      // Add cooldown to prevent spam eating
+      const now = Date.now();
+      if (!player.lastEatTime || (now - player.lastEatTime) > 2000) { // 2 second cooldown
+        const allEntities = [...gameState.players.values(), ...gameState.bots.values()];
+        const entitiesToRemove = [];
+        
+        allEntities.forEach(target => {
+          if (target.id !== player.id) { // Can eat anyone except yourself
+            const distance = Math.sqrt((target.x - player.x) ** 2 + (target.y - player.y) ** 2);
             
-            // Reduce victim's score by 10%
-            target.score = Math.floor(target.score * 0.9);
-            
-            // Mark entity for removal if score becomes 0
-            if (target.score <= 0) {
-              entitiesToRemove.push(target);
-          }
-          
-                     // Send eating notification
-           io.emit('chatMessage', {
-             playerId: player.id,
-             playerName: player.name,
-              message: `👹 ${player.name} ate ${target.name}! (+${coinsGained} coins, ${target.name} lost 10%)`,
-             timestamp: Date.now()
-           });
-           
-            // Send playerEaten event to victim
-            if (target.socketId) {
-              io.to(target.socketId).emit('playerEaten', {
-                victimId: target.id,
-                eatenBy: player.name,
-                coinsLost: Math.floor(target.score * 0.1),
-                remainingScore: target.score
+            // Can eat if touching (Player Eater ignores size requirements)
+            if (distance < (player.size + target.size) * 0.7) {
+              // Transfer 10% of victim's score to player
+              const coinsGained = Math.floor(target.score * 0.1);
+              player.score += coinsGained;
+              
+              // Reduce victim's score by 10%
+              target.score = Math.floor(target.score * 0.9);
+              
+              // Mark entity for removal if score becomes 0
+              if (target.score <= 0) {
+                entitiesToRemove.push(target);
+              }
+              
+              // Send eating notification
+              io.emit('chatMessage', {
+                playerId: player.id,
+                playerName: player.name,
+                message: `👹 ${player.name} ate ${target.name}! (+${coinsGained} coins, ${target.name} lost 10%)`,
+                timestamp: Date.now()
               });
+              
+              // Send playerEaten event to victim
+              if (target.socketId) {
+                io.to(target.socketId).emit('playerEaten', {
+                  victimId: target.id,
+                  eatenBy: player.name,
+                  coinsLost: Math.floor(target.score * 0.1),
+                  remainingScore: target.score
+                });
+              }
+              
+              // Set cooldown to prevent spam eating
+              player.lastEatTime = now;
+              // Only eat one player per cooldown period
             }
           }
-        }
-      });
+        });
       
       // Remove entities with 0 score
       entitiesToRemove.forEach(entity => {
