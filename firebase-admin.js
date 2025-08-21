@@ -272,13 +272,14 @@ class GameDataService {
                 await playerRef.update({
                     gamesPlayed: (currentStats.gamesPlayed || 0) + 1,
                     bestScore: Math.max(currentStats.bestScore || 0, sessionData.score),
+                    totalScore: admin.firestore.FieldValue.increment(sessionData.score), // Add score to totalScore
                     lastPlayed: admin.firestore.FieldValue.serverTimestamp()
                 });
             } else {
                 await playerRef.set({
                     playerName: sessionData.playerName,
                     walletAddress: sessionData.walletAddress || '',
-                    totalScore: 0, // Total coins are tracked separately
+                    totalScore: sessionData.score, // Set initial totalScore to session score
                     gamesPlayed: 1,
                     bestScore: sessionData.score,
                     firstPlayed: admin.firestore.FieldValue.serverTimestamp(),

@@ -886,16 +886,17 @@ function setupSocketListeners() {
             // Initialize player score from Total Coins if this is a new game
             const currentUser = nicknameAuth.getCurrentUserSync();
             if (currentUser && currentUser.stats && currentUser.stats.totalScore && localPlayer.score === 0) {
-                console.log('💰 Initializing player score from Total Coins:', currentUser.stats.totalScore);
-                localPlayer.score = currentUser.stats.totalScore;
+                // Don't initialize current game score from totalScore - this causes confusion
+                // localPlayer.score should start at 0 for each new game
+                console.log('💰 Current game score starts at 0 (totalScore is separate)');
                 
-                // Update server with initial score
+                // Update server with initial score (should be 0)
                 if (socket && socket.connected) {
                     socket.emit('updatePlayerScore', {
                         playerId: localPlayer.id,
-                        score: localPlayer.score
+                        score: 0
                     });
-                    console.log('📤 Sent initial score to server:', localPlayer.score);
+                    console.log('📤 Sent initial score to server: 0');
                 }
             }
             
@@ -1413,8 +1414,27 @@ function setupSocketListeners() {
         const currentUser = nicknameAuth.getCurrentUserSync();
         if (currentUser && localPlayer && localPlayer.name === currentUser.nickname) {
             try {
-                // Calculate new stats
-                const currentGameScore = localPlayer.score || 0;
+                // Calculate new stats - ensure we have the correct current game score
+                let currentGameScore = localPlayer.score || 0;
+                
+                // Debug logging to understand what's happening with score
+                console.log('🔍 Score debugging:');
+                console.log('  - localPlayer.score:', localPlayer.score);
+                console.log('  - localPlayer object:', localPlayer);
+                console.log('  - finalResults:', finalResults);
+                
+                // Try to get score from finalResults if localPlayer.score seems wrong
+                const finalPlayerResult = finalResults.find(p => p.id === localPlayer.id);
+                if (finalPlayerResult && finalPlayerResult.score !== undefined) {
+                    console.log('  - Found score in finalResults:', finalPlayerResult.score);
+                    currentGameScore = finalPlayerResult.score;
+                }
+                
+                // Additional fallback: check if we have a reasonable score
+                if (currentGameScore <= 0 && currentUser.stats && currentUser.stats.totalScore > 0) {
+                    console.log('⚠️ Warning: currentGameScore is 0 but user has totalScore. This might indicate a bug.');
+                }
+                
                 const newStats = {
                     gamesPlayed: (currentUser.stats.gamesPlayed || 0) + 1,
                     totalScore: (currentUser.stats.totalScore || 0) + currentGameScore,
@@ -1428,6 +1448,7 @@ function setupSocketListeners() {
                 // Also save game session to Firebase if authenticated
                 if (window.authSystem && window.authSystem.currentUser) {
                     try {
+                        console.log('💾 Saving game session to Firebase with score:', currentGameScore);
                         const response = await fetch(`/api/player/${window.authSystem.currentUser.uid}/session`, {
                             method: 'POST',
                             headers: {
@@ -1440,13 +1461,15 @@ function setupSocketListeners() {
                             })
                         });
                         if (response.ok) {
-                            console.log('💾 Game session saved to Firebase');
+                            console.log('💾 Game session saved to Firebase successfully');
                             // Reload stats from Firebase to get updated data
                             setTimeout(async () => {
                                 if (window.authSystem) {
                                     await window.authSystem.reloadPlayerStats();
                                 }
                             }, 1000); // Wait 1 second for database to update
+                        } else {
+                            console.warn('⚠️ Firebase save failed with status:', response.status);
                         }
                     } catch (error) {
                         console.warn('⚠️ Failed to save game session to Firebase:', error);
