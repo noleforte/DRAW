@@ -85,6 +85,28 @@ app.post('/api/player/:playerId/best-score', async (req, res) => {
   }
 });
 
+// API endpoint for updating player's full stats (score, totalScore, gamesPlayed)
+app.post('/api/player/:playerId/stats', async (req, res) => {
+  try {
+    const playerId = req.params.playerId;
+    const { score, totalScore, gamesPlayed } = req.body;
+    
+    if (typeof score !== 'number' || score < 0) {
+      return res.status(400).json({ error: 'Invalid score value' });
+    }
+    
+    if (typeof totalScore !== 'number' || totalScore < 0) {
+      return res.status(400).json({ error: 'Invalid totalScore value' });
+    }
+    
+    const updated = await GameDataService.updatePlayerFullStats(playerId, { score, totalScore, gamesPlayed });
+    res.json({ updated, score, totalScore, gamesPlayed });
+  } catch (error) {
+    console.error('Error updating player stats:', error);
+    res.status(500).json({ error: 'Failed to update player stats' });
+  }
+});
+
 // API endpoint for saving completed game session
 app.post('/api/player/:playerId/session', async (req, res) => {
   try {

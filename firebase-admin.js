@@ -262,6 +262,42 @@ class GameDataService {
             return false;
         }
     }
+    
+    // Update player's full stats (score, totalScore, gamesPlayed)
+    async updatePlayerFullStats(playerId, statsData) {
+        try {
+            const playerRef = db.collection('players').doc(playerId);
+            const playerDoc = await playerRef.get();
+            
+            if (playerDoc.exists) {
+                const currentStats = playerDoc.data();
+                await playerRef.update({
+                    totalScore: statsData.totalScore, // Update totalScore to current score
+                    gamesPlayed: statsData.gamesPlayed || (currentStats.gamesPlayed || 0),
+                    bestScore: Math.max(currentStats.bestScore || 0, statsData.score),
+                    lastPlayed: admin.firestore.FieldValue.serverTimestamp()
+                });
+                console.log(`✅ Updated full stats for player ${playerId}: totalScore=${statsData.totalScore}, gamesPlayed=${statsData.gamesPlayed}, bestScore=${Math.max(currentStats.bestScore || 0, statsData.score)}`);
+            } else {
+                // Create new player if doesn't exist
+                await playerRef.set({
+                    playerName: `Player_${playerId}`,
+                    walletAddress: '',
+                    totalScore: statsData.totalScore,
+                    gamesPlayed: statsData.gamesPlayed || 0,
+                    bestScore: statsData.score,
+                    firstPlayed: admin.firestore.FieldValue.serverTimestamp(),
+                    lastPlayed: admin.firestore.FieldValue.serverTimestamp()
+                });
+                console.log(`🆕 Created new player ${playerId} with full stats: totalScore=${statsData.totalScore}, gamesPlayed=${statsData.gamesPlayed}, bestScore=${statsData.score}`);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Error updating player full stats:', error);
+            return false;
+        }
+    }
 
     // Save completed game session (only called when player finishes a session)
     async saveGameSession(playerId, sessionData) {

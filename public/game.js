@@ -2807,6 +2807,17 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
     const currentGameScoreElement = document.getElementById('currentGameScore');
     if (currentGameScoreElement) {
         currentGameScoreElement.textContent = player.score || 0;
+        
+        // Also update all other currentGameScore elements on the page
+        const allCurrentGameScoreElements = document.querySelectorAll('#currentGameScore');
+        allCurrentGameScoreElements.forEach(element => {
+            if (element !== currentGameScoreElement) {
+                element.textContent = player.score || 0;
+            }
+        });
+        
+        // Log the update for debugging
+        console.log('💰 Updated currentGameScore display to:', player.score || 0);
     } else {
         console.warn('⚠️ currentGameScore element not found');
     }
@@ -2880,6 +2891,14 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
     
     // Update booster status in stats if elements exist
     updateBoosterStatusDisplay();
+}
+
+// Function to update currentGameScore display in real-time
+function updateCurrentGameScoreDisplay(score) {
+    const allCurrentGameScoreElements = document.querySelectorAll('#currentGameScore');
+    allCurrentGameScoreElements.forEach(element => {
+        element.textContent = score;
+    });
 }
 
 function worldToScreen(worldX, worldY) {
@@ -3779,6 +3798,11 @@ function gameLoop() {
             lastStatsUpdate = now;
         }
         
+        // Update currentGameScore in real-time (every frame for smooth updates)
+        if (localPlayer) {
+            updateCurrentGameScoreDisplay(localPlayer.score || 0);
+        }
+        
         // Refresh user data from Firestore every 60 seconds
         if (now - lastFirestoreRefresh > 60000) {
             nicknameAuth.refreshCurrentUserFromFirestore().then(freshUser => {
@@ -3792,26 +3816,32 @@ function gameLoop() {
             lastFirestoreRefresh = now;
         }
         
-        // Save best score to Firebase every 30 seconds as backup
+        // Save full player stats to Firebase every 30 seconds as backup
         if (now - lastBestScoreSave > 30000 && localPlayer && localPlayer.score > 0) {
             const currentUser = nicknameAuth.getCurrentUserSync();
             if (currentUser && window.authSystem?.currentUser) {
                 const savedBestScore = currentUser.stats.bestScore || 0;
                 if (localPlayer.score > savedBestScore) {
-                    // Save new best score
-                    fetch(`/api/player/${window.authSystem.currentUser.uid}/best-score`, {
+                    // Save full player stats (score, totalScore, gamesPlayed)
+                    fetch(`/api/player/${window.authSystem.currentUser.uid}/stats`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ score: localPlayer.score })
+                        body: JSON.stringify({ 
+                            score: localPlayer.score,
+                            totalScore: localPlayer.score, // Score = Total Score
+                            gamesPlayed: (currentUser.stats.gamesPlayed || 0) + 1 // +1 for current active game
+                        })
                     }).then(response => {
                         if (response.ok) {
-                            console.log(`🏆 Periodic best score backup saved: ${localPlayer.score}`);
+                            console.log(`📊 Periodic full stats backup saved: score=${localPlayer.score}, totalScore=${localPlayer.score}, gamesPlayed=${(currentUser.stats.gamesPlayed || 0) + 1}`);
                             currentUser.stats.bestScore = localPlayer.score;
+                            currentUser.stats.totalScore = localPlayer.score;
+                            currentUser.stats.gamesPlayed = (currentUser.stats.gamesPlayed || 0) + 1;
                         }
                     }).catch(error => {
-                        console.warn('⚠️ Failed to save periodic best score:', error);
+                        console.warn('⚠️ Failed to save periodic full stats:', error);
                     });
                 }
             }
@@ -4272,18 +4302,22 @@ async function updatePlayerInfoPanelStats(player) {
             // Also update in Firebase via server API if we have Firebase ID
             if (window.authSystem && window.authSystem.currentUser) {
                 try {
-                    const response = await fetch(`/api/player/${window.authSystem.currentUser.uid}/best-score`, {
+                    const response = await fetch(`/api/player/${window.authSystem.currentUser.uid}/stats`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ score: currentGameScore })
+                        body: JSON.stringify({ 
+                            score: currentGameScore,
+                            totalScore: currentGameScore, // Score = Total Score
+                            gamesPlayed: (currentUser.stats.gamesPlayed || 0) + 1 // +1 for current active game
+                        })
                     });
                     if (response.ok) {
-                        console.log('🏆 Best score updated in Firebase:', currentGameScore);
+                        console.log('📊 Full stats updated in Firebase: score=', currentGameScore, 'totalScore=', currentGameScore, 'gamesPlayed=', (currentUser.stats.gamesPlayed || 0) + 1);
                     }
                 } catch (error) {
-                    console.warn('⚠️ Failed to update best score in Firebase:', error);
+                    console.warn('⚠️ Failed to update full stats in Firebase:', error);
                 }
             }
             
@@ -4449,6 +4483,10 @@ function forceUpdateGameStatsDisplay(player) {
         currentGameSizeElement.textContent = '...';
         console.log('📏 Current game size not available for force update');
     }
+    
+    // Force update current game score display
+    updateCurrentGameScoreDisplay(player.score || 0);
+    console.log('💰 Force updated currentGameScore to:', player.score || 0);
     
     // Also update total coins from auth system if available
     if (window.authSystem && window.authSystem.currentUser) {
