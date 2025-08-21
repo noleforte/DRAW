@@ -1304,6 +1304,7 @@ function updatePlayers(deltaTime) {
             }
           }
         });
+      }
       
       // Remove entities with 0 score
       entitiesToRemove.forEach(entity => {
