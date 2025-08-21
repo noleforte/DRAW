@@ -476,12 +476,12 @@ class HybridAuthSystem {
                     const playersData = playersDoc.data();
                     console.log('🔍 Players collection data:', JSON.stringify(playersData, null, 2));
                     
-                    // Extract stats from players collection
+                    // Extract stats from players collection (check both root and nested stats)
                     const playersStats = {
-                        totalScore: playersData.totalScore || 0,
-                        gamesPlayed: playersData.gamesPlayed || 0,
-                        bestScore: playersData.bestScore || 0,
-                        wins: playersData.wins || 0
+                        totalScore: Math.max(playersData.totalScore || 0, playersData.stats?.totalScore || 0),
+                        gamesPlayed: Math.max(playersData.gamesPlayed || 0, playersData.stats?.gamesPlayed || 0),
+                        bestScore: Math.max(playersData.bestScore || 0, playersData.stats?.bestScore || 0),
+                        wins: Math.max(playersData.wins || 0, playersData.stats?.wins || 0)
                     };
                     
                     console.log('📊 Players collection stats:', playersStats);
@@ -498,36 +498,8 @@ class HybridAuthSystem {
                 console.warn('⚠️ Failed to fetch from players collection:', error);
             }
             
-            // Try to get data from users collection (auth data)
-            try {
-                console.log('🔍 Fetching from Firestore collection users, doc:', normalizedNickname);
-                const usersDoc = await window.firebaseDb.collection('users').doc(normalizedNickname).get();
-                
-                if (usersDoc.exists) {
-                    const usersData = usersDoc.data();
-                    console.log('🔍 Users collection data:', JSON.stringify(usersData, null, 2));
-                    
-                    // Extract stats from users collection
-                    const usersStats = {
-                        totalScore: usersData.stats?.totalScore || 0,
-                        gamesPlayed: usersData.stats?.gamesPlayed || 0,
-                        bestScore: usersData.stats?.bestScore || 0,
-                        wins: usersData.stats?.wins || 0
-                    };
-                    
-                    console.log('📊 Users collection stats:', usersStats);
-                    
-                    // Use maximum values between users and best stats
-                    bestStats.totalScore = Math.max(bestStats.totalScore, usersStats.totalScore);
-                    bestStats.gamesPlayed = Math.max(bestStats.gamesPlayed, usersStats.gamesPlayed);
-                    bestStats.bestScore = Math.max(bestStats.bestScore, usersStats.bestScore);
-                    bestStats.wins = Math.max(bestStats.wins, usersStats.wins);
-                } else {
-                    console.log('⚠️ No users collection document found for user:', normalizedNickname);
-                }
-            } catch (error) {
-                console.warn('⚠️ Failed to fetch from users collection:', error);
-            }
+            // Note: Users collection access is restricted, so we'll work with players collection only
+            console.log('ℹ️ Skipping users collection due to access restrictions');
             
             console.log('📊 Best combined stats:', bestStats);
             console.log('👤 Current user stats before update:', currentUser.stats);
@@ -2079,6 +2051,21 @@ function setupUIHandlers() {
                 }
             } else {
                 console.log('⚠️ No Firebase auth system available for sync');
+            }
+            
+            // Force sync with Firebase to get latest stats
+            try {
+                console.log('🔄 Force syncing with Firebase after authentication...');
+                await nicknameAuth.syncUserStatsFromFirestore();
+                
+                // Get updated user data after sync
+                const updatedUser = nicknameAuth.getCurrentUserSync();
+                if (updatedUser && updatedUser.stats) {
+                    console.log('✅ User stats synced from Firebase:', updatedUser.stats);
+                    user = updatedUser; // Use updated user data
+                }
+            } catch (error) {
+                console.warn('⚠️ Failed to sync with Firebase after authentication:', error);
             }
             
             // Verify user is set in localStorage
