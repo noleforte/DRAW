@@ -898,20 +898,10 @@ function setupSocketListeners() {
             
             // Initialize player score from Total Score (Score = Total Score in this game)
             const currentUser = nicknameAuth.getCurrentUserSync();
-            if (currentUser && currentUser.stats && currentUser.stats.totalScore && localPlayer.score === 0) {
-                console.log('💰 Initializing player score from Total Score:', currentUser.stats.totalScore);
-                localPlayer.score = currentUser.stats.totalScore;
+            if (currentUser && currentUser.stats) {
+                // Always try to get the highest totalScore from Firebase
+                let maxTotalScore = currentUser.stats.totalScore || 0;
                 
-                // Update server with initial score
-                if (socket && socket.connected) {
-                    socket.emit('updatePlayerScore', {
-                        playerId: localPlayer.id,
-                        score: localPlayer.score
-                    });
-                    console.log('📤 Sent initial score to server:', localPlayer.score);
-                }
-                
-                // Force sync with Firebase to get the latest totalScore
                 if (window.authSystem && window.authSystem.currentUser) {
                     try {
                         console.log('🔄 Force syncing with Firebase to get latest totalScore...');
@@ -923,71 +913,41 @@ function setupSocketListeners() {
                             const firebaseTotalScore = firebaseStats.totalScore;
                             console.log('💰 Firebase totalScore:', firebaseTotalScore, 'Local totalScore:', currentUser.stats.totalScore);
                             
-                            // Update localPlayer.score if Firebase has higher value
-                            if (firebaseTotalScore > localPlayer.score) {
-                                console.log('💰 Updating localPlayer.score from Firebase:', localPlayer.score, '→', firebaseTotalScore);
-                                localPlayer.score = firebaseTotalScore;
-                                
-                                // Update server with corrected score
-                                if (socket && socket.connected) {
-                                    socket.emit('updatePlayerScore', {
-                                        playerId: localPlayer.id,
-                                        score: localPlayer.score
-                                    });
-                                    console.log('📤 Sent corrected score to server:', localPlayer.score);
-                                }
-                                
-                                // Update local stats
+                            // Use the highest value between Firebase and local
+                            maxTotalScore = Math.max(firebaseTotalScore, maxTotalScore);
+                            console.log('💰 Using highest totalScore:', maxTotalScore);
+                            
+                            // Update local stats if Firebase has higher value
+                            if (firebaseTotalScore > (currentUser.stats.totalScore || 0)) {
                                 await nicknameAuth.updateUserStats(currentUser.nickname, {
                                     ...currentUser.stats,
                                     totalScore: firebaseTotalScore
                                 });
+                                console.log('✅ Updated local stats with Firebase totalScore');
                             }
                         }
                     } catch (error) {
                         console.warn('⚠️ Failed to sync with Firebase:', error);
                     }
                 }
-            }
-            
-            // Also force sync with Firebase even if score is not 0 (for reconnections)
-            if (currentUser && window.authSystem && window.authSystem.currentUser) {
-                try {
-                    console.log('🔄 Additional Firebase sync for reconnection...');
-                    await window.authSystem.reloadPlayerStats();
+                
+                // Always set localPlayer.score to the highest totalScore available
+                if (maxTotalScore > 0) {
+                    console.log('💰 Setting localPlayer.score to highest totalScore:', maxTotalScore);
+                    localPlayer.score = maxTotalScore;
                     
-                    const firebaseStats = await window.authSystem.getPlayerStats();
-                    if (firebaseStats && firebaseStats.totalScore !== undefined) {
-                        const firebaseTotalScore = firebaseStats.totalScore;
-                        const currentScore = localPlayer.score || 0;
-                        
-                        console.log('💰 Reconnection sync - Firebase totalScore:', firebaseTotalScore, 'Current score:', currentScore);
-                        
-                        // Update if Firebase has higher value
-                        if (firebaseTotalScore > currentScore) {
-                            console.log('💰 Updating score from Firebase on reconnection:', currentScore, '→', firebaseTotalScore);
-                            localPlayer.score = firebaseTotalScore;
-                            
-                            // Update server
-                            if (socket && socket.connected) {
-                                socket.emit('updatePlayerScore', {
-                                    playerId: localPlayer.id,
-                                    score: localPlayer.score
-                                });
-                                console.log('📤 Sent updated score to server on reconnection:', localPlayer.score);
-                            }
-                            
-                            // Update local stats
-                            await nicknameAuth.updateUserStats(currentUser.nickname, {
-                                ...currentUser.stats,
-                                totalScore: firebaseTotalScore
-                            });
-                        }
+                    // Update server with initial score
+                    if (socket && socket.connected) {
+                        socket.emit('updatePlayerScore', {
+                            playerId: localPlayer.id,
+                            score: localPlayer.score
+                        });
+                        console.log('📤 Sent initial score to server:', localPlayer.score);
                     }
-                } catch (error) {
-                    console.warn('⚠️ Failed to sync with Firebase on reconnection:', error);
                 }
             }
+            
+            // Note: Firebase sync is now handled above for all cases
             
             // Initialize player size from saved size if this is a new game
             if (currentUser && currentUser.stats && currentUser.stats.lastSize && localPlayer.size === 20) {
