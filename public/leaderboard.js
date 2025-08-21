@@ -179,6 +179,20 @@ class LeaderboardManager {
     }
 }
 
-// Initialize leaderboard manager
-const leaderboardManager = new LeaderboardManager();
-window.leaderboardManager = leaderboardManager; 
+// Initialize leaderboard manager when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🔄 DOM loaded, initializing LeaderboardManager...');
+    const leaderboardManager = new LeaderboardManager();
+    window.leaderboardManager = leaderboardManager;
+    console.log('🔄 LeaderboardManager set on window:', window.leaderboardManager);
+});
+
+// Also try to initialize immediately if DOM is already loaded
+if (document.readyState === 'loading') {
+    console.log('🔄 DOM is still loading, waiting for DOMContentLoaded...');
+} else {
+    console.log('🔄 DOM already loaded, initializing LeaderboardManager immediately...');
+    const leaderboardManager = new LeaderboardManager();
+    window.leaderboardManager = leaderboardManager;
+    console.log('🔄 LeaderboardManager set on window:', window.leaderboardManager);
+} 
