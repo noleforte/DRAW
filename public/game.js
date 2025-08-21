@@ -3822,31 +3822,38 @@ function gameLoop() {
             if (localPlayer.lastSavedScore !== localPlayer.score) {
                 const currentUser = nicknameAuth.getCurrentUserSync();
                 if (currentUser && window.authSystem?.currentUser && localPlayer.score > 0) {
-                    // Save totalScore update to Firebase
-                    fetch(`/api/player/${window.authSystem.currentUser.uid}/stats`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ 
-                            score: localPlayer.score,
-                            totalScore: localPlayer.score, // Score = Total Score
-                            gamesPlayed: Math.max((currentUser.stats.gamesPlayed || 0), 1)
-                        })
-                    }).then(response => {
-                        if (response.ok) {
-                            console.log(`💰 Real-time totalScore update: ${localPlayer.score}`);
-                            localPlayer.lastSavedScore = localPlayer.score;
-                            
-                            // Also update local stats
-                            if (currentUser.stats.totalScore !== localPlayer.score) {
-                                currentUser.stats.totalScore = localPlayer.score;
-                                nicknameAuth.updateUserStats(currentUser.nickname, currentUser.stats);
+                    // Only update totalScore if current score is higher than saved totalScore
+                    const savedTotalScore = currentUser.stats.totalScore || 0;
+                    if (localPlayer.score > savedTotalScore) {
+                        // Save totalScore update to Firebase
+                        fetch(`/api/player/${window.authSystem.currentUser.uid}/stats`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ 
+                                score: localPlayer.score,
+                                totalScore: localPlayer.score, // Score = Total Score
+                                gamesPlayed: Math.max((currentUser.stats.gamesPlayed || 0), 1)
+                            })
+                        }).then(response => {
+                            if (response.ok) {
+                                console.log(`💰 Real-time totalScore update: ${localPlayer.score} (was ${savedTotalScore})`);
+                                localPlayer.lastSavedScore = localPlayer.score;
+                                
+                                // Also update local stats
+                                if (currentUser.stats.totalScore !== localPlayer.score) {
+                                    currentUser.stats.totalScore = localPlayer.score;
+                                    nicknameAuth.updateUserStats(currentUser.nickname, currentUser.stats);
+                                }
                             }
-                        }
-                    }).catch(error => {
-                        console.warn('⚠️ Failed to update totalScore in real-time:', error);
-                    });
+                        }).catch(error => {
+                            console.warn('⚠️ Failed to update totalScore in real-time:', error);
+                        });
+                    } else {
+                        console.log(`💰 Skipping totalScore update - current score ${localPlayer.score} not higher than saved ${savedTotalScore}`);
+                        localPlayer.lastSavedScore = localPlayer.score; // Still update lastSavedScore to prevent repeated checks
+                    }
                 }
             }
         }
@@ -3864,33 +3871,38 @@ function gameLoop() {
             lastFirestoreRefresh = now;
         }
         
-        // Save full player stats to Firebase every 30 seconds as backup
+                // Save full player stats to Firebase every 30 seconds as backup
         if (now - lastBestScoreSave > 30000 && localPlayer && localPlayer.score > 0) {
             const currentUser = nicknameAuth.getCurrentUserSync();
             if (currentUser && window.authSystem?.currentUser) {
                 const savedBestScore = currentUser.stats.bestScore || 0;
-                if (localPlayer.score > savedBestScore) {
+                const savedTotalScore = currentUser.stats.totalScore || 0;
+                
+                // Only update if we have meaningful improvements
+                if (localPlayer.score > savedBestScore || localPlayer.score > savedTotalScore) {
                     // Save full player stats (score, totalScore, gamesPlayed)
                     fetch(`/api/player/${window.authSystem.currentUser.uid}/stats`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                                            body: JSON.stringify({ 
-                        score: localPlayer.score,
-                        totalScore: localPlayer.score, // Score = Total Score
-                        gamesPlayed: Math.max((currentUser.stats.gamesPlayed || 0), 1) // At least 1 game if playing
-                    })
+                        body: JSON.stringify({ 
+                            score: localPlayer.score,
+                            totalScore: Math.max(localPlayer.score, savedTotalScore), // Keep highest score
+                            gamesPlayed: Math.max((currentUser.stats.gamesPlayed || 0), 1) // At least 1 game if playing
+                        })
                     }).then(response => {
                         if (response.ok) {
-                            console.log(`📊 Periodic full stats backup saved: score=${localPlayer.score}, totalScore=${localPlayer.score}, gamesPlayed=${(currentUser.stats.gamesPlayed || 0) + 1}`);
-                            currentUser.stats.bestScore = localPlayer.score;
-                            currentUser.stats.totalScore = localPlayer.score;
-                            currentUser.stats.gamesPlayed = (currentUser.stats.gamesPlayed || 0) + 1;
+                            console.log(`📊 Periodic full stats backup saved: score=${localPlayer.score}, totalScore=${Math.max(localPlayer.score, savedTotalScore)}, gamesPlayed=${Math.max((currentUser.stats.gamesPlayed || 0), 1)}`);
+                            currentUser.stats.bestScore = Math.max(currentUser.stats.bestScore || 0, localPlayer.score);
+                            currentUser.stats.totalScore = Math.max(currentUser.stats.totalScore || 0, localPlayer.score);
+                            currentUser.stats.gamesPlayed = Math.max((currentUser.stats.gamesPlayed || 0), 1);
                         }
                     }).catch(error => {
                         console.warn('⚠️ Failed to save periodic full stats:', error);
                     });
+                } else {
+                    console.log(`📊 Skipping periodic update - no improvements: score=${localPlayer.score} (best: ${savedBestScore}, total: ${savedTotalScore})`);
                 }
             }
             lastBestScoreSave = now;

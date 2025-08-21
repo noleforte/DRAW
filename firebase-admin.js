@@ -273,14 +273,15 @@ class GameDataService {
                 const currentStats = playerDoc.data();
                 const newGamesPlayed = Math.max(currentStats.gamesPlayed || 0, statsData.gamesPlayed || 0);
                 const newBestScore = Math.max(currentStats.bestScore || 0, statsData.score);
+                const newTotalScore = Math.max(currentStats.totalScore || 0, statsData.totalScore); // Keep highest totalScore
                 
                 await playerRef.update({
-                    totalScore: statsData.totalScore, // Update totalScore to current score
+                    totalScore: newTotalScore, // Update totalScore to highest value
                     gamesPlayed: newGamesPlayed,
                     bestScore: newBestScore,
                     lastPlayed: admin.firestore.FieldValue.serverTimestamp()
                 });
-                console.log(`✅ Updated full stats for player ${playerId}: totalScore=${statsData.totalScore}, gamesPlayed=${newGamesPlayed} (was ${currentStats.gamesPlayed || 0}), bestScore=${newBestScore} (was ${currentStats.bestScore || 0})`);
+                console.log(`✅ Updated full stats for player ${playerId}: totalScore=${newTotalScore} (was ${currentStats.totalScore || 0}), gamesPlayed=${newGamesPlayed} (was ${currentStats.gamesPlayed || 0}), bestScore=${newBestScore} (was ${currentStats.bestScore || 0})`);
             } else {
                 // Create new player if doesn't exist
                 await playerRef.set({
