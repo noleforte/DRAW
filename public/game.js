@@ -798,7 +798,7 @@ function setupSocketListeners() {
     
     // Note: connect_error handler is now in setupSocketListeners
     
-    socket.on('gameState', (data) => {
+    socket.on('gameState', async (data) => {
         gameState = data;
         gameState.boosters = data.boosters || [];
         window.gameState = gameState; // Make gameState globally available
@@ -897,6 +897,83 @@ function setupSocketListeners() {
                         score: localPlayer.score
                     });
                     console.log('📤 Sent initial score to server:', localPlayer.score);
+                }
+                
+                // Force sync with Firebase to get the latest totalScore
+                if (window.authSystem && window.authSystem.currentUser) {
+                    try {
+                        console.log('🔄 Force syncing with Firebase to get latest totalScore...');
+                        await window.authSystem.reloadPlayerStats();
+                        
+                        // Get updated stats from Firebase
+                        const firebaseStats = await window.authSystem.getPlayerStats();
+                        if (firebaseStats && firebaseStats.totalScore !== undefined) {
+                            const firebaseTotalScore = firebaseStats.totalScore;
+                            console.log('💰 Firebase totalScore:', firebaseTotalScore, 'Local totalScore:', currentUser.stats.totalScore);
+                            
+                            // Update localPlayer.score if Firebase has higher value
+                            if (firebaseTotalScore > localPlayer.score) {
+                                console.log('💰 Updating localPlayer.score from Firebase:', localPlayer.score, '→', firebaseTotalScore);
+                                localPlayer.score = firebaseTotalScore;
+                                
+                                // Update server with corrected score
+                                if (socket && socket.connected) {
+                                    socket.emit('updatePlayerScore', {
+                                        playerId: localPlayer.id,
+                                        score: localPlayer.score
+                                    });
+                                    console.log('📤 Sent corrected score to server:', localPlayer.score);
+                                }
+                                
+                                // Update local stats
+                                await nicknameAuth.updateUserStats(currentUser.nickname, {
+                                    ...currentUser.stats,
+                                    totalScore: firebaseTotalScore
+                                });
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Failed to sync with Firebase:', error);
+                    }
+                }
+            }
+            
+            // Also force sync with Firebase even if score is not 0 (for reconnections)
+            if (currentUser && window.authSystem && window.authSystem.currentUser) {
+                try {
+                    console.log('🔄 Additional Firebase sync for reconnection...');
+                    await window.authSystem.reloadPlayerStats();
+                    
+                    const firebaseStats = await window.authSystem.getPlayerStats();
+                    if (firebaseStats && firebaseStats.totalScore !== undefined) {
+                        const firebaseTotalScore = firebaseStats.totalScore;
+                        const currentScore = localPlayer.score || 0;
+                        
+                        console.log('💰 Reconnection sync - Firebase totalScore:', firebaseTotalScore, 'Current score:', currentScore);
+                        
+                        // Update if Firebase has higher value
+                        if (firebaseTotalScore > currentScore) {
+                            console.log('💰 Updating score from Firebase on reconnection:', currentScore, '→', firebaseTotalScore);
+                            localPlayer.score = firebaseTotalScore;
+                            
+                            // Update server
+                            if (socket && socket.connected) {
+                                socket.emit('updatePlayerScore', {
+                                    playerId: localPlayer.id,
+                                    score: localPlayer.score
+                                });
+                                console.log('📤 Sent updated score to server on reconnection:', localPlayer.score);
+                            }
+                            
+                            // Update local stats
+                            await nicknameAuth.updateUserStats(currentUser.nickname, {
+                                ...currentUser.stats,
+                                totalScore: firebaseTotalScore
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Failed to sync with Firebase on reconnection:', error);
                 }
             }
             
@@ -1925,6 +2002,35 @@ function setupUIHandlers() {
             // Force refresh current user cache
             nicknameAuth.refreshCurrentUser();
             console.log('🔄 Forced refresh of user data after login');
+            
+            // Force sync with Firebase to get latest stats
+            if (window.authSystem && window.authSystem.currentUser) {
+                try {
+                    console.log('🔄 Force syncing with Firebase before starting game...');
+                    await window.authSystem.reloadPlayerStats();
+                    
+                    // Get updated stats from Firebase
+                    const firebaseStats = await window.authSystem.getPlayerStats();
+                    if (firebaseStats && firebaseStats.totalScore !== undefined) {
+                        const firebaseTotalScore = firebaseStats.totalScore;
+                        console.log('💰 Firebase totalScore before game start:', firebaseTotalScore);
+                        
+                        // Update local stats if Firebase has higher value
+                        if (firebaseTotalScore > (user.stats.totalScore || 0)) {
+                            console.log('💰 Updating local stats from Firebase:', user.stats.totalScore, '→', firebaseTotalScore);
+                            await nicknameAuth.updateUserStats(user.nickname, {
+                                ...user.stats,
+                                totalScore: firebaseTotalScore
+                            });
+                            
+                            // Refresh user data
+                            user.stats.totalScore = firebaseTotalScore;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Failed to sync with Firebase before game start:', error);
+                }
+            }
             
             // Verify user is set in localStorage
             const savedUser = nicknameAuth.getCurrentUserSync();
