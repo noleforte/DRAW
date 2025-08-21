@@ -775,6 +775,7 @@ function updateBots() {
            // Mark bot as having player eater boost
            bot.playerEater = true;
            bot.playerEaterEndTime = Date.now() + 60000; // 1 minute
+           bot.rainbowHue = 0; // Initialize rainbow color
            
            // Set bot to Level 5 stats
            bot.size = 50; // Level 5 size
@@ -1006,6 +1007,7 @@ function updatePlayers(deltaTime) {
                         // Mark player as having player eater boost
                         player.playerEater = true;
                         player.playerEaterEndTime = Date.now() + 60000; // 1 minute
+                        player.rainbowHue = 0; // Initialize rainbow color
                         
                         // Send notification to all players
                         io.emit('chatMessage', {
@@ -1013,7 +1015,7 @@ function updatePlayers(deltaTime) {
                             playerName: 'System',
                             message: `👹 ${player.name} collected Player Eater! Can now eat other players for 1 minute!`,
                             timestamp: Date.now()
-                    });
+                        });
         
         boostersToDelete.push(booster.id);
         
@@ -1907,14 +1909,14 @@ setInterval(() => {
   // Update rainbow colors for players with Player Eater boost
   gameState.players.forEach(player => {
     if (player.playerEater) {
-      player.rainbowHue = (player.rainbowHue || 0 + 2) % 360; // Rotate rainbow colors
+      player.rainbowHue = ((player.rainbowHue || 0) + 2) % 360; // Rotate rainbow colors
     }
   });
   
   // Update rainbow colors for bots with Player Eater boost
   gameState.bots.forEach(bot => {
     if (bot.playerEater) {
-      bot.rainbowHue = (bot.rainbowHue || 0 + 2) % 360; // Rotate rainbow colors
+      bot.rainbowHue = ((bot.rainbowHue || 0) + 2) % 360; // Rotate rainbow colors
     }
   });
   
@@ -1951,7 +1953,9 @@ setInterval(() => {
                 score: b.score,
                 size: b.size,
                 name: b.name,
-                color: b.color
+                color: b.playerEater ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
+                playerEater: b.playerEater || false,
+                playerEaterEndTime: b.playerEaterEndTime || 0
             })),
             coins: Array.from(gameState.coins.values()).map(c => ({
                 id: c.id,
@@ -1964,8 +1968,9 @@ setInterval(() => {
                 y: Math.round(b.y),
                 type: b.type,
                 name: b.name,
-                color: b.color,
-                effect: b.effect
+                color: b.type === 'playerEater' ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
+                effect: b.effect,
+                rainbowHue: b.rainbowHue || 0
             }))
         };
         

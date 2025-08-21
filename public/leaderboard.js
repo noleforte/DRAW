@@ -40,15 +40,15 @@ class LeaderboardManager {
 
     async loadGlobalLeaderboard() {
         try {
-            const response = await fetch('/api/leaderboard?limit=10');
+            const response = await fetch('/api/players');
             if (response.ok) {
                 this.globalLeaderboard = await response.json();
                 this.renderLeaderboard();
             } else {
-                console.error('Failed to load global leaderboard');
+                console.error('Failed to load all players');
             }
         } catch (error) {
-            console.error('Error loading global leaderboard:', error);
+            console.error('Error loading all players:', error);
         }
     }
 
@@ -76,9 +76,10 @@ class LeaderboardManager {
         }
 
         const html = data.map((player, index) => {
-            const score = this.currentType === 'match' ? player.score : player.bestScore;
-            const name = player.name || player.playerName || 'Unknown';
+            const score = this.currentType === 'match' ? player.score : player.totalScore;
+            const name = player.nickname || player.playerName || player.name || 'Unknown';
             const isBot = player.isBot || false;
+            const isOnline = player.isOnline || false;
             
             let emoji = '';
             if (index === 0) emoji = '🥇';
@@ -90,7 +91,8 @@ class LeaderboardManager {
             if (isBot) {
                 nameDisplay = `🤖 ${name}`;
             } else if (this.currentType === 'global') {
-                nameDisplay = `👤 ${name}`;
+                const onlineStatus = isOnline ? '🟢' : '🔴';
+                nameDisplay = `${onlineStatus} ${name}`;
             }
 
             return `
@@ -107,7 +109,7 @@ class LeaderboardManager {
         leaderboardList.innerHTML = html;
 
         // Add type indicator
-        const header = this.currentType === 'match' ? '🏆 Match Leaders' : '🌟 Global Best';
+        const header = this.currentType === 'match' ? '🏆 Match Leaders' : '🌟 All Players (🟢 Online, 🔴 Offline)';
         const headerElement = document.querySelector('#leaderboard h3');
         if (headerElement) {
             headerElement.textContent = header;

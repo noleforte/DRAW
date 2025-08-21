@@ -35,7 +35,8 @@ let timeOffset = 0; // Offset between client and server time
 let gamePaused = false; // Game pause state
 let activeBoosters = {
     speed: { active: false, multiplier: 1, endTime: 0 },
-    coins: { active: false, multiplier: 1, endTime: 0 }
+    coins: { active: false, multiplier: 1, endTime: 0 },
+    playerEater: { active: false, endTime: 0 }
 };
 
 // Background image
@@ -469,7 +470,7 @@ class HybridAuthSystem {
             
             // Try to get data from players collection (game data)
             try {
-                console.log('🔍 Fetching from Firestore collection players, doc:', normalizedNickname);
+            console.log('🔍 Fetching from Firestore collection players, doc:', normalizedNickname);
                 const playersDoc = await window.firebaseDb.collection('players').doc(normalizedNickname).get();
                 
                 if (playersDoc.exists) {
@@ -502,18 +503,18 @@ class HybridAuthSystem {
             console.log('ℹ️ Skipping users collection due to access restrictions');
             
             console.log('📊 Best combined stats:', bestStats);
-            console.log('👤 Current user stats before update:', currentUser.stats);
-            
+                console.log('👤 Current user stats before update:', currentUser.stats);
+                
             // Update localStorage user stats with best combined data
             currentUser.stats = bestStats;
-            
-            console.log('👤 Current user stats after assignment:', currentUser.stats);
-            
-            // Save updated user back to localStorage
-            this.setCurrentUser(currentUser);
-            console.log('🔄 Synced user stats from Firestore:', currentUser.stats);
-            
-            return currentUser;
+                
+                console.log('👤 Current user stats after assignment:', currentUser.stats);
+                
+                // Save updated user back to localStorage
+                this.setCurrentUser(currentUser);
+                console.log('🔄 Synced user stats from Firestore:', currentUser.stats);
+                
+                return currentUser;
         } catch (error) {
             console.error('❌ Failed to sync stats from Firestore:', error);
         }
@@ -1123,7 +1124,7 @@ function setupSocketListeners() {
             // Check if the score increase is reasonable (not a huge jump from initialization)
             const maxReasonableIncrease = 1000; // Maximum reasonable coins gained in one update
             if (coinsGained <= maxReasonableIncrease) {
-                sendCoinsToFirestore(coinsGained);
+            sendCoinsToFirestore(coinsGained);
             } else {
                 console.log(`⚠️ Skipping Firestore update - unreasonable score increase: ${coinsGained} (likely initialization)`);
             }
@@ -1164,6 +1165,15 @@ function setupSocketListeners() {
                 activeBoosters.coins.active = false;
                 activeBoosters.coins.multiplier = 1;
                 activeBoosters.coins.endTime = 0;
+            }
+            
+            if (localPlayer.playerEater && localPlayer.playerEaterEndTime) {
+                activeBoosters.playerEater.active = true;
+                activeBoosters.playerEater.endTime = localPlayer.playerEaterEndTime;
+                console.log(`👹 Player Eater active until ${new Date(localPlayer.playerEaterEndTime).toLocaleTimeString()}`);
+            } else {
+                activeBoosters.playerEater.active = false;
+                activeBoosters.playerEater.endTime = 0;
             }
         }
         
@@ -1441,7 +1451,7 @@ function setupSocketListeners() {
                     const mobilePanelToggle = document.getElementById('mobilePanelToggle');
                     if (mobilePanelToggle) {
                         mobilePanelToggle.style.display = 'none';
-                    }
+                }
                 
                 // Refresh player data on main menu to show updated Total Coins
                 setTimeout(async () => {
@@ -5552,8 +5562,33 @@ function updateBoosterStatusDisplay() {
         boosterContainer.appendChild(coinBooster);
     }
     
+    if (activeBoosters.playerEater.active) {
+        const timeLeft = Math.ceil((activeBoosters.playerEater.endTime - Date.now()) / 1000);
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        const playerEaterBooster = document.createElement('div');
+        playerEaterBooster.className = 'bg-purple-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center justify-between min-w-[200px]';
+        playerEaterBooster.innerHTML = `
+            <div class="flex items-center space-x-2">
+                <span class="text-xl">👹</span>
+                <div>
+                    <div class="font-bold">Player Eater</div>
+                    <div class="text-xs opacity-90">Can eat other players</div>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="font-mono text-lg font-bold">${timeText}</div>
+                <div class="text-xs opacity-90">remaining</div>
+            </div>
+        `;
+        playerEaterBooster.style.display = 'none';
+        boosterContainer.appendChild(playerEaterBooster);
+    }
+    
     // Show message if no boosters active
-    if (!activeBoosters.speed.active && !activeBoosters.coins.active) {
+    if (!activeBoosters.speed.active && !activeBoosters.coins.active && !activeBoosters.playerEater.active) {
         const noBoosters = document.createElement('div');
         noBoosters.className = 'bg-gray-600 text-white px-3 py-2 rounded-lg shadow-lg text-center text-sm opacity-75';
         noBoosters.textContent = 'No active boosters';
@@ -5598,7 +5633,23 @@ function updateBoosterStatusDisplay() {
             boostersListCenter.appendChild(coinItem);
         }
         
-        if (!activeBoosters.speed.active && !activeBoosters.coins.active) {
+        if (activeBoosters.playerEater.active) {
+            const timeLeft = Math.ceil((activeBoosters.playerEater.endTime - Date.now()) / 1000);
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            const playerEaterItem = document.createElement('div');
+            playerEaterItem.className = 'flex justify-between items-center text-sm bg-purple-600 bg-opacity-70 rounded px-3 py-1';
+            playerEaterItem.innerHTML = `
+                <span class="text-white">👹 Player Eater</span>
+                <span>&nbsp;</span>
+                <span class="font-mono text-white font-bold">${timeText}</span>
+            `;
+            boostersListCenter.appendChild(playerEaterItem);
+        }
+        
+        if (!activeBoosters.speed.active && !activeBoosters.coins.active && !activeBoosters.playerEater.active) {
             const noBoosters = document.createElement('div');
             noBoosters.className = 'text-xs text-gray-400 text-center';
             noBoosters.textContent = 'No active boosters';
