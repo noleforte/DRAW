@@ -464,6 +464,41 @@ class GameDataService {
             return false;
         }
     }
+
+    // Get all players from database
+    async getAllPlayers() {
+        try {
+            const playersSnapshot = await db.collection('players').get();
+            const players = [];
+            
+            playersSnapshot.forEach(doc => {
+                const data = doc.data();
+                players.push({
+                    playerId: doc.id,
+                    nickname: data.nickname || data.playerName || doc.id,
+                    playerName: data.playerName || data.nickname || doc.id,
+                    totalScore: data.totalScore || 0,
+                    bestScore: data.bestScore || 0,
+                    gamesPlayed: data.gamesPlayed || 0,
+                    wins: data.wins || 0,
+                    wallet: data.wallet || data.walletAddress || '',
+                    email: data.email || '',
+                    lastLogin: data.lastLogin || null,
+                    lastPlayed: data.lastPlayed || null,
+                    lastSize: data.lastSize || null
+                });
+            });
+            
+            // Sort by totalScore descending
+            players.sort((a, b) => b.totalScore - a.totalScore);
+            
+            console.log(`✅ Retrieved ${players.length} players from database`);
+            return players;
+        } catch (error) {
+            console.error('❌ Error getting all players:', error);
+            return [];
+        }
+    }
 }
 
 module.exports = {
