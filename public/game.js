@@ -4794,7 +4794,7 @@ function updateBoosterStatusDisplay() {
             speedItem.className = 'flex justify-between items-center text-sm bg-green-600 bg-opacity-70 rounded px-3 py-1';
             speedItem.innerHTML = `
                 <span class="text-white">🚀 Speed Boost </span>
-                <span class="font-mono text-white font-bold">  ${timeText}</span>
+                <span class="font-mono text-white font-bold"> ${' '} ${timeText}</span>
             `;
             boostersListCenter.appendChild(speedItem);
         }
@@ -4809,7 +4809,7 @@ function updateBoosterStatusDisplay() {
             coinItem.className = 'flex justify-between items-center text-sm bg-yellow-600 bg-opacity-70 rounded px-3 py-1';
             coinItem.innerHTML = `
                 <span class="text-white">💰 Coin Multiplier </span>
-                <span class="font-mono text-white font-bold"> ${timeText}</span>
+                <span class="font-mono text-white font-bold">${' '} ${timeText}</span>
             `;
             boostersListCenter.appendChild(coinItem);
         }
