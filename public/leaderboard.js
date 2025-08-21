@@ -8,14 +8,33 @@ class LeaderboardManager {
     }
 
     init() {
+        console.log('🔄 Initializing LeaderboardManager...');
+        
         const toggleBtn = document.getElementById('toggleLeaderboardType');
+        console.log('🔄 Toggle button found:', toggleBtn);
+        
         if (toggleBtn) {
+            console.log('🔄 Adding click event listener to toggle button');
+            
+            // Add click event listener
             toggleBtn.addEventListener('click', () => {
+                console.log('🔄 Toggle button clicked!');
+                console.log('🔄 This context:', this);
+                console.log('🔄 This.toggleLeaderboardType:', this.toggleLeaderboardType);
                 this.toggleLeaderboardType();
             });
+            
+            // Also add a test click to see if the button is working
+            console.log('🔄 Testing button click...');
+            toggleBtn.click();
+            
+            console.log('🔄 Event listener added successfully');
+        } else {
+            console.error('❌ Toggle button not found during initialization!');
         }
 
         // Load global leaderboard initially
+        console.log('🔄 Loading initial global leaderboard...');
         this.loadGlobalLeaderboard();
         
         // Auto-refresh global leaderboard every 10 seconds for real-time online status
@@ -24,6 +43,8 @@ class LeaderboardManager {
                 this.loadGlobalLeaderboard();
             }
         }, 10000);
+        
+        console.log('🔄 LeaderboardManager initialization complete');
     }
 
     toggleLeaderboardType() {
