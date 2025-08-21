@@ -42,19 +42,38 @@ app.get('/api/leaderboard', async (req, res) => {
 // API endpoint for all players with online/offline status
 app.get('/api/players', async (req, res) => {
   try {
+    console.log('🔄 API /api/players called');
     const allPlayers = await GameDataService.getAllPlayers();
+    console.log(`🔄 Retrieved ${allPlayers.length} players from GameDataService:`, allPlayers);
+    
+    // Current online players for debugging
+    const onlinePlayerIds = Array.from(gameState.players.values()).map(p => p.id || p.playerId || p.name);
+    console.log('🔄 Current online players:', onlinePlayerIds);
     
     // Add online/offline status
-    const playersWithStatus = allPlayers.map(player => ({
-      ...player,
-      isOnline: gameState.players.has(player.socketId) || 
-                Array.from(gameState.players.values()).some(p => p.firebaseId === player.playerId || p.playerId === player.playerId),
-      lastSeen: player.lastPlayed || null
-    }));
+    const playersWithStatus = allPlayers.map(player => {
+      const isOnline = gameState.players.has(player.socketId) || 
+                      Array.from(gameState.players.values()).some(p => 
+                        p.firebaseId === player.playerId || 
+                        p.playerId === player.playerId ||
+                        p.id === player.playerId ||
+                        p.name === player.nickname ||
+                        p.name === player.playerName
+                      );
+      
+      console.log(`🔄 Player ${player.nickname} (${player.playerId}) - isOnline: ${isOnline}`);
+      
+      return {
+        ...player,
+        isOnline: isOnline,
+        lastSeen: player.lastPlayed || null
+      };
+    });
     
+    console.log(`🔄 Sending ${playersWithStatus.length} players with status:`, playersWithStatus);
     res.json(playersWithStatus);
   } catch (error) {
-    console.error('Error fetching all players:', error);
+    console.error('❌ Error fetching all players:', error);
     res.status(500).json({ error: 'Failed to fetch players' });
   }
 });

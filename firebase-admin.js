@@ -468,12 +468,17 @@ class GameDataService {
     // Get all players from database
     async getAllPlayers() {
         try {
+            console.log('🔄 GameDataService.getAllPlayers() called');
             const playersSnapshot = await db.collection('players').get();
+            console.log(`🔄 Firestore query returned ${playersSnapshot.size} documents`);
+            
             const players = [];
             
             playersSnapshot.forEach(doc => {
                 const data = doc.data();
-                players.push({
+                console.log(`🔄 Processing document ${doc.id}:`, data);
+                
+                const player = {
                     playerId: doc.id,
                     nickname: data.nickname || data.playerName || doc.id,
                     playerName: data.playerName || data.nickname || doc.id,
@@ -487,16 +492,21 @@ class GameDataService {
                     lastPlayed: data.lastPlayed || null,
                     lastSize: data.lastSize || null,
                     isOnline: false // Will be updated by server
-                });
+                };
+                
+                console.log(`🔄 Processed player:`, player);
+                players.push(player);
             });
             
             // Sort by totalScore descending
             players.sort((a, b) => b.totalScore - a.totalScore);
             
-            console.log(`✅ Retrieved ${players.length} players from database`);
+            console.log(`✅ Retrieved ${players.length} players from database, top 3:`, players.slice(0, 3));
             return players;
         } catch (error) {
             console.error('❌ Error getting all players:', error);
+            console.error('❌ Error details:', error.message);
+            console.error('❌ Error stack:', error.stack);
             return [];
         }
     }
