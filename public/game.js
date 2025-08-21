@@ -717,6 +717,13 @@ async function sendCoinsToFirestore(coinsGained) {
     const currentUser = window.nicknameAuth?.getCurrentUserSync();
     if (!currentUser || !window.firebaseDb || !window.localPlayer) {
         console.log('⚠️ Cannot save score - no user, Firestore connection, or localPlayer');
+        console.log('🔍 Debug info:', {
+            hasUser: !!currentUser,
+            hasFirebaseDb: !!window.firebaseDb,
+            hasLocalPlayer: !!window.localPlayer,
+            currentUser: currentUser?.nickname,
+            localPlayerScore: window.localPlayer?.score
+        });
         return;
     }
     
@@ -725,12 +732,17 @@ async function sendCoinsToFirestore(coinsGained) {
         const totalScore = window.localPlayer.score; // Use total current score
         
         console.log(`💾 Saving total score ${totalScore} to Firestore for player: ${playerId} (gained ${coinsGained})`);
+        console.log('🔍 Debug - localPlayer object:', window.localPlayer);
+        console.log('🔍 Debug - currentUser stats:', currentUser.stats);
         
         // Update Firestore directly
         const playerRef = window.firebaseDb.collection('players').doc(playerId);
         const playerDoc = await playerRef.get();
         
         if (playerDoc.exists) {
+            const existingData = playerDoc.data();
+            console.log('🔍 Existing Firestore data:', existingData);
+            
             // Update existing player's total score
             await playerRef.update({
                 totalScore: totalScore, // Score = Total Score, update to current value
@@ -2007,17 +2019,25 @@ function setupUIHandlers() {
             if (window.authSystem && window.authSystem.currentUser) {
                 try {
                     console.log('🔄 Force syncing with Firebase before starting game...');
+                    console.log('🔍 Current user stats before sync:', user.stats);
+                    console.log('🔍 Firebase user:', window.authSystem.currentUser);
+                    
                     await window.authSystem.reloadPlayerStats();
+                    console.log('✅ reloadPlayerStats completed');
                     
                     // Get updated stats from Firebase
                     const firebaseStats = await window.authSystem.getPlayerStats();
+                    console.log('🔍 Raw Firebase stats:', firebaseStats);
+                    
                     if (firebaseStats && firebaseStats.totalScore !== undefined) {
                         const firebaseTotalScore = firebaseStats.totalScore;
+                        const localTotalScore = user.stats.totalScore || 0;
                         console.log('💰 Firebase totalScore before game start:', firebaseTotalScore);
+                        console.log('💰 Local totalScore before game start:', localTotalScore);
                         
                         // Update local stats if Firebase has higher value
-                        if (firebaseTotalScore > (user.stats.totalScore || 0)) {
-                            console.log('💰 Updating local stats from Firebase:', user.stats.totalScore, '→', firebaseTotalScore);
+                        if (firebaseTotalScore > localTotalScore) {
+                            console.log('💰 Updating local stats from Firebase:', localTotalScore, '→', firebaseTotalScore);
                             await nicknameAuth.updateUserStats(user.nickname, {
                                 ...user.stats,
                                 totalScore: firebaseTotalScore
@@ -2025,11 +2045,19 @@ function setupUIHandlers() {
                             
                             // Refresh user data
                             user.stats.totalScore = firebaseTotalScore;
+                            console.log('✅ Local stats updated successfully');
+                        } else {
+                            console.log('💰 No update needed - local stats are current');
                         }
+                    } else {
+                        console.log('⚠️ Firebase stats not available or totalScore undefined');
                     }
                 } catch (error) {
                     console.warn('⚠️ Failed to sync with Firebase before game start:', error);
+                    console.error('❌ Full error details:', error);
                 }
+            } else {
+                console.log('⚠️ No Firebase auth system available for sync');
             }
             
             // Verify user is set in localStorage
@@ -2655,24 +2683,40 @@ function updateCamera() {
     const targetZoom = Math.max(0.8, 1.2 - speed * 0.1);
     camera.zoom += (targetZoom - camera.zoom) * 0.05;
     
-    // Calculate speed multiplier based on size (same logic as server)
-    function calculateSpeedMultiplier(size) {
-        const minSize = 20;
-        const maxSize = 50;
-        const minSpeedMultiplier = 0.4; // 40% of base speed for maximum size
-        const maxSpeedMultiplier = 1.0; // 100% of base speed for minimum size
+    // Calculate speed multiplier based on score (more coins = slower)
+    function calculateSpeedMultiplier(score) {
+        // Score-based speed system (same as server):
+        // 0-100 coins: 100% speed (fast)
+        // 100-250 coins: 85% speed
+        // 250-500 coins: 70% speed  
+        // 500-1000 coins: 55% speed
+        // 1000+ coins: 40% speed (slow)
         
-        const clampedSize = Math.max(minSize, Math.min(maxSize, size));
-        const sizeProgress = (clampedSize - minSize) / (maxSize - minSize);
-        const speedMultiplier = maxSpeedMultiplier - (sizeProgress * (maxSpeedMultiplier - minSpeedMultiplier));
-        
-        return speedMultiplier;
+        if (score <= 100) {
+            return 1.0; // 100% speed for 0-100 coins
+        } else if (score <= 250) {
+            // Linear interpolation from 100% to 85% for 100-250 coins
+            const progress = (score - 100) / 150;
+            return 1.0 - (progress * 0.15);
+        } else if (score <= 500) {
+            // Linear interpolation from 85% to 70% for 250-500 coins
+            const progress = (score - 250) / 250;
+            return 0.70 + (progress * 0.15);
+        } else if (score <= 1000) {
+            // Linear interpolation from 70% to 55% for 500-1000 coins
+            const progress = (score - 500) / 500;
+            return 0.70 - (progress * 0.15);
+        } else {
+            // 40% speed for 1000+ coins
+            return 0.40;
+        }
     }
     
     // Update speed display elements
     const speedElement = document.getElementById('speedValue');
     const maxSpeedElement = document.getElementById('maxSpeedValue');
     const playerSizeElement = document.getElementById('playerSizeValue');
+    const speedLevelElement = document.getElementById('speedLevel');
     
     if (speedElement) {
         speedElement.textContent = isNaN(speed) ? '0.0' : (Math.round(speed * 10) / 10).toString();
@@ -2680,13 +2724,46 @@ function updateCamera() {
     
     if (maxSpeedElement && localPlayer) {
         const baseSpeed = 200;
-        const sizeMultiplier = calculateSpeedMultiplier(localPlayer.size || 20);
+        const sizeMultiplier = calculateSpeedMultiplier(localPlayer.score || 0);
         const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
         maxSpeedElement.textContent = maxSpeed.toString();
     }
     
     if (playerSizeElement && localPlayer) {
         playerSizeElement.textContent = Math.round(localPlayer.size || 20).toString();
+    }
+    
+    // Update speed level display
+    if (speedLevelElement && localPlayer) {
+        const score = localPlayer.score || 0;
+        let level, description;
+        
+        if (score <= 100) {
+            level = 1;
+            description = 'Fast';
+        } else if (score <= 250) {
+            level = 2;
+            description = 'Normal';
+        } else if (score <= 500) {
+            level = 3;
+            description = 'Slow';
+        } else if (score <= 1000) {
+            level = 4;
+            description = 'Very Slow';
+        } else {
+            level = 5;
+            description = 'Extremely Slow';
+        }
+        
+        speedLevelElement.textContent = `(Level ${level}: ${description})`;
+        
+        // Add color coding based on level
+        speedLevelElement.className = '';
+        if (level === 1) speedLevelElement.className = 'text-green-400';
+        else if (level === 2) speedLevelElement.className = 'text-yellow-400';
+        else if (level === 3) speedLevelElement.className = 'text-orange-400';
+        else if (level === 4) speedLevelElement.className = 'text-red-400';
+        else speedLevelElement.className = 'text-red-600';
     }
 }
 
@@ -2697,18 +2774,33 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
         return;
     }
     
-    // Calculate speed multiplier for max speed calculation
-    function calculateSpeedMultiplier(size) {
-        const minSize = 20;
-        const maxSize = 50;
-        const minSpeedMultiplier = 0.4; // 40% of base speed for maximum size
-        const maxSpeedMultiplier = 1.0; // 100% of base speed for minimum size
+    // Calculate speed multiplier for max speed calculation (based on score)
+    function calculateSpeedMultiplier(score) {
+        // Score-based speed system (same as server):
+        // 0-100 coins: 100% speed (fast)
+        // 100-250 coins: 85% speed
+        // 250-500 coins: 70% speed  
+        // 500-1000 coins: 55% speed
+        // 1000+ coins: 40% speed (slow)
         
-        const clampedSize = Math.max(minSize, Math.min(maxSize, size));
-        const sizeProgress = (clampedSize - minSize) / (maxSize - minSize);
-        const speedMultiplier = maxSpeedMultiplier - (sizeProgress * (maxSpeedMultiplier - minSpeedMultiplier));
-        
-        return speedMultiplier;
+        if (score <= 100) {
+            return 1.0; // 100% speed for 0-100 coins
+        } else if (score <= 250) {
+            // Linear interpolation from 100% to 85% for 100-250 coins
+            const progress = (score - 100) / 150;
+            return 1.0 - (progress * 0.15);
+        } else if (score <= 500) {
+            // Linear interpolation from 85% to 70% for 250-500 coins
+            const progress = (score - 250) / 250;
+            return 0.70 + (progress * 0.15);
+        } else if (score <= 1000) {
+            // Linear interpolation from 70% to 55% for 500-1000 coins
+            const progress = (score - 500) / 500;
+            return 0.70 - (progress * 0.15);
+        } else {
+            // 40% speed for 1000+ coins
+            return 0.40;
+        }
     }
     
     // Update current game score
@@ -2740,11 +2832,47 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
     const maxSpeedElement = document.getElementById('maxSpeedValue');
     if (maxSpeedElement) {
         const baseSpeed = 200;
-        const sizeMultiplier = calculateSpeedMultiplier(player.size || 20);
+        const sizeMultiplier = calculateSpeedMultiplier(player.score || 0);
         const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
         maxSpeedElement.textContent = maxSpeed.toString();
     } else {
         console.warn('⚠️ maxSpeedValue element not found');
+    }
+    
+    // Update speed level display
+    const speedLevelElement = document.getElementById('speedLevel');
+    if (speedLevelElement) {
+        const score = player.score || 0;
+        let level, description;
+        
+        if (score <= 100) {
+            level = 1;
+            description = 'Fast';
+        } else if (score <= 250) {
+            level = 2;
+            description = 'Normal';
+        } else if (score <= 500) {
+            level = 3;
+            description = 'Slow';
+        } else if (score <= 1000) {
+            level = 4;
+            description = 'Very Slow';
+        } else {
+            level = 5;
+            description = 'Extremely Slow';
+        }
+        
+        speedLevelElement.textContent = `(Level ${level}: ${description})`;
+        
+        // Add color coding based on level
+        speedLevelElement.className = '';
+        if (level === 1) speedLevelElement.className = 'text-green-400';
+        else if (level === 2) speedLevelElement.className = 'text-yellow-400';
+        else if (level === 3) speedLevelElement.className = 'text-orange-400';
+        else if (level === 4) speedLevelElement.className = 'text-red-400';
+        else speedLevelElement.className = 'text-red-600';
+    } else {
+        console.warn('⚠️ speedLevel element not found');
     }
     
     // Log updates for debugging

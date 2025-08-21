@@ -116,23 +116,33 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Calculate speed multiplier based on size (bigger = slower)
-function calculateSpeedMultiplier(size) {
-  // Size ranges from 20 (minimum) to 50 (maximum)
-  // Speed multiplier ranges from 1.0 (fastest, small size) to 0.4 (slowest, max size)
-  const minSize = 20;
-  const maxSize = 50;
-  const minSpeedMultiplier = 0.4; // 40% of base speed for maximum size
-  const maxSpeedMultiplier = 1.0; // 100% of base speed for minimum size
+// Calculate speed multiplier based on score (more coins = slower)
+function calculateSpeedMultiplier(score) {
+  // Score-based speed system:
+  // 0-100 coins: 100% speed (fast)
+  // 100-250 coins: 85% speed
+  // 250-500 coins: 70% speed  
+  // 500-1000 coins: 55% speed
+  // 1000+ coins: 40% speed (slow)
   
-  // Clamp size to valid range
-  const clampedSize = Math.max(minSize, Math.min(maxSize, size));
-  
-  // Linear interpolation from max speed (small size) to min speed (large size)
-  const sizeProgress = (clampedSize - minSize) / (maxSize - minSize);
-  const speedMultiplier = maxSpeedMultiplier - (sizeProgress * (maxSpeedMultiplier - minSpeedMultiplier));
-  
-  return speedMultiplier;
+  if (score <= 100) {
+    return 1.0; // 100% speed for 0-100 coins
+  } else if (score <= 250) {
+    // Linear interpolation from 100% to 85% for 100-250 coins
+    const progress = (score - 100) / 150;
+    return 1.0 - (progress * 0.15);
+  } else if (score <= 500) {
+    // Linear interpolation from 85% to 70% for 250-500 coins
+    const progress = (score - 250) / 250;
+    return 0.85 - (progress * 0.15);
+  } else if (score <= 1000) {
+    // Linear interpolation from 70% to 55% for 500-1000 coins
+    const progress = (score - 500) / 500;
+    return 0.70 - (progress * 0.15);
+  } else {
+    // 40% speed for 1000+ coins
+    return 0.40;
+  }
 }
 
 // Helper function to calculate player size based on score
@@ -558,7 +568,7 @@ function updateBots() {
         let speedMultiplier = 1.0;
         
         // Apply size-based speed reduction
-        const sizeSpeedMultiplier = calculateSpeedMultiplier(bot.size);
+        const sizeSpeedMultiplier = calculateSpeedMultiplier(bot.score);
         const speed = baseSpeed * bot.speedVariation * speedMultiplier * sizeSpeedMultiplier;
         bot.vx = (dx / distance) * speed;
         bot.vy = (dy / distance) * speed;
@@ -1302,7 +1312,7 @@ io.on('connection', (socket) => {
       
       // Calculate speed based on player size (bigger = slower)
       const baseSpeed = 200; // base pixels per second
-      const sizeSpeedMultiplier = calculateSpeedMultiplier(player.size);
+              const sizeSpeedMultiplier = calculateSpeedMultiplier(player.score);
       let speed = baseSpeed * sizeSpeedMultiplier;
       
       // Apply speed booster if active

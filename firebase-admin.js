@@ -66,6 +66,7 @@ class GameDataService {
             
             if (playerDoc.exists) {
                 const data = playerDoc.data();
+                console.log(`🔍 Raw Firestore data for ${playerId}:`, data);
                 
                 // Extract data with proper fallbacks
                 const extractedData = {
@@ -81,7 +82,8 @@ class GameDataService {
                     lastPlayed: data.lastPlayed || null
                 };
                 
-                console.log(`✅ getPlayerStats found data for ${playerId}:`, extractedData);
+                console.log(`✅ getPlayerStats extracted data for ${playerId}:`, extractedData);
+                console.log(`💰 totalScore value: ${extractedData.totalScore} (type: ${typeof extractedData.totalScore})`);
                 return extractedData;
             } else {
                 console.log(`❌ getPlayerStats: No document found for playerId: ${playerId}`);
