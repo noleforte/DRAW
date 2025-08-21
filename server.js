@@ -107,6 +107,18 @@ app.post('/api/player/:playerId/stats', async (req, res) => {
   }
 });
 
+// Clean up duplicate player documents
+app.post('/api/admin/cleanup-duplicates', async (req, res) => {
+  try {
+    console.log('🧹 Admin cleanup request received');
+    await GameDataService.cleanupDuplicatePlayers();
+    res.json({ success: true, message: 'Cleanup completed successfully' });
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+    res.status(500).json({ error: 'Failed to cleanup duplicate documents' });
+  }
+});
+
 // API endpoint for saving completed game session
 app.post('/api/player/:playerId/session', async (req, res) => {
   try {

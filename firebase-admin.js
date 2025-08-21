@@ -30,7 +30,11 @@ class GameDataService {
     // Save player statistics
     async savePlayerStats(playerId, gameData) {
         try {
-            const playerRef = db.collection('players').doc(playerId);
+            // Normalize playerId to lowercase to avoid duplicate documents
+            const normalizedPlayerId = playerId.toLowerCase();
+            console.log(`🔧 savePlayerStats: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
+            
+            const playerRef = db.collection('players').doc(normalizedPlayerId);
             const playerDoc = await playerRef.get();
             
             if (playerDoc.exists) {
@@ -40,11 +44,15 @@ class GameDataService {
                     gamesPlayed: (currentStats.gamesPlayed || 0) + 1,
                     bestScore: Math.max(currentStats.bestScore || 0, gameData.score),
                     lastPlayed: admin.firestore.FieldValue.serverTimestamp(),
-                    walletAddress: gameData.walletAddress || currentStats.walletAddress
+                    walletAddress: gameData.walletAddress || currentStats.walletAddress,
+                    // Ensure consistent field names
+                    nickname: gameData.playerName || currentStats.nickname || normalizedPlayerId,
+                    playerName: gameData.playerName || currentStats.nickname || normalizedPlayerId
                 });
             } else {
                 await playerRef.set({
-                    playerName: gameData.playerName,
+                    nickname: gameData.playerName || normalizedPlayerId,
+                    playerName: gameData.playerName || normalizedPlayerId,
                     walletAddress: gameData.walletAddress || '',
                     totalScore: gameData.score,
                     gamesPlayed: 1,
@@ -61,12 +69,15 @@ class GameDataService {
     // Get player statistics
     async getPlayerStats(playerId) {
         try {
-            console.log(`🔍 getPlayerStats called for playerId: ${playerId}`);
-            const playerDoc = await db.collection('players').doc(playerId).get();
+            // Normalize playerId to lowercase to avoid duplicate documents
+            const normalizedPlayerId = playerId.toLowerCase();
+            console.log(`🔧 getPlayerStats: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
+            
+            const playerDoc = await db.collection('players').doc(normalizedPlayerId).get();
             
             if (playerDoc.exists) {
                 const data = playerDoc.data();
-                console.log(`🔍 Raw Firestore data for ${playerId}:`, data);
+                console.log(`🔍 Raw Firestore data for ${normalizedPlayerId}:`, data);
                 
                 // Extract data with proper fallbacks
                 const extractedData = {
@@ -82,11 +93,11 @@ class GameDataService {
                     lastPlayed: data.lastPlayed || null
                 };
                 
-                console.log(`✅ getPlayerStats extracted data for ${playerId}:`, extractedData);
+                console.log(`✅ getPlayerStats extracted data for ${normalizedPlayerId}:`, extractedData);
                 console.log(`💰 totalScore value: ${extractedData.totalScore} (type: ${typeof extractedData.totalScore})`);
                 return extractedData;
             } else {
-                console.log(`❌ getPlayerStats: No document found for playerId: ${playerId}`);
+                console.log(`❌ getPlayerStats: No document found for playerId: ${normalizedPlayerId}`);
                 return null;
             }
         } catch (error) {
@@ -98,6 +109,11 @@ class GameDataService {
     // Save match results
     async saveMatchResult(matchData) {
         try {
+            // Normalize playerId in matchData if it exists
+            if (matchData.playerId) {
+                matchData.playerId = matchData.playerId.toLowerCase();
+            }
+            
             await db.collection('matches').add({
                 ...matchData,
                 timestamp: admin.firestore.FieldValue.serverTimestamp()
@@ -117,6 +133,9 @@ class GameDataService {
             
             return snapshot.docs.map(doc => ({
                 id: doc.id,
+                // Ensure consistent field names for display
+                nickname: doc.data().nickname || doc.data().playerName || doc.id,
+                playerName: doc.data().playerName || doc.data().nickname || doc.id,
                 ...doc.data()
             }));
         } catch (error) {
@@ -128,7 +147,11 @@ class GameDataService {
     // Update player profile
     async updatePlayerProfile(playerId, updates) {
         try {
-            await db.collection('players').doc(playerId).update({
+            // Normalize playerId to lowercase to avoid duplicate documents
+            const normalizedPlayerId = playerId.toLowerCase();
+            console.log(`🔧 updatePlayerProfile: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
+            
+            await db.collection('players').doc(normalizedPlayerId).update({
                 ...updates,
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp()
             });
@@ -140,7 +163,11 @@ class GameDataService {
     // Save player's current total score (Score = Total Score)
     async savePlayerCoin(playerId, currentTotalScore) {
         try {
-            const playerRef = db.collection('players').doc(playerId);
+            // Normalize playerId to lowercase to avoid duplicate documents
+            const normalizedPlayerId = playerId.toLowerCase();
+            console.log(`🔧 savePlayerCoin: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
+            
+            const playerRef = db.collection('players').doc(normalizedPlayerId);
             const playerDoc = await playerRef.get();
             
             if (playerDoc.exists) {
@@ -152,7 +179,8 @@ class GameDataService {
             } else {
                 // Create new player if doesn't exist
                 await playerRef.set({
-                    playerName: `Player_${playerId}`,
+                    nickname: normalizedPlayerId,
+                    playerName: normalizedPlayerId,
                     totalScore: currentTotalScore,
                     gamesPlayed: 0,
                     bestScore: 0,
@@ -168,12 +196,16 @@ class GameDataService {
     // Save player size for next game
     async savePlayerSize(playerId, size) {
         try {
-            const playerRef = db.collection('players').doc(playerId);
+            // Normalize playerId to lowercase to avoid duplicate documents
+            const normalizedPlayerId = playerId.toLowerCase();
+            console.log(`🔧 savePlayerSize: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
+            
+            const playerRef = db.collection('players').doc(normalizedPlayerId);
             await playerRef.update({
                 lastSize: size,
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp()
             });
-            console.log(`Saved player size ${size} for player ${playerId}`);
+            console.log(`Saved player size ${size} for player ${normalizedPlayerId}`);
         } catch (error) {
             console.error('Error saving player size:', error);
         }
@@ -182,7 +214,11 @@ class GameDataService {
     // Get player's current total coins
     async getPlayerTotalCoins(playerId) {
         try {
-            const playerDoc = await db.collection('players').doc(playerId).get();
+            // Normalize playerId to lowercase to avoid duplicate documents
+            const normalizedPlayerId = playerId.toLowerCase();
+            console.log(`🔧 getPlayerTotalCoins: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
+            
+            const playerDoc = await db.collection('players').doc(normalizedPlayerId).get();
             if (playerDoc.exists) {
                 const data = playerDoc.data();
                 return data.totalScore || 0;
@@ -199,7 +235,11 @@ class GameDataService {
         if (coinCount <= 0) return false;
         
         try {
-            const playerRef = db.collection('players').doc(playerId);
+            // Normalize playerId to lowercase to avoid duplicate documents
+            const normalizedPlayerId = playerId.toLowerCase();
+            console.log(`🔧 savePlayerCoins: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
+            
+            const playerRef = db.collection('players').doc(normalizedPlayerId);
             const playerDoc = await playerRef.get();
             
             if (playerDoc.exists) {
@@ -209,7 +249,8 @@ class GameDataService {
                 });
             } else {
                 await playerRef.set({
-                    playerName: `Player_${playerId}`,
+                    nickname: normalizedPlayerId,
+                    playerName: normalizedPlayerId,
                     walletAddress: '',
                     totalScore: coinCount,
                     gamesPlayed: 0,
@@ -228,7 +269,11 @@ class GameDataService {
     // Update player's best score if current score is higher
     async updateBestScore(playerId, currentScore) {
         try {
-            const playerRef = db.collection('players').doc(playerId);
+            // Normalize playerId to lowercase to avoid duplicate documents
+            const normalizedPlayerId = playerId.toLowerCase();
+            console.log(`🔧 updateBestScore: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
+            
+            const playerRef = db.collection('players').doc(normalizedPlayerId);
             const playerDoc = await playerRef.get();
             
             if (playerDoc.exists) {
@@ -245,7 +290,8 @@ class GameDataService {
             } else {
                 // Create new player if doesn't exist
                 await playerRef.set({
-                    playerName: `Player_${playerId}`,
+                    nickname: normalizedPlayerId,
+                    playerName: normalizedPlayerId,
                     walletAddress: '',
                     totalScore: 0,
                     gamesPlayed: 0,
@@ -266,26 +312,35 @@ class GameDataService {
     // Update player's full stats (score, totalScore, gamesPlayed)
     async updatePlayerFullStats(playerId, statsData) {
         try {
-            const playerRef = db.collection('players').doc(playerId);
+            // Normalize playerId to lowercase to avoid duplicate documents
+            const normalizedPlayerId = playerId.toLowerCase();
+            console.log(`🔧 Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
+            
+            const playerRef = db.collection('players').doc(normalizedPlayerId);
             const playerDoc = await playerRef.get();
             
             if (playerDoc.exists) {
                 const currentStats = playerDoc.data();
+                console.log(`📊 Found existing player document for ${normalizedPlayerId}:`, currentStats);
+                
                 const newGamesPlayed = Math.max(currentStats.gamesPlayed || 0, statsData.gamesPlayed || 0);
                 const newBestScore = Math.max(currentStats.bestScore || 0, statsData.score);
-                const newTotalScore = Math.max(currentStats.totalScore || 0, statsData.totalScore); // Keep highest totalScore
+                const newTotalScore = Math.max(currentStats.totalScore || 0, statsData.totalScore);
                 
                 await playerRef.update({
-                    totalScore: newTotalScore, // Update totalScore to highest value
+                    totalScore: newTotalScore,
                     gamesPlayed: newGamesPlayed,
                     bestScore: newBestScore,
-                    lastPlayed: admin.firestore.FieldValue.serverTimestamp()
+                    lastPlayed: admin.firestore.FieldValue.serverTimestamp(),
+                    // Ensure consistent field names
+                    nickname: statsData.nickname || currentStats.nickname || normalizedPlayerId,
+                    playerName: statsData.nickname || currentStats.nickname || normalizedPlayerId
                 });
-                console.log(`✅ Updated full stats for player ${playerId}: totalScore=${newTotalScore} (was ${currentStats.totalScore || 0}), gamesPlayed=${newGamesPlayed} (was ${currentStats.gamesPlayed || 0}), bestScore=${newBestScore} (was ${currentStats.bestScore || 0})`);
+                console.log(`✅ Updated full stats for player ${normalizedPlayerId}: totalScore=${newTotalScore} (was ${currentStats.totalScore || 0}), gamesPlayed=${newGamesPlayed} (was ${currentStats.gamesPlayed || 0}), bestScore=${newBestScore} (was ${currentStats.bestScore || 0})`);
             } else {
-                // Create new player if doesn't exist
                 await playerRef.set({
-                    playerName: `Player_${playerId}`,
+                    nickname: statsData.nickname || normalizedPlayerId,
+                    playerName: statsData.nickname || normalizedPlayerId,
                     walletAddress: '',
                     totalScore: statsData.totalScore,
                     gamesPlayed: statsData.gamesPlayed || 0,
@@ -293,7 +348,7 @@ class GameDataService {
                     firstPlayed: admin.firestore.FieldValue.serverTimestamp(),
                     lastPlayed: admin.firestore.FieldValue.serverTimestamp()
                 });
-                console.log(`🆕 Created new player ${playerId} with full stats: totalScore=${statsData.totalScore}, gamesPlayed=${statsData.gamesPlayed}, bestScore=${statsData.score}`);
+                console.log(`🆕 Created new player ${normalizedPlayerId} with full stats: totalScore=${statsData.totalScore}, gamesPlayed=${statsData.gamesPlayed}, bestScore=${statsData.score}`);
             }
             
             return true;
@@ -303,10 +358,80 @@ class GameDataService {
         }
     }
 
+    // Clean up duplicate player documents by merging data
+    async cleanupDuplicatePlayers() {
+        try {
+            console.log('🧹 Starting cleanup of duplicate player documents...');
+            
+            const snapshot = await db.collection('players').get();
+            const players = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            // Group players by normalized nickname
+            const playerGroups = {};
+            players.forEach(player => {
+                const normalizedId = player.id.toLowerCase();
+                if (!playerGroups[normalizedId]) {
+                    playerGroups[normalizedId] = [];
+                }
+                playerGroups[normalizedId].push(player);
+            });
+            
+            // Process groups with multiple players
+            for (const [normalizedId, group] of Object.entries(playerGroups)) {
+                if (group.length > 1) {
+                    console.log(`🔧 Found ${group.length} duplicate documents for player: ${normalizedId}`);
+                    
+                    // Find the document with the most complete data
+                    const primaryDoc = group.reduce((best, current) => {
+                        const bestScore = (best.bestScore || 0) + (best.totalScore || 0);
+                        const currentScore = (current.bestScore || 0) + (current.totalScore || 0);
+                        return currentScore > bestScore ? current : best;
+                    });
+                    
+                    // Merge all data into the primary document
+                    const mergedData = {
+                        nickname: primaryDoc.nickname || primaryDoc.playerName || normalizedId,
+                        playerName: primaryDoc.playerName || primaryDoc.nickname || normalizedId,
+                        totalScore: Math.max(...group.map(p => p.totalScore || 0)),
+                        bestScore: Math.max(...group.map(p => p.bestScore || 0)),
+                        gamesPlayed: Math.max(...group.map(p => p.gamesPlayed || 0)),
+                        wins: Math.max(...group.map(p => p.wins || 0)),
+                        wallet: primaryDoc.wallet || primaryDoc.walletAddress || '',
+                        email: primaryDoc.email || '',
+                        lastLogin: primaryDoc.lastLogin || null,
+                        lastPlayed: primaryDoc.lastPlayed || null,
+                        lastSize: primaryDoc.lastSize || null,
+                        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+                    };
+                    
+                    // Update primary document with merged data
+                    await db.collection('players').doc(normalizedId).set(mergedData);
+                    console.log(`✅ Merged data into primary document: ${normalizedId}`);
+                    
+                    // Delete duplicate documents
+                    for (const duplicate of group) {
+                        if (duplicate.id !== normalizedId) {
+                            await db.collection('players').doc(duplicate.id).delete();
+                            console.log(`🗑️ Deleted duplicate document: ${duplicate.id}`);
+                        }
+                    }
+                }
+            }
+            
+            console.log('✅ Cleanup of duplicate player documents completed!');
+        } catch (error) {
+            console.error('❌ Error during cleanup of duplicate player documents:', error);
+        }
+    }
+
     // Save completed game session (only called when player finishes a session)
     async saveGameSession(playerId, sessionData) {
         try {
-            const playerRef = db.collection('players').doc(playerId);
+            // Normalize playerId to lowercase to avoid duplicate documents
+            const normalizedPlayerId = playerId.toLowerCase();
+            console.log(`🔧 saveGameSession: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
+            
+            const playerRef = db.collection('players').doc(normalizedPlayerId);
             const playerDoc = await playerRef.get();
             
             if (playerDoc.exists) {
@@ -315,11 +440,15 @@ class GameDataService {
                     gamesPlayed: (currentStats.gamesPlayed || 0) + 1,
                     bestScore: Math.max(currentStats.bestScore || 0, sessionData.score),
                     totalScore: sessionData.score, // Update totalScore to current score (Score = Total Score)
-                    lastPlayed: admin.firestore.FieldValue.serverTimestamp()
+                    lastPlayed: admin.firestore.FieldValue.serverTimestamp(),
+                    // Ensure consistent field names
+                    nickname: sessionData.playerName || currentStats.nickname || normalizedPlayerId,
+                    playerName: sessionData.playerName || currentStats.nickname || normalizedPlayerId
                 });
             } else {
                 await playerRef.set({
-                    playerName: sessionData.playerName,
+                    nickname: sessionData.playerName || normalizedPlayerId,
+                    playerName: sessionData.playerName || normalizedPlayerId,
                     walletAddress: sessionData.walletAddress || '',
                     totalScore: sessionData.score, // Set totalScore to current score
                     gamesPlayed: 1,
