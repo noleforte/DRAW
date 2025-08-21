@@ -126,22 +126,22 @@ function calculateSpeedMultiplier(score) {
   // 1000+ coins: 40% speed (slow)
   
   if (score <= 100) {
-    return 2.0; // 100% speed for 0-100 coins
+    return 1.75; // 100% speed for 0-100 coins
   } else if (score <= 250) {
     // Linear interpolation from 100% to 85% for 100-250 coins
     const progress = (score - 100) / 150;
-    return 1.75 - (progress * 0.15);
+    return 1.50 - (progress * 0.15);
   } else if (score <= 500) {
     // Linear interpolation from 85% to 70% for 250-500 coins
     const progress = (score - 250) / 250;
-    return 1.50 - (progress * 0.15);
+    return 1.25 - (progress * 0.15);
   } else if (score <= 1000) {
     // Linear interpolation from 70% to 55% for 500-1000 coins
     const progress = (score - 500) / 500;
-    return 1.25 - (progress * 0.15);
+    return 1.0 - (progress * 0.15);
   } else {
     // 40% speed for 1000+ coins
-    return 1.0;
+    return 0.75;
   }
 }
 
