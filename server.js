@@ -1213,7 +1213,8 @@ io.on('connection', (socket) => {
         ...existingPlayer,
         socketId: socket.id,
         lastSeen: Date.now(),
-        lastActivity: Date.now()
+        lastActivity: Date.now(),
+        color: playerData.color || existingPlayer.color // Preserve or update color
       };
       
       // Add to gameState.players with new socket.id
@@ -1291,7 +1292,7 @@ io.on('connection', (socket) => {
         socketId: socket.id,
         lastSeen: Date.now(),
         wallet: wallet,
-        color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+        color: playerData.color || `hsl(${Math.random() * 360}, 70%, 50%)`,
         isBot: false,
         lastActivity: Date.now(),
         lastPosition: { x: 0, y: 0 }
