@@ -80,10 +80,14 @@ class LeaderboardManager {
 
     async loadGlobalLeaderboard() {
         try {
-            console.log('🔄 Fetching all players from /api/players...');
+            console.log('🔄 Fetching all players from Render server...');
             console.log('🔄 Current URL:', window.location.href);
             
-            const response = await fetch('/api/players');
+            // Use Render server URL for API calls
+            const apiUrl = 'https://royale-ball-server.onrender.com/api/players';
+            console.log('🔄 API URL:', apiUrl);
+            
+            const response = await fetch(apiUrl);
             console.log('🔄 API Response status:', response.status);
             console.log('🔄 API Response headers:', response.headers);
             
@@ -200,7 +204,8 @@ class LeaderboardManager {
         if (!playerId || playerId.startsWith('guest_')) return null;
 
         try {
-            const response = await fetch(`/api/player/${playerId}`);
+            const apiUrl = `https://royale-ball-server.onrender.com/api/player/${playerId}`;
+            const response = await fetch(apiUrl);
             if (response.ok) {
                 return await response.json();
             }
