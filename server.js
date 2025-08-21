@@ -425,8 +425,9 @@ function redistributeCoinsIfNeeded() {
 }
 
 // Generate boosters
-function generateBoosters(count = 1) { // Only one Player Eater booster
-  const booster = {
+function generateBoosters(count = 2) { // Player Eater + Coin Booster
+  // Generate Player Eater booster
+  const playerEaterBooster = {
     id: `booster_${gameState.nextBoosterId++}`,
     ...getRandomPosition(),
     type: 'playerEater',
@@ -436,7 +437,19 @@ function generateBoosters(count = 1) { // Only one Player Eater booster
     isBooster: true,
     rainbowHue: 0 // For rainbow animation
   };
-  gameState.boosters.set(booster.id, booster);
+  gameState.boosters.set(playerEaterBooster.id, playerEaterBooster);
+  
+  // Generate Coin Booster
+  const coinBooster = {
+    id: `booster_${gameState.nextBoosterId++}`,
+    ...getRandomPosition(),
+    type: 'coins',
+    name: 'Coin Multiplier',
+    color: '#FFD700', // Gold color
+    effect: 'x2 Coins for 2 minutes',
+    isBooster: true
+  };
+  gameState.boosters.set(coinBooster.id, coinBooster);
 }
 
 // Create AI bot
@@ -727,7 +740,14 @@ function updateBots() {
     gameState.coins.forEach(coin => {
       const distance = Math.sqrt((coin.x - bot.x) ** 2 + (coin.y - bot.y) ** 2);
       if (distance < bot.size) {
-        bot.score += coin.value;
+        // Apply coin multiplier if active
+        let actualCoinValue = coin.value;
+        if (bot.coinBoost) {
+          actualCoinValue = coin.value * 2; // Double coins
+          console.log(`💰 Coin multiplier applied for bot ${bot.name}: ${coin.value} → ${actualCoinValue} coins`);
+        }
+        
+        bot.score += actualCoinValue;
         gameState.coins.delete(coin.id);
         
         // Respawn coin with better positioning
@@ -769,44 +789,46 @@ function updateBots() {
      gameState.boosters.forEach(booster => {
        const distance = Math.sqrt((booster.x - bot.x) ** 2 + (booster.y - bot.y) ** 2);
        if (distance < bot.size) {
-         if (booster.type === 'playerEater') {
-           console.log(`👹 Bot ${bot.name} collected Player Eater!`);
-           
-           // Mark bot as having player eater boost
-           bot.playerEater = true;
-           bot.playerEaterEndTime = Date.now() + 60000; // 1 minute
-           bot.rainbowHue = 0; // Initialize rainbow color
-           
-           // Set bot to Level 5 stats
-           bot.size = 50; // Level 5 size
-           bot.playerEaterOriginalSize = bot.size;
-           
-           // Send notification to all players
-           io.emit('chatMessage', {
-             playerId: 'system',
-             playerName: 'System',
-             message: `👹 Bot ${bot.name} collected Player Eater! Can now eat other players for 1 minute!`,
-             timestamp: Date.now()
-           });
-           
-           // Remove booster
-           gameState.boosters.delete(booster.id);
-           
-           // Respawn Player Eater booster after 1 minute
-           setTimeout(() => {
-             const newBooster = {
-               id: `booster_${gameState.nextBoosterId++}`,
-               ...getRandomPosition(),
-               type: 'playerEater',
-               name: 'Player Eater',
-               color: 'rainbow',
-               effect: 'Eat other players + Level 5 stats',
-               isBooster: true,
-               rainbowHue: 0
-             };
-             gameState.boosters.set(newBooster.id, newBooster);
-           }, 60000); // Respawn after 1 minute (60 seconds)
-         }
+                 if (booster.type === 'playerEater') {
+          console.log(`👹 Bot ${bot.name} collected Player Eater!`);
+          
+          // Mark bot as having player eater boost
+          bot.playerEater = true;
+          bot.playerEaterEndTime = Date.now() + 60000; // 1 minute
+          bot.rainbowHue = 0; // Initialize rainbow color
+          
+          // Set bot to Level 5 stats
+          bot.size = 50; // Level 5 size
+          bot.playerEaterOriginalSize = bot.size;
+          
+          // Send notification to all players
+          io.emit('chatMessage', {
+            playerId: 'system',
+            playerName: 'System',
+            message: `👹 Bot ${bot.name} collected Player Eater! Can now eat other players for 1 minute!`,
+            timestamp: Date.now()
+          });
+          
+          // Remove booster
+          gameState.boosters.delete(booster.id);
+                } else if (booster.type === 'coins') {
+          console.log(`💰 Bot ${bot.name} collected Coin Multiplier!`);
+          
+          // Mark bot as having coin boost - time starts from collection moment
+          bot.coinBoost = true;
+          bot.coinBoostEndTime = Date.now() + 120000; // 2 minutes from NOW
+          
+          // Send notification to all players
+          io.emit('chatMessage', {
+            playerId: 'system',
+            playerName: 'System',
+            message: `💰 Bot ${bot.name} collected Coin Multiplier! x2 coins for 2 minutes!`,
+            timestamp: Date.now()
+          });
+          
+          // Remove booster
+          gameState.boosters.delete(booster.id);
+        }
        }
      });
 
@@ -890,6 +912,13 @@ function updateBots() {
         bot.playerEaterOriginalSize = undefined;
       }
       console.log(`👹 Player Eater expired for bot ${bot.name}`);
+    }
+    
+    // Check and expire Coin Booster for bots
+    if (bot.coinBoost && now > bot.coinBoostEndTime) {
+      bot.coinBoost = false;
+      bot.coinBoostEndTime = 0;
+      console.log(`💰 Coin Multiplier expired for bot ${bot.name}`);
     }
   });
 }
@@ -1016,32 +1045,65 @@ function updatePlayers(deltaTime) {
                             message: `👹 ${player.name} collected Player Eater! Can now eat other players for 1 minute!`,
                             timestamp: Date.now()
                         });
+                    } else if (booster.type === 'coins') {
+                        // Coin Multiplier effect
+                        console.log(`💰 Player ${player.name} collected Coin Multiplier!`);
+                        // Mark player as having coin boost - time starts from collection moment
+                        player.coinBoost = true;
+                        player.coinBoostEndTime = Date.now() + 120000; // 2 minutes from NOW
+                        
+                        // Send notification to all players
+                        io.emit('chatMessage', {
+                            playerId: 'system',
+                            playerName: 'System',
+                            message: `💰 ${player.name} collected Coin Multiplier! x2 coins for 2 minutes!`,
+                            timestamp: Date.now()
+                        });
+                    }
         
-        boostersToDelete.push(booster.id);
+        boostersToDelete.push({ id: booster.id, type: booster.type });
         
         // Update activity when player collects booster
         player.lastActivity = Date.now();
       }
-    }});
+    });
     
     // Process collected boosters
-    boostersToDelete.forEach(boosterId => {
-      gameState.boosters.delete(boosterId);
+    boostersToDelete.forEach(boosterData => {
+      const boosterType = boosterData.type;
+      gameState.boosters.delete(boosterData.id);
       
-      // Respawn Player Eater booster after 1 minute
-      setTimeout(() => {
-        const newBooster = {
-          id: `booster_${gameState.nextBoosterId++}`,
-          ...getRandomPosition(),
-          type: 'playerEater',
-          name: 'Player Eater',
-          color: 'rainbow',
-          effect: 'Eat other players + Level 5 stats',
-          isBooster: true,
-          rainbowHue: 0
-        };
-        gameState.boosters.set(newBooster.id, newBooster);
-      }, 60000); // Respawn after 1 minute (60 seconds)
+      // Respawn booster based on type
+      if (boosterType === 'playerEater') {
+        // Player Eater respawns when effect expires (1 minute)
+        setTimeout(() => {
+          const newBooster = {
+            id: `booster_${gameState.nextBoosterId++}`,
+            ...getRandomPosition(),
+            type: 'playerEater',
+            name: 'Player Eater',
+            color: 'rainbow',
+            effect: 'Eat other players + Level 5 stats',
+            isBooster: true,
+            rainbowHue: 0
+          };
+          gameState.boosters.set(newBooster.id, newBooster);
+        }, 60000); // Respawn after 1 minute (when effect expires)
+      } else if (boosterType === 'coins') {
+        // Coin Booster respawns after 2 minutes (same as effect duration)
+        setTimeout(() => {
+          const newBooster = {
+            id: `booster_${gameState.nextBoosterId++}`,
+            ...getRandomPosition(),
+            type: 'coins',
+            name: 'Coin Multiplier',
+            color: '#FFD700',
+            effect: 'x2 Coins for 2 minutes',
+            isBooster: true
+          };
+          gameState.boosters.set(newBooster.id, newBooster);
+        }, 120000); // Respawn after 2 minutes
+      }
     });
     
     // Check and expire boosters
@@ -1055,6 +1117,12 @@ function updatePlayers(deltaTime) {
         player.playerEaterOriginalSize = undefined;
       }
       console.log(`👹 Player Eater expired for player ${player.name}`);
+    }
+    
+    if (player.coinBoost && now > player.coinBoostEndTime) {
+      player.coinBoost = false;
+      player.coinBoostEndTime = 0;
+      console.log(`💰 Coin Multiplier expired for player ${player.name}`);
     }
     
     // Save player total scores to Firebase in batch (non-blocking)
@@ -1944,7 +2012,9 @@ setInterval(() => {
                 name: p.name,
                 color: p.playerEater ? `hsl(${p.rainbowHue || 0}, 70%, 50%)` : p.color,
                 playerEater: p.playerEater || false,
-                playerEaterEndTime: p.playerEaterEndTime || 0
+                playerEaterEndTime: p.playerEaterEndTime || 0,
+                coinBoost: p.coinBoost || false,
+                coinBoostEndTime: p.coinBoostEndTime || 0
             })),
             bots: Array.from(gameState.bots.values()).map(b => ({
                 id: b.id,
@@ -1955,7 +2025,9 @@ setInterval(() => {
                 name: b.name,
                 color: b.playerEater ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
                 playerEater: b.playerEater || false,
-                playerEaterEndTime: b.playerEaterEndTime || 0
+                playerEaterEndTime: b.playerEaterEndTime || 0,
+                coinBoost: b.coinBoost || false,
+                coinBoostEndTime: b.coinBoostEndTime || 0
             })),
             coins: Array.from(gameState.coins.values()).map(c => ({
                 id: c.id,

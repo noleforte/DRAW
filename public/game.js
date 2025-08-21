@@ -5537,30 +5537,30 @@ function updateBoosterStatusDisplay() {
         boosterContainer.appendChild(speedBooster);
     }
     
-    if (activeBoosters.coins.active) {
-        const timeLeft = Math.ceil((activeBoosters.coins.endTime - Date.now()) / 1000);
-        const minutes = Math.floor(timeLeft / 60);
-        const seconds = timeLeft % 60;
-        const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        
-        const coinBooster = document.createElement('div');
-        coinBooster.className = 'bg-yellow-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center justify-between min-w-[200px]';
-        coinBooster.innerHTML = `
-            <div class="flex items-center space-x-2">
-                <span class="text-xl">💰</span>
-                <div>
-                    <div class="font-bold">Coin Multiplier</div>
-                    <div class="text-xs opacity-90">x2 Coins Collected</div>
+            if (activeBoosters.coins.active) {
+            const timeLeft = Math.ceil((activeBoosters.coins.endTime - Date.now()) / 1000);
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            const coinBooster = document.createElement('div');
+            coinBooster.className = 'bg-yellow-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center justify-between min-w-[200px]';
+            coinBooster.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">💰</span>
+                    <div>
+                        <div class="font-bold">Coin Multiplier</div>
+                        <div class="text-xs opacity-90">x2 Coins for 2 minutes</div>
+                    </div>
                 </div>
-            </div>
-            <div class="text-right">
-                <div class="font-mono text-lg font-bold">${timeText}</div>
-                <div class="text-xs opacity-90">remaining</div>
-            </div>
-        `;
-        coinBooster.style.display = 'none';
-        boosterContainer.appendChild(coinBooster);
-    }
+                <div class="text-right">
+                    <div class="font-mono text-lg font-bold">${timeText}</div>
+                    <div class="text-xs opacity-90">remaining</div>
+                </div>
+            `;
+            coinBooster.style.display = 'none';
+            boosterContainer.appendChild(coinBooster);
+        }
     
     if (activeBoosters.playerEater.active) {
         const timeLeft = Math.ceil((activeBoosters.playerEater.endTime - Date.now()) / 1000);
@@ -5626,7 +5626,7 @@ function updateBoosterStatusDisplay() {
             const coinItem = document.createElement('div');
             coinItem.className = 'flex justify-between items-center text-sm bg-yellow-600 bg-opacity-70 rounded px-3 py-1';
             coinItem.innerHTML = `
-                <span class="text-white">💰 Coin Multiplier </span>
+                <span class="text-white">💰 Coin Multiplier (2min)</span>
                  <span>&nbsp;</span>
                 <span class="font-mono text-white font-bold">${timeText}</span>
             `;
