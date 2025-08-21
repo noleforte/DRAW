@@ -15,6 +15,9 @@ class LeaderboardManager {
             });
         }
 
+        // Load global leaderboard initially
+        this.loadGlobalLeaderboard();
+        
         // Auto-refresh global leaderboard every 10 seconds for real-time online status
         setInterval(() => {
             if (this.currentType === 'global') {
@@ -24,31 +27,40 @@ class LeaderboardManager {
     }
 
     toggleLeaderboardType() {
+        console.log('🔄 Toggling leaderboard type from:', this.currentType);
         this.currentType = this.currentType === 'match' ? 'global' : 'match';
-        const toggleBtn = document.getElementById('toggleLeaderboardType');
+        console.log('🔄 New type:', this.currentType);
         
+        const toggleBtn = document.getElementById('toggleLeaderboardType');
         if (toggleBtn) {
             toggleBtn.textContent = this.currentType === 'match' ? 'Match' : 'All Players';
+            console.log('🔄 Button text updated to:', toggleBtn.textContent);
+        } else {
+            console.error('❌ Toggle button not found!');
         }
 
         if (this.currentType === 'global') {
+            console.log('🔄 Loading global leaderboard...');
             this.loadGlobalLeaderboard();
         } else {
+            console.log('🔄 Updating match leaderboard...');
             this.updateMatchLeaderboard();
         }
     }
 
     async loadGlobalLeaderboard() {
         try {
+            console.log('🔄 Fetching all players from /api/players...');
             const response = await fetch('/api/players');
             if (response.ok) {
                 this.globalLeaderboard = await response.json();
+                console.log('🔄 Loaded', this.globalLeaderboard.length, 'players:', this.globalLeaderboard);
                 this.renderLeaderboard();
             } else {
-                console.error('Failed to load all players');
+                console.error('❌ Failed to load all players:', response.status, response.statusText);
             }
         } catch (error) {
-            console.error('Error loading all players:', error);
+            console.error('❌ Error loading all players:', error);
         }
     }
 
@@ -69,9 +81,11 @@ class LeaderboardManager {
         if (!leaderboardList) return;
 
         const data = this.currentType === 'match' ? this.matchLeaderboard : this.globalLeaderboard;
+        console.log('🔄 Rendering leaderboard:', this.currentType, 'Data length:', data.length, 'Data:', data);
         
         if (data.length === 0) {
             leaderboardList.innerHTML = '<div class="text-gray-400 text-sm">No data available</div>';
+            console.log('🔄 No data available for', this.currentType);
             return;
         }
 
