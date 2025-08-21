@@ -728,9 +728,12 @@ function updateBots() {
       }
     }
 
-    // Update position
-    bot.x += bot.vx;
-    bot.y += bot.vy;
+    // Apply speed multiplier if Player Eater is active
+    const botSpeedMultiplier = bot.playerEater ? (bot.speed || 1.5) : 1;
+    
+    // Update position with speed multiplier
+    bot.x += bot.vx * botSpeedMultiplier;
+    bot.y += bot.vy * botSpeedMultiplier;
 
     // Keep within world bounds
     bot.x = Math.max(-gameState.worldSize/2, Math.min(gameState.worldSize/2, bot.x));
@@ -789,7 +792,7 @@ function updateBots() {
      gameState.boosters.forEach(booster => {
        const distance = Math.sqrt((booster.x - bot.x) ** 2 + (booster.y - bot.y) ** 2);
        if (distance < bot.size) {
-                 if (booster.type === 'playerEater') {
+                         if (booster.type === 'playerEater') {
           console.log(`👹 Bot ${bot.name} collected Player Eater!`);
           
           // Mark bot as having player eater boost
@@ -797,21 +800,25 @@ function updateBots() {
           bot.playerEaterEndTime = Date.now() + 60000; // 1 minute
           bot.rainbowHue = 0; // Initialize rainbow color
           
+          // Store original size and speed for restoration
+          bot.playerEaterOriginalSize = bot.size;
+          bot.playerEaterOriginalSpeed = bot.speed || 1;
+          
           // Set bot to Level 5 stats
           bot.size = 50; // Level 5 size
-          bot.playerEaterOriginalSize = bot.size;
+          bot.speed = 1.5; // Level 5 speed (50% faster than normal)
           
           // Send notification to all players
-          io.emit('chatMessage', {
+           io.emit('chatMessage', {
             playerId: 'system',
             playerName: 'System',
-            message: `👹 Bot ${bot.name} collected Player Eater! Can now eat other players for 1 minute!`,
-            timestamp: Date.now()
-          });
-          
+            message: `👹 Bot ${bot.name} collected Player Eater! Can now eat other players for 1 minute! (Level 5 size & speed)`,
+             timestamp: Date.now()
+           });
+           
           // Remove booster
           gameState.boosters.delete(booster.id);
-                } else if (booster.type === 'coins') {
+        } else if (booster.type === 'coins') {
           console.log(`💰 Bot ${bot.name} collected Coin Multiplier!`);
           
           // Mark bot as having coin boost - time starts from collection moment
@@ -829,7 +836,7 @@ function updateBots() {
           // Remove booster
           gameState.boosters.delete(booster.id);
         }
-       }
+      }
      });
 
     // Occasionally send chat messages (reduced frequency)
@@ -906,12 +913,16 @@ function updateBots() {
     if (bot.playerEater && now > bot.playerEaterEndTime) {
       bot.playerEater = false;
       bot.playerEaterEndTime = 0;
-      // Restore original size
+      // Restore original size and speed
       if (bot.playerEaterOriginalSize) {
         bot.size = bot.playerEaterOriginalSize;
         bot.playerEaterOriginalSize = undefined;
       }
-      console.log(`👹 Player Eater expired for bot ${bot.name}`);
+      if (bot.playerEaterOriginalSpeed) {
+        bot.speed = bot.playerEaterOriginalSpeed;
+        bot.playerEaterOriginalSpeed = undefined;
+      }
+      console.log(`👹 Player Eater expired for bot ${bot.name} - restored original size and speed`);
     }
     
     // Check and expire Coin Booster for bots
@@ -934,9 +945,12 @@ function updatePlayers(deltaTime) {
     player.vx += (player.targetVx - player.vx) * lerpFactor;
     player.vy += (player.targetVy - player.vy) * lerpFactor;
     
-    // Update position based on velocity and deltaTime
-    player.x += player.vx * deltaTime;
-    player.y += player.vy * deltaTime;
+    // Apply speed multiplier if Player Eater is active
+    const speedMultiplier = player.playerEater ? (player.speed || 1.5) : 1;
+    
+    // Update position based on velocity, deltaTime, and speed multiplier
+    player.x += player.vx * deltaTime * speedMultiplier;
+    player.y += player.vy * deltaTime * speedMultiplier;
     
     // Debug: Log position update
     console.log(`🎮 Player ${player.name} moved to (${Math.round(player.x)}, ${Math.round(player.y)})`);
@@ -994,11 +1008,11 @@ function updatePlayers(deltaTime) {
       gameState.coins.delete(coinId);
       
               // Respawn coin with better positioning
-        const newCoin = {
-          id: gameState.nextCoinId++,
-          ...getRandomPosition(),
-          value: 1
-        };
+      const newCoin = {
+        id: gameState.nextCoinId++,
+        ...getRandomPosition(),
+        value: 1
+      };
         
         // Try to avoid spawning too close to existing coins
         let attempts = 0;
@@ -1021,7 +1035,7 @@ function updatePlayers(deltaTime) {
           attempts++;
         }
         
-        gameState.coins.set(newCoin.id, newCoin);
+      gameState.coins.set(newCoin.id, newCoin);
     });
     
     // Check booster collection
@@ -1038,11 +1052,19 @@ function updatePlayers(deltaTime) {
                         player.playerEaterEndTime = Date.now() + 60000; // 1 minute
                         player.rainbowHue = 0; // Initialize rainbow color
                         
+                        // Store original size and speed for restoration
+                        player.playerEaterOriginalSize = player.size;
+                        player.playerEaterOriginalSpeed = player.speed || 1;
+                        
+                        // Set player to Level 5 stats
+                        player.size = 50; // Level 5 size
+                        player.speed = 1.5; // Level 5 speed (50% faster than normal)
+                        
                         // Send notification to all players
                         io.emit('chatMessage', {
                             playerId: 'system',
                             playerName: 'System',
-                            message: `👹 ${player.name} collected Player Eater! Can now eat other players for 1 minute!`,
+                            message: `👹 ${player.name} collected Player Eater! Can now eat other players for 1 minute! (Level 5 size & speed)`,
                             timestamp: Date.now()
                         });
                     } else if (booster.type === 'coins') {
@@ -1111,12 +1133,16 @@ function updatePlayers(deltaTime) {
     if (player.playerEater && now > player.playerEaterEndTime) {
       player.playerEater = false;
       player.playerEaterEndTime = 0;
-      // Restore original size
+      // Restore original size and speed
       if (player.playerEaterOriginalSize) {
         player.size = player.playerEaterOriginalSize;
         player.playerEaterOriginalSize = undefined;
       }
-      console.log(`👹 Player Eater expired for player ${player.name}`);
+      if (player.playerEaterOriginalSpeed) {
+        player.speed = player.playerEaterOriginalSpeed;
+        player.playerEaterOriginalSpeed = undefined;
+      }
+      console.log(`👹 Player Eater expired for player ${player.name} - restored original size and speed`);
     }
     
     if (player.coinBoost && now > player.coinBoostEndTime) {
@@ -1188,18 +1214,18 @@ function updatePlayers(deltaTime) {
     
     // Check Player Eater mechanics - can eat other players regardless of size
     if (player.playerEater) {
-      const allEntities = [...gameState.players.values(), ...gameState.bots.values()];
-      const entitiesToRemove = [];
-      
-      allEntities.forEach(target => {
-        if (target.id !== player.id) { // Can eat anyone except yourself
-          const distance = Math.sqrt((target.x - player.x) ** 2 + (target.y - player.y) ** 2);
-          
+    const allEntities = [...gameState.players.values(), ...gameState.bots.values()];
+    const entitiesToRemove = [];
+    
+    allEntities.forEach(target => {
+             if (target.id !== player.id) { // Can eat anyone except yourself
+         const distance = Math.sqrt((target.x - player.x) ** 2 + (target.y - player.y) ** 2);
+         
           // Can eat if touching (Player Eater ignores size requirements)
           if (distance < (player.size + target.size) * 0.7) {
             // Transfer 10% of victim's score to player
             const coinsGained = Math.floor(target.score * 0.1);
-            player.score += coinsGained;
+          player.score += coinsGained;
             
             // Reduce victim's score by 10%
             target.score = Math.floor(target.score * 0.9);
@@ -1207,16 +1233,16 @@ function updatePlayers(deltaTime) {
             // Mark entity for removal if score becomes 0
             if (target.score <= 0) {
               entitiesToRemove.push(target);
-            }
-            
-            // Send eating notification
-            io.emit('chatMessage', {
-              playerId: player.id,
-              playerName: player.name,
+          }
+          
+                     // Send eating notification
+           io.emit('chatMessage', {
+             playerId: player.id,
+             playerName: player.name,
               message: `👹 ${player.name} ate ${target.name}! (+${coinsGained} coins, ${target.name} lost 10%)`,
-              timestamp: Date.now()
-            });
-            
+             timestamp: Date.now()
+           });
+           
             // Send playerEaten event to victim
             if (target.socketId) {
               io.to(target.socketId).emit('playerEaten', {
@@ -1591,7 +1617,7 @@ io.on('connection', (socket) => {
                 
                 // Log final state for debugging
                 console.log(`✅ Reconnected player ${reconnectedPlayer.id} final state - Score: ${reconnectedPlayer.score}, Size: ${reconnectedPlayer.size}`);
-              } else {
+    } else {
                 console.log(`❌ No playerStats found for reconnected ${reconnectedPlayer.id}`);
               }
             })
@@ -1999,40 +2025,40 @@ setInterval(() => {
       console.log(`🎮 Player ${firstPlayer.name} - Pos: (${Math.round(firstPlayer.x)}, ${Math.round(firstPlayer.y)}), Vel: (${Math.round(firstPlayer.vx * 10) / 10}, ${Math.round(firstPlayer.vy * 10) / 10})`);
     }
     
-            // Only send essential data, not full objects
-        const gameUpdate = {
-            players: Array.from(gameState.players.values()).map(p => ({
-                id: p.id,
-                x: Math.round(p.x),
-                y: Math.round(p.y),
-                vx: Math.round(p.vx * 10) / 10, // Send velocity for client-side interpolation
-                vy: Math.round(p.vy * 10) / 10,
-                score: p.score,
-                size: p.size,
-                name: p.name,
+    // Only send essential data, not full objects
+    const gameUpdate = {
+      players: Array.from(gameState.players.values()).map(p => ({
+        id: p.id,
+        x: Math.round(p.x),
+        y: Math.round(p.y),
+        vx: Math.round(p.vx * 10) / 10, // Send velocity for client-side interpolation
+        vy: Math.round(p.vy * 10) / 10,
+        score: p.score,
+        size: p.size,
+        name: p.name,
                 color: p.playerEater ? `hsl(${p.rainbowHue || 0}, 70%, 50%)` : p.color,
                 playerEater: p.playerEater || false,
                 playerEaterEndTime: p.playerEaterEndTime || 0,
                 coinBoost: p.coinBoost || false,
                 coinBoostEndTime: p.coinBoostEndTime || 0
-            })),
-            bots: Array.from(gameState.bots.values()).map(b => ({
-                id: b.id,
-                x: Math.round(b.x),
-                y: Math.round(b.y),
-                score: b.score,
-                size: b.size,
-                name: b.name,
+      })),
+      bots: Array.from(gameState.bots.values()).map(b => ({
+        id: b.id,
+        x: Math.round(b.x),
+        y: Math.round(b.y),
+        score: b.score,
+        size: b.size,
+        name: b.name,
                 color: b.playerEater ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
                 playerEater: b.playerEater || false,
                 playerEaterEndTime: b.playerEaterEndTime || 0,
                 coinBoost: b.coinBoost || false,
                 coinBoostEndTime: b.coinBoostEndTime || 0
-            })),
-            coins: Array.from(gameState.coins.values()).map(c => ({
-                id: c.id,
-                x: Math.round(c.x),
-                y: Math.round(c.y)
+      })),
+      coins: Array.from(gameState.coins.values()).map(c => ({
+        id: c.id,
+        x: Math.round(c.x),
+        y: Math.round(c.y)
             })),
             boosters: Array.from(gameState.boosters.values()).map(b => ({
                 id: b.id,
@@ -2043,10 +2069,10 @@ setInterval(() => {
                 color: b.type === 'playerEater' ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
                 effect: b.effect,
                 rainbowHue: b.rainbowHue || 0
-            }))
-        };
-        
-        io.emit('gameUpdate', gameUpdate);
+      }))
+    };
+    
+    io.emit('gameUpdate', gameUpdate);
   }
 }, 1000 / 60); // 60 FPS logic, 20 FPS network
 
