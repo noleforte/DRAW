@@ -453,26 +453,17 @@ function generateBoosters(count = 2) { // Player Eater + Coin Booster
   };
   gameState.boosters.set(playerEaterBooster.id, playerEaterBooster);
   
-  // Generate 5 Coin Boosters with spawn timers
-  for (let i = 0; i < 5; i++) {
-    const coinBooster = {
-      id: `booster_${gameState.nextBoosterId++}`,
-      ...getRandomPosition(),
-      type: 'coins',
-      name: 'Coin Multiplier',
-      color: '#FFD700', // Gold color
-      effect: 'x2 Coins for 2 minutes',
-      isBooster: true,
-      spawnTime: Date.now(), // Track when booster spawned
-      respawnTimer: null // Timer for respawning
-    };
-    gameState.boosters.set(coinBooster.id, coinBooster);
-    
-    // Set respawn timer for this coin booster (2 minutes)
-    coinBooster.respawnTimer = setTimeout(() => {
-      respawnCoinBooster(coinBooster.id);
-    }, 120000); // 2 minutes = 120000ms
-  }
+  // Generate Coin Booster
+  const coinBooster = {
+    id: `booster_${gameState.nextBoosterId++}`,
+    ...getRandomPosition(),
+    type: 'coins',
+    name: 'Coin Multiplier',
+    color: '#FFD700', // Gold color
+    effect: 'x2 Coins for 2 minutes',
+    isBooster: true
+  };
+  gameState.boosters.set(coinBooster.id, coinBooster);
 }
 
 // Create AI bot
@@ -492,102 +483,6 @@ function createBot(id) {
     speedVariation: 0.8 + Math.random() * 0.4 // 0.8 to 1.2 speed multiplier for variety
   };
   return bot;
-}
-
-// Safe function to create game update data without circular references
-function createSafeGameUpdate() {
-  try {
-    return {
-      players: Array.from(gameState.players.values()).map(p => ({
-        id: p.id,
-        x: Math.round(p.x),
-        y: Math.round(p.y),
-        vx: Math.round(p.vx * 10) / 10,
-        vy: Math.round(p.vy * 10) / 10,
-        score: p.score,
-        size: p.size,
-        name: p.name,
-        color: p.playerEater ? `hsl(${p.rainbowHue || 0}, 70%, 50%)` : p.color,
-        playerEater: !!p.playerEater,
-        playerEaterEndTime: p.playerEaterEndTime || 0,
-        coinBoost: !!p.coinBoost,
-        coinBoostEndTime: p.coinBoostEndTime || 0
-      })),
-      bots: Array.from(gameState.bots.values()).map(b => ({
-        id: b.id,
-        x: Math.round(b.x),
-        y: Math.round(b.y),
-        score: b.score,
-        size: b.size,
-        name: b.name,
-        color: b.playerEater ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
-        playerEater: !!b.playerEater,
-        playerEaterEndTime: b.playerEaterEndTime || 0,
-        coinBoost: !!b.coinBoost,
-        coinBoostEndTime: b.coinBoostEndTime || 0
-      })),
-      coins: Array.from(gameState.coins.values()).map(c => ({
-        id: c.id,
-        x: Math.round(c.x),
-        y: Math.round(c.y)
-      })),
-      boosters: Array.from(gameState.boosters.values()).map(b => ({
-        id: b.id,
-        x: Math.round(b.x),
-        y: Math.round(b.y),
-        type: b.type,
-        name: b.name,
-        color: b.type === 'playerEater' ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
-        effect: b.effect
-      }))
-    };
-  } catch (error) {
-    console.error('❌ Error creating game update:', error.message);
-    return {
-      players: gameState.players.size,
-      bots: gameState.bots.size,
-      coins: gameState.coins.size,
-      boosters: gameState.boosters.size,
-      error: 'Failed to create full update'
-    };
-  }
-}
-
-// Function to respawn coin booster in new random location
-function respawnCoinBooster(boosterId) {
-  const oldBooster = gameState.boosters.get(boosterId);
-  if (!oldBooster) return;
-  
-  // Clear old respawn timer
-  if (oldBooster.respawnTimer) {
-    clearTimeout(oldBooster.respawnTimer);
-    oldBooster.respawnTimer = null; // Clear reference
-  }
-  
-  // Remove old booster
-  gameState.boosters.delete(boosterId);
-  
-  // Create new coin booster in random location
-  const newCoinBooster = {
-    id: `booster_${gameState.nextBoosterId++}`,
-    ...getRandomPosition(),
-    type: 'coins',
-    name: 'Coin Multiplier',
-    color: '#FFD700',
-    effect: 'x2 Coins for 2 minutes',
-    isBooster: true,
-    spawnTime: Date.now(), // Reset spawn time
-    respawnTimer: null
-  };
-  
-  // Set new respawn timer
-  newCoinBooster.respawnTimer = setTimeout(() => {
-    respawnCoinBooster(newCoinBooster.id);
-  }, 120000); // 2 minutes
-  
-  gameState.boosters.set(newCoinBooster.id, newCoinBooster);
-  
-  console.log(`🔄 Coin booster respawned at new location: ${Math.round(newCoinBooster.x)}, ${Math.round(newCoinBooster.y)}`);
 }
 
 // Calculate safe flee target that avoids world boundaries
@@ -976,31 +871,19 @@ function updateBots() {
         } else if (booster.type === 'coins') {
           console.log(`💰 Bot ${bot.name} collected Coin Multiplier!`);
           
-          // Calculate remaining time based on when booster spawned
-          const timeSinceSpawn = Date.now() - (booster.spawnTime || Date.now());
-          const remainingTime = Math.max(0, 120000 - timeSinceSpawn); // 2 minutes total - time since spawn
-          
           // Mark bot as having coin boost - time starts from collection moment
           bot.coinBoost = true;
-          bot.coinBoostEndTime = Date.now() + remainingTime;
+          bot.coinBoostEndTime = Date.now() + 120000; // 2 minutes from NOW
           
-          // Send notification to all players with remaining time
-          const remainingMinutes = Math.floor(remainingTime / 60000);
-          const remainingSeconds = Math.floor((remainingTime % 60000) / 1000);
-          const timeText = `${remainingMinutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-          
+          // Send notification to all players
           io.emit('chatMessage', {
             playerId: 'system',
             playerName: 'System',
-            message: `💰 Bot ${bot.name} collected Coin Multiplier! x2 coins for ${timeText} remaining!`,
+            message: `💰 Bot ${bot.name} collected Coin Multiplier! x2 coins for 2 minutes!`,
             timestamp: Date.now()
           });
           
-          // Remove booster and clear its respawn timer
-          if (booster.respawnTimer) {
-            clearTimeout(booster.respawnTimer);
-            booster.respawnTimer = null; // Clear reference to prevent memory leaks
-          }
+          // Remove booster
           gameState.boosters.delete(booster.id);
         }
       }
@@ -1267,24 +1150,15 @@ function updatePlayers(deltaTime) {
                     } else if (booster.type === 'coins') {
                         // Coin Multiplier effect
                         console.log(`💰 Player ${player.name} collected Coin Multiplier!`);
-                        
-                        // Calculate remaining time based on when booster spawned
-                        const timeSinceSpawn = Date.now() - (booster.spawnTime || Date.now());
-                        const remainingTime = Math.max(0, 120000 - timeSinceSpawn); // 2 minutes total - time since spawn
-                        
                         // Mark player as having coin boost - time starts from collection moment
                         player.coinBoost = true;
-                        player.coinBoostEndTime = Date.now() + remainingTime;
+                        player.coinBoostEndTime = Date.now() + 120000; // 2 minutes from NOW
                         
-                        // Send notification to all players with remaining time
-                        const remainingMinutes = Math.floor(remainingTime / 60000);
-                        const remainingSeconds = Math.floor((remainingTime % 60000) / 1000);
-                        const timeText = `${remainingMinutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-                        
+                        // Send notification to all players
                         io.emit('chatMessage', {
                             playerId: 'system',
                             playerName: 'System',
-                            message: `💰 ${player.name} collected Coin Multiplier! x2 coins for ${timeText} remaining!`,
+                            message: `💰 ${player.name} collected Coin Multiplier! x2 coins for 2 minutes!`,
                             timestamp: Date.now()
                         });
                     }
@@ -1317,9 +1191,21 @@ function updatePlayers(deltaTime) {
           };
           gameState.boosters.set(newBooster.id, newBooster);
         }, 60000); // Respawn after 1 minute (when effect expires)
+      } else if (boosterType === 'coins') {
+        // Coin Booster respawns after 2 minutes (same as effect duration)
+        setTimeout(() => {
+          const newBooster = {
+            id: `booster_${gameState.nextBoosterId++}`,
+            ...getRandomPosition(),
+            type: 'coins',
+            name: 'Coin Multiplier',
+            color: '#FFD700',
+            effect: 'x2 Coins for 2 minutes',
+            isBooster: true
+          };
+          gameState.boosters.set(newBooster.id, newBooster);
+        }, 120000); // Respawn after 2 minutes
       }
-      // Coin Booster respawn is now handled automatically by spawn timers
-      // No need to manually respawn here
     });
     
     // Check and expire boosters
@@ -1681,15 +1567,6 @@ async function endMatch() {
   gameState.gameEnded = true;
   gameState.gameStarted = false;
   
-  // Clear all coin booster respawn timers to prevent memory leaks
-  for (const booster of gameState.boosters.values()) {
-    if (booster.type === 'coins' && booster.respawnTimer) {
-      clearTimeout(booster.respawnTimer);
-      booster.respawnTimer = null; // Clear reference
-      console.log(`🧹 Cleared respawn timer for coin booster ${booster.id}`);
-    }
-  }
-  
   // Get final results
   const allPlayers = [...gameState.players.values(), ...gameState.bots.values()];
   const finalResults = allPlayers.map(player => ({
@@ -2011,11 +1888,14 @@ io.on('connection', (socket) => {
       // Debug: Log calculated target velocity
       console.log(`🎮 Player ${player.name} target velocity: (${Math.round(player.targetVx * 10) / 10}, ${Math.round(player.targetVy * 10) / 10})`);
     } else {
-      // Only log once per socket to avoid spam
-      if (!socket.playerMoveLogged) {
-        console.log(`⚠️ playerMove ignored - Socket ID: ${socket.id} (Game not ready: started=${gameState.gameStarted}, ended=${gameState.gameEnded}, players=${gameState.players.size})`);
-        socket.playerMoveLogged = true;
-      }
+      // Enhanced debugging for playerMove issues
+      console.log(`⚠️ playerMove ignored - Socket ID: ${socket.id}`);
+      console.log(`⚠️ Player found: ${!!player}`);
+      console.log(`⚠️ GameStarted: ${gameState.gameStarted}`);
+      console.log(`⚠️ GameEnded: ${gameState.gameEnded}`);
+      console.log(`⚠️ Total players in game: ${gameState.players.size}`);
+      console.log(`⚠️ Available player names: ${Array.from(gameState.players.values()).map(p => p.name).join(', ')}`);
+      console.log(`⚠️ Available socket IDs: ${Array.from(gameState.players.keys()).join(', ')}`);
     }
   });
 
@@ -2048,9 +1928,46 @@ io.on('connection', (socket) => {
         console.log(`💰 Updating player ${player.name} score from ${player.score} to ${data.score}`);
         player.score = data.score;
         
-        // Broadcast updated game state to all clients using safe function
-        const gameUpdate = createSafeGameUpdate();
-        io.emit('gameUpdate', gameUpdate);
+        // Broadcast updated game state to all clients
+        io.emit('gameUpdate', {
+          players: Array.from(gameState.players.values()).map(p => ({
+            id: p.id,
+            x: Math.round(p.x),
+            y: Math.round(p.y),
+            vx: Math.round(p.vx * 10) / 10,
+            vy: Math.round(p.vy * 10) / 10,
+            score: p.score,
+            size: p.size,
+            name: p.name,
+            color: p.color,
+            playerEater: p.playerEater || false
+          })),
+          bots: Array.from(gameState.bots.values()).map(b => ({
+            id: b.id,
+            x: Math.round(b.x),
+            y: Math.round(b.y),
+            score: b.score,
+            size: b.size,
+            name: b.name,
+            color: b.color,
+            playerEater: b.playerEater || false
+          })),
+        coins: Array.from(gameState.coins.values()).map(c => ({
+          id: c.id,
+          x: Math.round(c.x),
+          y: Math.round(c.y),
+          value: c.value
+        })),
+        boosters: Array.from(gameState.boosters.values()).map(b => ({
+          id: b.id,
+          x: Math.round(b.x),
+          y: Math.round(b.y),
+          type: b.type,
+          name: b.name,
+          color: b.color,
+          effect: b.effect
+        }))
+      });
     }
   });
 
@@ -2061,9 +1978,46 @@ io.on('connection', (socket) => {
           console.log(`📏 Updating player ${player.name} size from ${player.size} to ${data.size}`);
           player.size = data.size;
           
-          // Broadcast updated game state to all clients using safe function
-          const gameUpdate = createSafeGameUpdate();
-          io.emit('gameUpdate', gameUpdate);
+          // Broadcast updated game state to all clients
+          io.emit('gameUpdate', {
+            players: Array.from(gameState.players.values()).map(p => ({
+              id: p.id,
+              x: Math.round(p.x),
+              y: Math.round(p.y),
+              vx: Math.round(p.vx * 10) / 10,
+              vy: Math.round(p.vy * 10) / 10,
+              score: p.score,
+              size: p.size,
+              name: p.name,
+              color: p.color,
+              playerEater: p.playerEater || false
+            })),
+            bots: Array.from(gameState.bots.values()).map(b => ({
+              id: b.id,
+              x: Math.round(b.x),
+              y: Math.round(b.y),
+              score: b.score,
+              size: b.size,
+              name: b.name,
+              color: b.color,
+              playerEater: b.playerEater || false
+            })),
+        coins: Array.from(gameState.coins.values()).map(c => ({
+          id: c.id,
+          x: Math.round(c.x),
+          y: Math.round(c.y),
+          value: c.value
+        })),
+        boosters: Array.from(gameState.boosters.values()).map(b => ({
+          id: b.id,
+          x: Math.round(b.x),
+          y: Math.round(b.y),
+          type: b.type,
+          name: b.name,
+          color: b.color,
+          effect: b.effect
+        }))
+      });
     }
   });
 
@@ -2127,10 +2081,8 @@ setInterval(() => {
   const deltaTime = (now - lastUpdate) / 1000;
   lastUpdate = now;
   
-  // Debug: Log game state only when there are players or significant changes
-  if (gameState.players.size > 0 || now % 10000 < 16) { // Log every 10 seconds when no players
-    console.log(`🔄 Game loop - Players: ${gameState.players.size}, Bots: ${gameState.bots.size}, Coins: ${gameState.coins.size}`);
-  }
+  // Debug: Log game state
+  console.log(`🔄 Game loop - Players: ${gameState.players.size}, Bots: ${gameState.bots.size}, Coins: ${gameState.coins.size}`);
   
   // Log coin distribution every 30 seconds
   if (now % 30000 < 16) {
@@ -2191,17 +2143,54 @@ setInterval(() => {
       console.log(`🎮 Player ${firstPlayer.name} - Pos: (${Math.round(firstPlayer.x)}, ${Math.round(firstPlayer.y)}), Vel: (${Math.round(firstPlayer.vx * 10) / 10}, ${Math.round(firstPlayer.vy * 10) / 10})`);
     }
     
-    // Use safe function to create game update data
-    const gameUpdate = createSafeGameUpdate();
+    // Only send essential data, not full objects
+    const gameUpdate = {
+      players: Array.from(gameState.players.values()).map(p => ({
+        id: p.id,
+        x: Math.round(p.x),
+        y: Math.round(p.y),
+        vx: Math.round(p.vx * 10) / 10, // Send velocity for client-side interpolation
+        vy: Math.round(p.vy * 10) / 10,
+        score: p.score,
+        size: p.size,
+        name: p.name,
+                color: p.playerEater ? `hsl(${p.rainbowHue || 0}, 70%, 50%)` : p.color,
+                playerEater: p.playerEater || false,
+                playerEaterEndTime: p.playerEaterEndTime || 0,
+                coinBoost: p.coinBoost || false,
+                coinBoostEndTime: p.coinBoostEndTime || 0
+      })),
+      bots: Array.from(gameState.bots.values()).map(b => ({
+        id: b.id,
+        x: Math.round(b.x),
+        y: Math.round(b.y),
+        score: b.score,
+        size: b.size,
+        name: b.name,
+                color: b.playerEater ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
+                playerEater: b.playerEater || false,
+                playerEaterEndTime: b.playerEaterEndTime || 0,
+                coinBoost: b.coinBoost || false,
+                coinBoostEndTime: b.coinBoostEndTime || 0
+      })),
+      coins: Array.from(gameState.coins.values()).map(c => ({
+        id: c.id,
+        x: Math.round(c.x),
+        y: Math.round(c.y)
+            })),
+            boosters: Array.from(gameState.boosters.values()).map(b => ({
+                id: b.id,
+                x: Math.round(b.x),
+                y: Math.round(b.y),
+                type: b.type,
+                name: b.name,
+                color: b.type === 'playerEater' ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
+                effect: b.effect,
+                rainbowHue: b.rainbowHue || 0
+      }))
+    };
     
-    // Safely emit game update
-    try {
-      io.emit('gameUpdate', gameUpdate);
-    } catch (error) {
-      console.error('❌ Error sending gameUpdate:', error.message);
-      // Fallback to simple update if needed
-      io.emit('gameUpdate', { error: 'Update failed', timestamp: Date.now() });
-    }
+    io.emit('gameUpdate', gameUpdate);
   }
 }, 1000 / 60); // 60 FPS logic, 20 FPS network
 
