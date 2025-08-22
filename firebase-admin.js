@@ -166,7 +166,7 @@ class GameDataService {
                 const currentStats = playerDoc.data();
                 
                 // Merge data from different field structures
-                const currentScore = currentStats.totalScore || 0;
+                const currentScore = currentStats.stats?.totalScore || 0;
                 const currentBestScore = currentStats.bestScore || currentStats.stats?.bestScore || 0;
                 const currentGamesPlayed = currentStats.gamesPlayed || currentStats.stats?.gamesPlayed || 0;
                 
@@ -234,11 +234,11 @@ class GameDataService {
             if (playerDoc.exists) {
                 const data = playerDoc.data();
                 console.log(`🔍 Raw Firestore data for ${normalizedPlayerId}:`, data);
-                console.log(`🔍 totalScore values: root=${data.totalScore}, stats.totalScore=${data.stats?.totalScore}`);
+                console.log(`🔍 totalScore values: root= stats.totalScore=${data.stats?.totalScore}`);
                 
                 // Extract data with proper fallbacks - prioritize root totalScore over stats.totalScore
                 const extractedData = {
-                    totalScore: data.totalScore || 0, // Сначала корневой totalScore
+                    totalScore: data.stats?.totalScore || 0, // Сначала корневой totalScore
                     lastSize: data.lastSize || null,
                     bestScore: data.bestScore || data.stats?.bestScore || 0,
                     gamesPlayed: data.gamesPlayed || data.stats?.gamesPlayed || 0,
