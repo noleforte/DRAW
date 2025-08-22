@@ -312,6 +312,15 @@ function checkAFKPlayers() {
     // Remove player from game
     gameState.players.delete(socketId);
     console.log(`🗑️ Removed AFK player from game: ${player.name}`);
+    
+    // Debug: Log all players after removal
+    console.log(`🔍 Players remaining after AFK removal:`, Array.from(gameState.players.values()).map(p => ({
+      name: p.name,
+      id: p.id,
+      firebaseId: p.firebaseId,
+      score: p.score,
+      size: p.size
+    })));
   });
   
   if (playersToKick.length > 0) {
@@ -1000,6 +1009,32 @@ function updateBots() {
                 target.score = 0;
               }
               
+              // Debug: Log victim state after being eaten
+              console.log(`👹 Victim ${target.name} state after being eaten by bot:`, {
+                id: target.id,
+                firebaseId: target.firebaseId,
+                score: target.score,
+                socketId: target.socketId,
+                isInGameState: gameState.players.has(target.socketId),
+                size: target.size
+              });
+              
+              // Debug: Check if victim is still in game state after a short delay
+              setTimeout(() => {
+                const stillInGame = gameState.players.has(target.socketId);
+                console.log(`🔍 Victim ${target.name} still in game after 100ms: ${stillInGame}`);
+                if (!stillInGame) {
+                  console.log(`⚠️ WARNING: Victim ${target.name} was removed from game state!`);
+                  console.log(`🔍 Current players:`, Array.from(gameState.players.values()).map(p => ({
+                    name: p.name,
+                    id: p.id,
+                    firebaseId: p.firebaseId,
+                    score: p.score,
+                    size: p.size
+                  })));
+                }
+              }, 100);
+              
               // Send eating notification
               io.emit('chatMessage', {
                 playerId: bot.id,
@@ -1483,6 +1518,32 @@ function updatePlayers(deltaTime) {
               if (target.score < 0) {
                 target.score = 0;
               }
+              
+              // Debug: Log victim state after being eaten
+              console.log(`👹 Victim ${target.name} state after being eaten by player:`, {
+                id: target.id,
+                firebaseId: target.firebaseId,
+                score: target.score,
+                socketId: target.socketId,
+                isInGameState: gameState.players.has(target.socketId),
+                size: target.size
+              });
+              
+              // Debug: Check if victim is still in game state after a short delay
+              setTimeout(() => {
+                const stillInGame = gameState.players.has(target.socketId);
+                console.log(`🔍 Victim ${target.name} still in game after 100ms: ${stillInGame}`);
+                if (!stillInGame) {
+                  console.log(`⚠️ WARNING: Victim ${target.name} was removed from game state!`);
+                  console.log(`🔍 Current players:`, Array.from(gameState.players.values()).map(p => ({
+                    name: p.name,
+                    id: p.id,
+                    firebaseId: p.firebaseId,
+                    score: p.score,
+                    size: p.size
+                  })));
+                }
+              }, 100);
               
               // Send eating notification
               io.emit('chatMessage', {

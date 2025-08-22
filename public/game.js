@@ -5536,7 +5536,7 @@ function updateBoosterStatusDisplay() {
     // Add header
     const header = document.createElement('div');
     header.className = 'bg-gray-800 text-white px-2 py-1 rounded text-center font-bold text-sm';
-    header.textContent = '🚀 Active Boosters';
+    header.textContent = '🚀 Active Booster';
     boosterContainer.appendChild(header);
     
     // Show active boosters (only coins and player eater)
