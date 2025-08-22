@@ -789,10 +789,10 @@ async function sendCoinsToFirestore(coinsGained) {
             try {
                 const playerRef = window.firebaseDb.collection('players').doc(playerId);
                 await playerRef.update({
-                    lastSize: window.localPlayer.size,
+                    lastSize: window.localPlayer?.size || 20,
                     lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
                 });
-                console.log(`📏 Saved current player size ${window.localPlayer.size} to Firestore`);
+                console.log(`📏 Saved current player size ${window.localPlayer?.size || 20} to Firestore`);
             } catch (error) {
                 console.warn('⚠️ Failed to save player size to Firestore:', error);
             }
@@ -807,7 +807,7 @@ function setupSocketListeners() {
     socket.on('connect', () => {
         // Store socket.id for proper player identification
         currentSocketId = socket.id;
-        console.log('🔗 Socket connected with ID:', currentSocketId);
+        // Socket connected
         
         // Validate socket connection
         if (!currentSocketId) {
@@ -1198,13 +1198,13 @@ function setupSocketListeners() {
                 if (maxSpeedElement) {
                     if (localPlayer.playerEater) {
                         maxSpeedElement.textContent = '100';
-                        console.log('👹 Max speed updated to 100 (Player Eater active)');
+                                                 // Max speed updated to 100 (Player Eater active)
                     } else {
                         const baseSpeed = 200;
                         const sizeMultiplier = calculateSpeedMultiplier(localPlayer.score || 0);
                         const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
                         maxSpeedElement.textContent = maxSpeed.toString();
-                        console.log(`👹 Max speed updated to ${maxSpeed} (Player Eater inactive)`);
+                                                 // Max speed updated
                     }
                 }
             }
@@ -1420,10 +1420,14 @@ function setupSocketListeners() {
                     matchTimeLeft = null;
                     matchStartTime = null;
                     
-                    // Reset panel manager if exists
-                    if (window.panelManager) {
-                        window.panelManager.resetAllPanels();
-                    }
+                                         // Reset all panels manually since resetAllPanels method doesn't exist
+                     const panels = ['leaderboardPanel', 'chatPanelNew', 'controlsPanel', 'userinfoLeftPanel'];
+                     panels.forEach(panelId => {
+                         const panel = document.getElementById(panelId);
+                         if (panel) {
+                             panel.classList.add('hidden');
+                         }
+                     });
                     
                     // Reset rank display
                     const currentGameRankElement = document.getElementById('currentGameRank');
@@ -1675,18 +1679,7 @@ function setupSocketListeners() {
         showGameOverModal(finalResults);
     });
     
-    socket.on('disconnect', () => {
-        // Clear current socket ID when disconnected
-        currentSocketId = null;
-        console.log('🔌 Socket disconnected, clearing currentSocketId');
-        
-        // Try to reconnect after short delay
-        setTimeout(() => {
-            if (!socket.connected) {
-                socket.connect();
-            }
-        }, 3000);
-    });
+
 
     // Handle AFK kick - simple page reload
     socket.on('afkKick', (data) => {
@@ -2203,7 +2196,7 @@ function setupInputHandlers() {
     
     // Keyboard input
     document.addEventListener('keydown', (e) => {
-        console.log('🎮 Key pressed:', e.code, 'key:', e.key, 'target:', e.target?.tagName);
+                 // Key pressed
         
         // Check if user is typing in an input field
         const activeElement = document.activeElement;
@@ -2573,11 +2566,11 @@ function setupUIHandlers() {
         }
         
         console.log('🆔 Player ID:', playerId);
-        console.log('🔗 Socket connected:', socket?.connected);
+                 // Socket status
         
         // Check if socket is disconnected and reconnect if needed
         if (!socket || !socket.connected) {
-            console.log('🔌 Socket disconnected, reconnecting...');
+                         // Reconnecting socket
             
             // Recreate socket connection
             const isProduction = window.location.hostname !== 'localhost';
@@ -3175,7 +3168,7 @@ function updateCamera() {
             const maxSpeed = baseSpeed * sizeMultiplier;
             if (displaySpeed > maxSpeed) {
                 displaySpeed = maxSpeed;
-                console.log(`⚡ Current speed capped from ${speed.toFixed(1)} to ${maxSpeed.toFixed(1)} (max for level)`);
+                                 // Speed capped
             }
         }
         
@@ -3304,7 +3297,7 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
             const maxSpeed = baseSpeed * sizeMultiplier;
             if (displaySpeed > maxSpeed) {
                 displaySpeed = maxSpeed;
-                console.log(`⚡ Current speed capped from ${currentSpeed.toFixed(1)} to ${maxSpeed.toFixed(1)} (max for level)`);
+                                 // Speed capped
             }
         }
         
