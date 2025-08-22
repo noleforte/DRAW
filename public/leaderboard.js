@@ -268,55 +268,38 @@ class LeaderboardManager {
                 </div>
             `;
         } else {
-            // Global leaderboard layout (as before)
+            // Global leaderboard layout (compact like match)
             leaderboardHTML = `
-                <div class="bg-white rounded-lg shadow-lg p-4">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold text-gray-800">
-                            🏆 Global Leaderboard
-                        </h2>
-                        <div class="text-xs text-gray-600">
-                            Showing ${data.length} players with email
-                        </div>
-                    </div>
-                    
-                    <div class="text-xs text-gray-500 mb-3 bg-blue-50 p-2 rounded">📧 Only players with verified email addresses are shown in the global leaderboard.</div>
-                    
-                    <div class="space-y-2">
-                        ${data.map((player, index) => {
-                            const rank = index + 1;
-                            const nickname = player.nickname || player.playerName || player.playerId;
-                            const score = player.totalScore || 0;
-                            const games = player.gamesPlayed || 0;
-                            const wins = player.wins || 0;
-                            const email = player.email || '';
-                            
-                            // Rank emojis
-                            let rankEmoji = '🥉';
-                            if (rank === 1) rankEmoji = '🥇';
-                            else if (rank === 2) rankEmoji = '🥈';
-                            else if (rank <= 10) rankEmoji = '🏅';
-                            else if (rank <= 50) rankEmoji = '🎖️';
-                            
-                            return `
-                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                                    <div class="flex items-center space-x-3">
-                                        <div class="text-lg">${rankEmoji}</div>
-                                        <div>
-                                            <div class="font-bold text-base text-gray-800">${rank}. ${nickname}</div>
-                                            <div class="text-xs text-gray-600">
-                                                Games: ${games} | Wins: ${wins} | Email: ${email}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="text-right">
-                                        <div class="text-xl font-bold text-blue-600">${score}</div>
-                                        <div class="text-xs text-gray-500">Total Score</div>
-                                    </div>
+                <div class="mb-2 p-2 bg-blue-900 bg-opacity-50 rounded text-xs text-blue-200">
+                    📧 Showing ${data.length} players with verified email addresses
+                </div>
+                <div class="space-y-1">
+                    ${data.map((player, index) => {
+                        const rank = index + 1;
+                        const nickname = player.nickname || player.playerName || player.playerId;
+                        const score = player.totalScore || 0;
+                        const games = player.gamesPlayed || 0;
+                        const wins = player.wins || 0;
+                        const email = player.email || '';
+                        
+                        // Rank emojis
+                        let rankEmoji = `${rank}.`;
+                        if (rank === 1) rankEmoji = '🥇';
+                        else if (rank === 2) rankEmoji = '🥈';
+                        else if (rank === 3) rankEmoji = '🥉';
+                        
+                        return `
+                            <div class="flex justify-between items-center text-sm p-1.5 border-b border-gray-700 last:border-b-0">
+                                <span class="flex-1 truncate">
+                                    ${rankEmoji} ${nickname}
+                                </span>
+                                <div class="text-right">
+                                    <div class="text-yellow-400 font-bold">${score}</div>
+                                    <div class="text-xs text-gray-400">${games}G ${wins}W</div>
                                 </div>
-                            `;
-                        }).join('')}
-                    </div>
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
             `;
         }
