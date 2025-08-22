@@ -1035,8 +1035,7 @@ function setupSocketListeners() {
         gameState.boosters = data.boosters || [];
         window.gameState = gameState; // Update global reference
         
-        // Log boosters update
-        console.log(`🎯 gameUpdate - Boosters received: ${data.boosters ? data.boosters.length : 0}`, data.boosters);
+
         
         // Initialize boosters array if not present
         if (!gameState.boosters) {
@@ -1083,49 +1082,18 @@ function setupSocketListeners() {
             });
         }
         
-        // Log player identification for debugging
-        if (!localPlayer) {
-            console.log('⚠️ Could not identify localPlayer in gameUpdate. Current socketId:', currentSocketId, 'GameState playerId:', gameState.playerId);
-            console.log('Available players:', gameState.players.map(p => ({id: p.id, socketId: p.socketId, name: p.name})));
-            console.log('Previous localPlayer:', previousLocalPlayer ? {name: previousLocalPlayer.name, socketId: previousLocalPlayer.socketId} : 'null');
-            
-            // Try to recover by using previous localPlayer if available
-            if (previousLocalPlayer) {
-                console.log('🔄 Attempting to recover localPlayer from previous state');
-                localPlayer = previousLocalPlayer;
-                window.localPlayer = localPlayer;
-                
-                // Validate recovered player coordinates
-                if (typeof localPlayer.x === 'number' && typeof localPlayer.y === 'number' && 
-                    !isNaN(localPlayer.x) && !isNaN(localPlayer.y)) {
-                    console.log('✅ Successfully recovered localPlayer with valid coordinates:', Math.round(localPlayer.x), Math.round(localPlayer.y));
-                } else {
-                    console.warn('⚠️ Recovered localPlayer has invalid coordinates:', localPlayer.x, localPlayer.y);
-                }
-            }
-        } else {
-            console.log('✅ localPlayer identified in gameUpdate:', localPlayer.name, 'socketId:', localPlayer.socketId);
-            
-            // Validate player coordinates
-            if (typeof localPlayer.x !== 'number' || typeof localPlayer.y !== 'number' || 
-                isNaN(localPlayer.x) || isNaN(localPlayer.y)) {
-                console.warn('⚠️ localPlayer has invalid coordinates:', localPlayer.x, localPlayer.y);
-            } else {
-                console.log('📍 Player coordinates valid:', Math.round(localPlayer.x), Math.round(localPlayer.y));
-            }
+        // Try to recover by using previous localPlayer if available
+        if (!localPlayer && previousLocalPlayer) {
+            localPlayer = previousLocalPlayer;
+            window.localPlayer = localPlayer;
         }
         
         window.localPlayer = localPlayer; // Update global reference
         
         // Check if player score increased (coin collected)
         if (previousLocalPlayer && localPlayer && localPlayer.score > previousLocalPlayer.score) {
-            const coinsGained = localPlayer.score - previousLocalPlayer.score;
-            console.log(`🪙 Coins gained: ${coinsGained} (${previousLocalPlayer.score} → ${localPlayer.score})`);
-            
             // Check if size also increased
             if (localPlayer.size > previousLocalPlayer.size) {
-                console.log(`📏 Size increased: ${Math.round(previousLocalPlayer.size)} → ${Math.round(localPlayer.size)}`);
-                
                 // Update display immediately when size changes
                 const vx = localPlayer.vx || 0;
                 const vy = localPlayer.vy || 0;
@@ -1298,8 +1266,11 @@ function setupSocketListeners() {
         
         updateLeaderboard();
         
-        // Update player rank display after leaderboard update
-        updatePlayerRankDisplay();
+        // Update player rank display after leaderboard update (throttled)
+        if (!window.lastRankUpdate || Date.now() - window.lastRankUpdate > 2000) {
+            updatePlayerRankDisplay();
+            window.lastRankUpdate = Date.now();
+        }
     });
     
 
@@ -3936,17 +3907,14 @@ function updatePlayerRankDisplay() {
     
     // Check if panelManager is ready
     if (!window.panelManager) {
-        console.log('⏳ updatePlayerRankDisplay: window.panelManager not ready yet, will retry later');
         return;
     }
     
     if (!window.localPlayer) {
-        console.log('⏳ updatePlayerRankDisplay: window.localPlayer not ready yet, will retry later');
         return;
     }
     
     if (!window.gameState) {
-        console.log('⏳ updatePlayerRankDisplay: window.gameState not ready yet, will retry later');
         return;
     }
     
@@ -3962,8 +3930,7 @@ function updatePlayerRankDisplay() {
         
         // Only update if rank actually changed
         if (currentGameRankElement.textContent !== rankText) {
-    currentGameRankElement.textContent = rankText;
-    console.log('🏆 Updated player rank display to:', rankText, 'for player:', window.localPlayer.name, 'score:', window.localPlayer.score);
+            currentGameRankElement.textContent = rankText;
             lastRankUpdate = now;
         }
     } catch (error) {
@@ -3974,8 +3941,6 @@ function updatePlayerRankDisplay() {
 
 // Centralized logout function
 function performLogout() {
-    console.log('🚪 Performing logout...');
-    
     // 1. Logout from both authentication systems
     if (window.authSystem) {
         window.authSystem.signOut();
@@ -3986,7 +3951,6 @@ function performLogout() {
     
     // 2. Disconnect from game server if connected
     if (socket && socket.connected) {
-        console.log('🔌 Disconnecting from game server...');
         socket.disconnect();
     }
     
@@ -4124,28 +4088,15 @@ function updateLeaderboard() {
     
     // Only update if we have entities
     if (allEntities.length === 0) {
-        console.log('🔄 updateLeaderboard: No entities available yet');
         return;
     }
     
     allEntities.sort((a, b) => b.score - a.score);
     
-    console.log('🔄 updateLeaderboard called');
-    console.log('🔄 gameState.players:', gameState.players);
-    console.log('🔄 gameState.bots:', gameState.bots);
-    console.log('🔄 allEntities:', allEntities);
-    if (allEntities.length > 0) {
-        console.log('🔄 First entity sample:', allEntities[0]);
-        console.log('🔄 First entity fields:', Object.keys(allEntities[0]));
-        console.log('🔄 All entities names:', allEntities.map(e => e.name));
-    }
-    
     // Update match leaderboard in leaderboard manager
     if (window.leaderboardManager) {
-        console.log('🔄 Using leaderboard manager');
         window.leaderboardManager.setMatchLeaderboard(allEntities.slice(0, 15));
     } else {
-        console.log('🔄 Leaderboard manager not available, using fallback');
         // Fallback to old system if leaderboard manager not available
         const leaderboardList = document.getElementById('leaderboardList');
         if (leaderboardList) {
@@ -4175,8 +4126,6 @@ function updateLeaderboard() {
 function startClientTimer() {
     stopClientTimer(); // Clear any existing timer
     
-    console.log('🕐 Starting client timer');
-    
     clientTimerInterval = setInterval(() => {
         // Calculate time remaining until end of GMT day
         const now = new Date();
@@ -4188,7 +4137,6 @@ function startClientTimer() {
             updateTimerDisplay(currentTimeLeft);
             
             if (currentTimeLeft <= 0) {
-            console.log('⏰ Day ended, stopping timer');
                 stopClientTimer();
             }
     }, 1000); // Update every second is sufficient for day countdown

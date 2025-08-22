@@ -232,7 +232,9 @@ function calculateSpeedMultiplier(score) {
 
 // Helper function to calculate player size based on score
 function calculatePlayerSize(score) {
-  return Math.min(50, 20 + Math.sqrt(score) * 2);
+  // Ensure minimum size of 20 for all players (even with 0 score)
+  const calculatedSize = Math.min(50, 20 + Math.sqrt(score) * 2);
+  return Math.max(20, calculatedSize); // Never go below 20
 }
 
 // Check for AFK players and kick them
@@ -876,7 +878,19 @@ function updateBots() {
         
         // Player growth based on score (Agar.io style) - but don't override Player Eater boost
         if (!bot.playerEater) {
+          const oldSize = bot.size;
           bot.size = calculatePlayerSize(bot.score);
+          
+          // Log size changes for debugging
+          if (oldSize !== bot.size) {
+            console.log(`📏 Bot ${bot.name} size changed: ${oldSize} → ${bot.size} (score: ${bot.score})`);
+          }
+          
+          // Ensure minimum size
+          if (bot.size < 20) {
+            console.log(`⚠️ WARNING: Bot ${bot.name} size too small: ${bot.size}, forcing to 20`);
+            bot.size = 20;
+          }
         }
       }
      });
@@ -1001,6 +1015,7 @@ function updateBots() {
               bot.score += coinsGained;
               
               // Reduce victim's score by 10%
+              const oldScore = target.score;
               target.score = Math.floor(target.score * 0.9);
               
               // Don't remove entities - they just lose coins
@@ -1215,7 +1230,19 @@ function updatePlayers(deltaTime) {
         
         // Player growth based on score (Agar.io style) - but don't override Player Eater boost
         if (!player.playerEater) {
+          const oldSize = player.size;
           player.size = calculatePlayerSize(player.score);
+          
+          // Log size changes for debugging
+          if (oldSize !== player.size) {
+            console.log(`📏 Player ${player.name} size changed: ${oldSize} → ${player.size} (score: ${player.score})`);
+          }
+          
+          // Ensure minimum size
+          if (player.size < 20) {
+            console.log(`⚠️ WARNING: Player ${player.name} size too small: ${player.size}, forcing to 20`);
+            player.size = 20;
+          }
         }
         
         // Save player size for next game
@@ -1520,6 +1547,7 @@ function updatePlayers(deltaTime) {
               player.score += coinsGained;
               
               // Reduce victim's score by 10%
+              const oldScore = target.score;
               target.score = Math.floor(target.score * 0.9);
               
               // Don't remove entities - they just lose coins

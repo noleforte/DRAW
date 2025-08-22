@@ -61,38 +61,29 @@ class LeaderboardManager {
 
     // Set match leaderboard data
     setMatchLeaderboard(data) {
-        console.log('🔄 setMatchLeaderboard called with data:', data);
         if (Array.isArray(data)) {
             this.matchLeaderboard = data;
-            console.log(`✅ Match leaderboard updated with ${data.length} players`);
             
             // If currently showing match leaderboard, re-render
             if (this.currentType === 'match') {
                 this.renderLeaderboard(this.matchLeaderboard, 'match');
             }
-        } else {
-            console.warn('⚠️ setMatchLeaderboard: data is not an array:', typeof data);
         }
     }
 
     // Update match leaderboard with new data
     updateMatchLeaderboard(data) {
-        console.log('🔄 updateMatchLeaderboard called with data:', data);
         this.setMatchLeaderboard(data);
     }
 
     // Toggle between match and global leaderboard
     toggleLeaderboardType() {
-        console.log('🔄 toggleLeaderboardType called');
-        
         if (this.currentType === 'match') {
-            console.log('🔄 Switching to global leaderboard');
             this.currentType = 'global';
             
             // Always fetch fresh global data
             this.loadGlobalLeaderboard();
         } else {
-            console.log('🔄 Switching to match leaderboard');
             this.currentType = 'match';
             
             // Render match leaderboard
@@ -108,22 +99,15 @@ class LeaderboardManager {
         const toggleBtn = document.getElementById('toggleLeaderboardType');
         if (toggleBtn) {
             toggleBtn.textContent = this.currentType === 'match' ? 'Show Global' : 'Show Match';
-            console.log('🔄 Toggle button text updated to:', toggleBtn.textContent);
-        } else {
-            console.error('❌ Toggle button not found!');
         }
     }
 
     // Handle real-time player stats updates from server
     handlePlayerStatsUpdate(data) {
-        console.log('🔄 Handling player stats update:', data);
-        
         if (data.type === 'newPlayer') {
-            console.log(`🆕 New player detected: ${data.nickname}`);
             // Force refresh global leaderboard to include new player
             this.loadGlobalLeaderboard();
         } else if (data.type === 'scoreUpdate') {
-            console.log(`💰 Score update detected for: ${data.nickname}`);
             // Force refresh global leaderboard to show updated scores
             this.loadGlobalLeaderboard();
         }
@@ -131,8 +115,6 @@ class LeaderboardManager {
 
     // Load global leaderboard data
     async loadGlobalLeaderboard() {
-        console.log('🔄 loadGlobalLeaderboard called');
-        
         try {
             const response = await fetch('https://draw-e67b.onrender.com/api/players');
             if (!response.ok) {
@@ -140,23 +122,17 @@ class LeaderboardManager {
             }
             
             const data = await response.json();
-            console.log('✅ Global leaderboard data received:', data);
             
             if (Array.isArray(data)) {
                 this.globalLeaderboard = data;
-                console.log(`✅ Global leaderboard updated with ${data.length} players`);
                 
                 // Render the global leaderboard
                 this.renderLeaderboard(this.globalLeaderboard, 'global');
             } else {
-                console.error('❌ Global leaderboard data is not an array:', typeof data);
                 this.renderLeaderboard([], 'global');
             }
         } catch (error) {
             console.error('❌ Error loading global leaderboard:', error);
-            
-            // Fallback to mock data for testing
-            console.warn('⚠️ Using mock data as fallback');
             const mockData = [
                 {
                     playerId: 'mock_1',
@@ -227,21 +203,12 @@ class LeaderboardManager {
                 const hasValidScore = player.totalScore && player.totalScore > 0;
                 const hasEmail = player.email && player.email.trim() !== '';
                 
-                if (!hasValidNickname) {
-                    console.log(`🔄 Filtered out temporary player: ${nickname}`);
-                }
-                if (!hasValidScore) {
-                    console.log(`🔄 Filtered out player with zero score: ${nickname}`);
-                }
-                if (!hasEmail) {
-                    console.log(`🔄 Filtered out player without email: ${nickname}`);
-                }
+
                 
                 return hasValidNickname && hasValidScore && hasEmail;
             });
             
             data = filteredPlayers.sort((a, b) => b.totalScore - a.totalScore);
-            console.log(`✅ Global leaderboard filtered: ${data.length} players (was ${uniquePlayers.size})`);
         }
         // For match leaderboard - NO filtering, show all players as before
         
@@ -250,12 +217,6 @@ class LeaderboardManager {
         
         if (type === 'match') {
             // Compact Current Game layout
-            console.log('🔄 Rendering Current Game with data:', data);
-            if (data.length > 0) {
-                console.log('🔄 First player data sample:', data[0]);
-                console.log('🔄 Available fields:', Object.keys(data[0]));
-                console.log('🔄 All players data:', data.map((p, i) => `Player ${i+1}: name="${p.name}", score=${p.score}, id=${p.id}`));
-            }
             
             leaderboardHTML = `
                 <div class="space-y-1">
@@ -270,8 +231,6 @@ class LeaderboardManager {
                         
                         const score = player.score || player.totalScore || 0;
                         const isBot = player.isBot || false;
-                        
-                        console.log(`🔄 Player ${index + 1}: name="${name}", score=${score}, isBot=${isBot}, id=${player.id}`);
                         
                         // Rank emojis
                         let rankEmoji = `${rank}.`;
