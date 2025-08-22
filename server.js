@@ -2204,3 +2204,15 @@ process.on('SIGINT', () => {
     process.exit(0);
   });
 }); 
+
+// API endpoint for cleaning up duplicate players
+app.post('/api/cleanup-duplicates', async (req, res) => {
+  try {
+    console.log('🧹 API /api/cleanup-duplicates called');
+    await GameDataService.cleanupDuplicatePlayerDocuments();
+    res.json({ message: 'Duplicate cleanup completed successfully' });
+  } catch (error) {
+    console.error('❌ Error cleaning up duplicates:', error);
+    res.status(500).json({ error: 'Failed to cleanup duplicates' });
+  }
+}); 
