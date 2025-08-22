@@ -931,6 +931,28 @@ function updateBots() {
           
           // Remove booster
           gameState.boosters.delete(booster.id);
+          
+          // Respawn Coin Booster in new random location after 2 minutes
+          setTimeout(() => {
+            const newCoinBooster = {
+              id: `booster_${gameState.nextBoosterId++}`,
+              ...getRandomPosition(),
+              type: 'coins',
+              name: 'Coin Multiplier',
+              color: '#FFD700',
+              effect: 'x2 Coins for 2 minutes',
+              isBooster: true,
+              spawnTime: Date.now() // Reset spawn time
+            };
+            
+            // Set new respawn timer for this booster
+            setTimeout(() => {
+              respawnCoinBooster(newCoinBooster.id);
+            }, 120000); // 2 minutes
+            
+            gameState.boosters.set(newCoinBooster.id, newCoinBooster);
+            console.log(`🔄 Coin booster respawned after bot ${bot.name} collected it: ${Math.round(newCoinBooster.x)}, ${Math.round(newCoinBooster.y)}`);
+          }, 120000); // 2 minutes delay before respawn
         }
       }
      });
@@ -1050,6 +1072,28 @@ function updateBots() {
       bot.coinBoost = false;
       bot.coinBoostEndTime = 0;
       console.log(`💰 Coin Multiplier expired for bot ${bot.name}`);
+      
+      // Respawn Coin Booster on the map after 2 minutes delay
+      setTimeout(() => {
+        const newCoinBooster = {
+          id: `booster_${gameState.nextBoosterId++}`,
+          ...getRandomPosition(),
+          type: 'coins',
+          name: 'Coin Multiplier',
+          color: '#FFD700',
+          effect: 'x2 Coins for 2 minutes',
+          isBooster: true,
+          spawnTime: Date.now() // Reset spawn time
+        };
+        
+        // Set new respawn timer for this booster
+        setTimeout(() => {
+          respawnCoinBooster(newCoinBooster.id);
+        }, 120000); // 2 minutes
+        
+        gameState.boosters.set(newCoinBooster.id, newCoinBooster);
+        console.log(`🔄 Coin booster respawned on map after bot ${bot.name} expired (2 minutes delay)`);
+      }, 120000); // 2 minutes delay before respawn
     }
   });
 }
@@ -1246,9 +1290,29 @@ function updatePlayers(deltaTime) {
           };
           gameState.boosters.set(newBooster.id, newBooster);
         }, 60000); // Respawn after 1 minute (when effect expires)
+      } else if (boosterType === 'coins') {
+        // Coin Booster respawns after 2 minutes
+        setTimeout(() => {
+          const newCoinBooster = {
+            id: `booster_${gameState.nextBoosterId++}`,
+            ...getRandomPosition(),
+            type: 'coins',
+            name: 'Coin Multiplier',
+            color: '#FFD700',
+            effect: 'x2 Coins for 2 minutes',
+            isBooster: true,
+            spawnTime: Date.now() // Reset spawn time
+          };
+          
+          // Set new respawn timer for this booster
+          setTimeout(() => {
+            respawnCoinBooster(newCoinBooster.id);
+          }, 120000); // 2 minutes
+          
+          gameState.boosters.set(newCoinBooster.id, newCoinBooster);
+          console.log(`🔄 Coin booster respawned after player collected it: ${Math.round(newCoinBooster.x)}, ${Math.round(newCoinBooster.y)}`);
+        }, 120000); // 2 minutes delay before respawn
       }
-      // Coin Booster respawn is now handled automatically by spawn timers
-      // No need to manually respawn here
     });
     
     // Check and expire boosters
@@ -1288,6 +1352,28 @@ function updatePlayers(deltaTime) {
       player.coinBoost = false;
       player.coinBoostEndTime = 0;
       console.log(`💰 Coin Multiplier expired for player ${player.name}`);
+      
+      // Respawn Coin Booster on the map after 2 minutes delay
+      setTimeout(() => {
+        const newCoinBooster = {
+          id: `booster_${gameState.nextBoosterId++}`,
+          ...getRandomPosition(),
+          type: 'coins',
+          name: 'Coin Multiplier',
+          color: '#FFD700',
+          effect: 'x2 Coins for 2 minutes',
+          isBooster: true,
+          spawnTime: Date.now() // Reset spawn time
+        };
+        
+        // Set new respawn timer for this booster
+        setTimeout(() => {
+          respawnCoinBooster(newCoinBooster.id);
+        }, 120000); // 2 minutes
+        
+        gameState.boosters.set(newCoinBooster.id, newCoinBooster);
+        console.log(`🔄 Coin booster respawned on map after player ${player.name} expired (2 minutes delay)`);
+      }, 120000); // 2 minutes delay before respawn
     }
     
     // Save player total scores to Firebase in batch (non-blocking)

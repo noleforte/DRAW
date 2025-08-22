@@ -5557,9 +5557,13 @@ function updateBoosterStatusDisplay() {
     
     if (!hasActiveBoosters) {
         console.log('ℹ️ No active boosters to display');
-        // Don't clear the container, just return
+        // Hide the container with animation
+        boosterContainer.classList.remove('show');
         return;
     }
+    
+    // Show the container with animation
+    boosterContainer.classList.add('show');
     
     // Add header
     const header = document.createElement('div');
@@ -5638,8 +5642,12 @@ function updateBoosterStatusDisplay() {
     if (!stillHasActiveBoosters) {
         console.log('ℹ️ All boosters expired, clearing display');
         boosterContainer.innerHTML = '';
+        // Hide the container with animation
+        boosterContainer.classList.remove('show');
     } else {
         console.log(`✅ Displaying ${[activeBoosters.coins.active, activeBoosters.playerEater.active].filter(Boolean).length} active boosters`);
+        // Ensure the container is visible
+        boosterContainer.classList.add('show');
     }
     
     // Force update max speed display when boosters change

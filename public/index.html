@@ -459,7 +459,7 @@
                 height: 300px !important;
             }
             #activeBoostersCenter{
-                margin-top: 8% !important;
+                bottom: 25% !important;
             }
             /* Smaller buttons for medium screens */
             .panel-button {
@@ -835,6 +835,16 @@
             transform: translateX(-100%) translateY(-50%);
             opacity: 0;
             transition: all 0.4s ease-out;
+        }
+        
+        /* Active Boosters animation */
+        #activeBoostersCenter {
+            transition: all 0.3s ease-in-out;
+        }
+        
+        #activeBoostersCenter.show {
+            transform: translate(-50%, 0) !important;
+            opacity: 1 !important;
         }
         
         #nameModal.show .player-info-panel {
@@ -1387,7 +1397,7 @@
         </div>
         
         <!-- Active Boosters -->
-        <div id="activeBoostersCenter" style="margin-top: 5%;" class="absolute top-32 left-1/2 transform -translate-x-1/2 bg-gray-800 bg-opacity-90 rounded-lg px-4 py-2 text-center z-10 min-w-[300px]">
+        <div id="activeBoostersCenter" class="absolute bottom-32 left-1/2 transform -translate-x-1/2 bg-gray-800 bg-opacity-90 rounded-lg px-4 py-2 text-center z-10 min-w-[300px] transition-all duration-300 ease-in-out" style="transform: translate(-50%, 100%); opacity: 0;">
             <h4 class="font-bold text-purple-400 text-sm mb-2">Active Boosters</h4>
             <div class="space-y-2" id="boostersListCenter">
                 <div class="text-xs text-gray-400 text-center">No active boosters</div>
