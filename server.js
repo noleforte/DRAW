@@ -994,9 +994,10 @@ function updateBots() {
               // Reduce victim's score by 10%
               target.score = Math.floor(target.score * 0.9);
               
-              // Mark entity for removal if score becomes 0
-              if (target.score <= 0) {
-                entitiesToRemove.push(target);
+              // Don't remove entities - they just lose coins
+              // Ensure score doesn't go below 0
+              if (target.score < 0) {
+                target.score = 0;
               }
               
               // Send eating notification
@@ -1016,15 +1017,16 @@ function updateBots() {
                   remainingScore: target.score
                 });
                 
-                // Save updated score to database for the victim
+                // Save updated totalScore to database for the victim (real player)
                 if (target.firebaseId || target.playerId) {
                   const playerIdForFirebase = target.firebaseId || target.playerId;
                   setTimeout(async () => {
                     try {
-                      await GameDataService.savePlayerScore(playerIdForFirebase, target.score);
-                      console.log(`💰 Saved updated score for ${target.name} after being eaten by bot: ${target.score}`);
+                      // Save to totalScore field (not score)
+                      await GameDataService.updatePlayerFullStats(playerIdForFirebase, { totalScore: target.score });
+                      console.log(`💰 Saved updated totalScore for ${target.name} after being eaten by bot: ${target.score}`);
                     } catch (error) {
-                      console.error(`❌ Failed to save updated score for ${target.name}:`, error);
+                      console.error(`❌ Failed to save updated totalScore for ${target.name}:`, error);
                     }
                   }, 0);
                 }
@@ -1037,14 +1039,7 @@ function updateBots() {
           }
         });
       
-      // Remove entities with 0 score
-      entitiesToRemove.forEach(entity => {
-        if (entity.socketId) {
-          gameState.players.delete(entity.socketId);
-        } else if (entity.isBot) {
-          gameState.bots.delete(entity.id);
-        }
-      });
+      // No need to remove entities - they just lose coins and stay in the game
     }
   }
     
@@ -1472,9 +1467,10 @@ function updatePlayers(deltaTime) {
               // Reduce victim's score by 10%
               target.score = Math.floor(target.score * 0.9);
               
-              // Mark entity for removal if score becomes 0
-              if (target.score <= 0) {
-                entitiesToRemove.push(target);
+              // Don't remove entities - they just lose coins
+              // Ensure score doesn't go below 0
+              if (target.score < 0) {
+                target.score = 0;
               }
               
               // Send eating notification
@@ -1494,15 +1490,16 @@ function updatePlayers(deltaTime) {
                   remainingScore: target.score
                 });
                 
-                // Save updated score to database for the victim
+                // Save updated totalScore to database for the victim (real player)
                 if (target.firebaseId || target.playerId) {
                   const playerIdForFirebase = target.firebaseId || target.playerId;
                   setTimeout(async () => {
                     try {
-                      await GameDataService.savePlayerScore(playerIdForFirebase, target.score);
-                      console.log(`💰 Saved updated score for ${target.name} after being eaten by player: ${target.score}`);
+                      // Save to totalScore field (not score)
+                      await GameDataService.updatePlayerFullStats(playerIdForFirebase, { totalScore: target.score });
+                      console.log(`💰 Saved updated totalScore for ${target.name} after being eaten by player: ${target.score}`);
                     } catch (error) {
-                      console.error(`❌ Failed to save updated score for ${target.name}:`, error);
+                      console.error(`❌ Failed to save updated totalScore for ${target.name}:`, error);
                     }
                   }, 0);
                 }
@@ -1516,14 +1513,7 @@ function updatePlayers(deltaTime) {
         });
       }
       
-      // Remove entities with 0 score
-      entitiesToRemove.forEach(entity => {
-        if (entity.socketId) {
-          gameState.players.delete(entity.socketId);
-        } else if (entity.isBot) {
-          gameState.bots.delete(entity.id);
-        }
-      });
+      // No need to remove entities - they just lose coins and stay in the game
     }
   });
 }
