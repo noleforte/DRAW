@@ -270,17 +270,11 @@ class LeaderboardManager {
         } else {
             // Global leaderboard layout (compact like match)
             leaderboardHTML = `
-                <div class="mb-2 p-2 bg-blue-900 bg-opacity-50 rounded text-xs text-blue-200">
-                    📧 Showing ${data.length} players with verified email addresses
-                </div>
                 <div class="space-y-1">
                     ${data.map((player, index) => {
                         const rank = index + 1;
                         const nickname = player.nickname || player.playerName || player.playerId;
                         const score = player.totalScore || 0;
-                        const games = player.gamesPlayed || 0;
-                        const wins = player.wins || 0;
-                        const email = player.email || '';
                         
                         // Rank emojis
                         let rankEmoji = `${rank}.`;
@@ -295,7 +289,6 @@ class LeaderboardManager {
                                 </span>
                                 <div class="text-right">
                                     <div class="text-yellow-400 font-bold">${score}</div>
-                                    <div class="text-xs text-gray-400">${games}G ${wins}W</div>
                                 </div>
                             </div>
                         `;
