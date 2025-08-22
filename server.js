@@ -1075,31 +1075,33 @@ function updateBots() {
                   score: target.score
                 });
                 
-                // Save updated totalScore to database for the victim (real player)
-                if (target.firebaseId || target.playerId) {
-                  const playerIdForFirebase = target.firebaseId || target.playerId;
-                  console.log(`💾 Attempting to save totalScore for ${target.name} with ID: ${playerIdForFirebase}`);
-                  setTimeout(async () => {
-                    try {
-                      // Save to totalScore field (not score)
-                      await GameDataService.updatePlayerFullStats(playerIdForFirebase, { totalScore: target.score });
-                      console.log(`💰 Successfully saved updated totalScore for ${target.name} after being eaten by bot: ${target.score}`);
-                      
-                      // Notify all clients about updated player stats for real-time leaderboard updates
-                      io.emit('playerStatsUpdated', {
-                        playerId: playerIdForFirebase,
-                        nickname: target.name,
-                        totalScore: target.score,
-                        type: 'scoreUpdate'
-                      });
-                      console.log(`📡 Notified all clients about ${target.name}'s score update`);
-                    } catch (error) {
-                      console.error(`❌ Failed to save updated totalScore for ${target.name}:`, error);
-                    }
-                  }, 0);
-                } else {
-                  console.log(`⚠️ Target ${target.name} has no Firebase ID - cannot save to database`);
-                }
+                                  // Save updated totalScore to database for the victim (real player) - IMMEDIATELY
+                  if (target.firebaseId || target.playerId) {
+                    const playerIdForFirebase = target.firebaseId || target.playerId;
+                    console.log(`💾 IMMEDIATELY saving totalScore for ${target.name} with ID: ${playerIdForFirebase}`);
+                    
+                    // Save immediately without setTimeout
+                    (async () => {
+                      try {
+                        // Save to totalScore field (not score)
+                        await GameDataService.updatePlayerFullStats(playerIdForFirebase, { totalScore: target.score });
+                        console.log(`💰 Successfully saved updated totalScore for ${target.name} after being eaten by bot: ${target.score}`);
+                        
+                        // Notify all clients about updated player stats for real-time leaderboard updates
+                        io.emit('playerStatsUpdated', {
+                          playerId: playerIdForFirebase,
+                          nickname: target.name,
+                          totalScore: target.score,
+                          type: 'scoreUpdate'
+                        });
+                        console.log(`📡 Notified all clients about ${target.name}'s score update`);
+                      } catch (error) {
+                        console.error(`❌ Failed to save updated totalScore for ${target.name}:`, error);
+                      }
+                    })();
+                  } else {
+                    console.log(`⚠️ Target ${target.name} has no Firebase ID - cannot save to database`);
+                  }
               }
               
               // Set cooldown to prevent spam eating
@@ -1245,16 +1247,21 @@ function updatePlayers(deltaTime) {
           }
         }
         
-        // Save player size for next game
+        // Save player size and totalScore for next game
         if (player.firebaseId || player.playerId) {
           const playerIdForSize = player.firebaseId || player.playerId;
-          setTimeout(async () => {
+          (async () => {
             try {
-              await GameDataService.savePlayerSize(playerIdForSize, player.size);
+              // Save both size and totalScore immediately
+              await Promise.all([
+                GameDataService.savePlayerSize(playerIdForSize, player.size),
+                GameDataService.updatePlayerFullStats(playerIdForSize, { totalScore: player.score })
+              ]);
+              console.log(`💾 Saved player data: ${player.name} - Size: ${player.size}, TotalScore: ${player.score}`);
             } catch (error) {
-              console.error('Error saving player size:', error);
+              console.error('Error saving player data:', error);
             }
-          }, 0);
+          })();
         }
       }
     });
@@ -1607,11 +1614,13 @@ function updatePlayers(deltaTime) {
                   score: target.score
                 });
                 
-                // Save updated totalScore to database for the victim (real player)
+                // Save updated totalScore to database for the victim (real player) - IMMEDIATELY
                 if (target.firebaseId || target.playerId) {
                   const playerIdForFirebase = target.firebaseId || target.playerId;
-                  console.log(`💾 Attempting to save totalScore for ${target.name} with ID: ${playerIdForFirebase}`);
-                  setTimeout(async () => {
+                  console.log(`💾 IMMEDIATELY saving totalScore for ${target.name} with ID: ${playerIdForFirebase}`);
+                  
+                  // Save immediately without setTimeout
+                  (async () => {
                     try {
                       // Save to totalScore field (not score)
                       await GameDataService.updatePlayerFullStats(playerIdForFirebase, { totalScore: target.score });
@@ -1628,7 +1637,7 @@ function updatePlayers(deltaTime) {
                     } catch (error) {
                       console.error(`❌ Failed to save updated totalScore for ${target.name}:`, error);
                     }
-                  }, 0);
+                  })();
                 } else {
                   console.log(`⚠️ Target ${target.name} has no Firebase ID - cannot save to database`);
                 }

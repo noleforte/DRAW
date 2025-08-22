@@ -493,7 +493,7 @@ class HybridAuthSystem {
             }
             
             // Note: Users collection access is restricted, so we'll work with players collection only
-            
+                
             // Update localStorage user stats with best combined data
             currentUser.stats = bestStats;
                 
@@ -1068,11 +1068,11 @@ function setupSocketListeners() {
                 bot.coinBoostEndTime = bot.coinBoostEndTime || 0;
             });
         }
-        
-        // Try to recover by using previous localPlayer if available
+            
+            // Try to recover by using previous localPlayer if available
         if (!localPlayer && previousLocalPlayer) {
-            localPlayer = previousLocalPlayer;
-            window.localPlayer = localPlayer;
+                localPlayer = previousLocalPlayer;
+                window.localPlayer = localPlayer;
         }
         
         window.localPlayer = localPlayer; // Update global reference
@@ -1100,7 +1100,7 @@ function setupSocketListeners() {
             // Check if the score increase is reasonable (not a huge jump from initialization)
             const maxReasonableIncrease = 1000; // Maximum reasonable coins gained in one update
             if (coinsGained <= maxReasonableIncrease) {
-                sendCoinsToFirestore(coinsGained);
+            sendCoinsToFirestore(coinsGained);
             } else {
                 console.log(`⚠️ Skipping Firestore update - unreasonable score increase: ${coinsGained} (likely initialization)`);
             }
@@ -1135,10 +1135,10 @@ function setupSocketListeners() {
                     localPlayer.speedBoost = false;
                     localPlayer.speedBoostEndTime = 0;
                 } else {
-                    activeBoosters.speed.active = true;
-                    activeBoosters.speed.multiplier = 2;
-                    activeBoosters.speed.endTime = localPlayer.speedBoostEndTime;
-                    console.log(`🚀 Speed boost active until ${new Date(localPlayer.speedBoostEndTime).toLocaleTimeString()}`);
+                activeBoosters.speed.active = true;
+                activeBoosters.speed.multiplier = 2;
+                activeBoosters.speed.endTime = localPlayer.speedBoostEndTime;
+                console.log(`🚀 Speed boost active until ${new Date(localPlayer.speedBoostEndTime).toLocaleTimeString()}`);
                 }
             } else {
                 activeBoosters.speed.active = false;
@@ -1158,10 +1158,10 @@ function setupSocketListeners() {
                     localPlayer.coinBoost = false;
                     localPlayer.coinBoostEndTime = 0;
                 } else {
-                    activeBoosters.coins.active = true;
-                    activeBoosters.coins.multiplier = 2;
-                    activeBoosters.coins.endTime = localPlayer.coinBoostEndTime;
-                    console.log(`💰 Coin boost active until ${new Date(localPlayer.coinBoostEndTime).toLocaleTimeString()}`);
+                activeBoosters.coins.active = true;
+                activeBoosters.coins.multiplier = 2;
+                activeBoosters.coins.endTime = localPlayer.coinBoostEndTime;
+                console.log(`💰 Coin boost active until ${new Date(localPlayer.coinBoostEndTime).toLocaleTimeString()}`);
                 }
             } else {
                 activeBoosters.coins.active = false;
@@ -1180,9 +1180,9 @@ function setupSocketListeners() {
                     localPlayer.playerEater = false;
                     localPlayer.playerEaterEndTime = 0;
                 } else {
-                    activeBoosters.playerEater.active = true;
-                    activeBoosters.playerEater.endTime = localPlayer.playerEaterEndTime;
-                    console.log(`👹 Player Eater active until ${new Date(localPlayer.playerEaterEndTime).toLocaleTimeString()}`);
+                activeBoosters.playerEater.active = true;
+                activeBoosters.playerEater.endTime = localPlayer.playerEaterEndTime;
+                console.log(`👹 Player Eater active until ${new Date(localPlayer.playerEaterEndTime).toLocaleTimeString()}`);
                 }
             } else {
                 activeBoosters.playerEater.active = false;
@@ -1251,7 +1251,7 @@ function setupSocketListeners() {
         
         // Update player rank display after leaderboard update (throttled)
         if (!window.lastRankUpdate || Date.now() - window.lastRankUpdate > 2000) {
-            updatePlayerRankDisplay();
+        updatePlayerRankDisplay();
             window.lastRankUpdate = Date.now();
         }
     });
@@ -1693,7 +1693,7 @@ function setupSocketListeners() {
         console.log('⏰ AFK kick received, reloading page...', data);
         
         // Simple page reload immediately
-        window.location.reload();
+            window.location.reload();
     });
     
     socket.on('connect_error', (error) => {
@@ -2233,11 +2233,11 @@ function setupInputHandlers() {
                 window.location.reload();
                 return; // Prevent further processing
             }
-        }
-        
-        // Prevent default for game keys only when not typing
-        if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
-            e.preventDefault();
+            }
+            
+            // Prevent default for game keys only when not typing
+            if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                e.preventDefault();
         }
     });
     
@@ -3188,10 +3188,10 @@ function updateCamera() {
             maxSpeedElement.textContent = '100';
             console.log('👹 Max speed limited to 100 (Player Eater active)');
         } else {
-            const baseSpeed = 200;
-            const sizeMultiplier = calculateSpeedMultiplier(localPlayer.score || 0);
-            const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
-            maxSpeedElement.textContent = maxSpeed.toString();
+        const baseSpeed = 200;
+        const sizeMultiplier = calculateSpeedMultiplier(localPlayer.score || 0);
+        const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
+        maxSpeedElement.textContent = maxSpeed.toString();
         }
     }
     
@@ -3234,32 +3234,32 @@ function updateCamera() {
 }
 
 // Global function to calculate speed multiplier for max speed calculation (based on score)
-function calculateSpeedMultiplier(score) {
-    // Score-based speed system (same as server):
+    function calculateSpeedMultiplier(score) {
+        // Score-based speed system (same as server):
     // Level 1 (0-100 coins): 100% speed (fast) = 200 max speed
     // Level 2 (100-250 coins): 85% speed = 170 max speed
     // Level 3 (250-500 coins): 70% speed = 140 max speed  
     // Level 4 (500-1000 coins): 55% speed = 110 max speed
     // Level 5 (1000+ coins): 40% speed = 80 max speed (slow)
-    
-    if (score <= 100) {
+        
+        if (score <= 100) {
         return 1.0; // 100% speed for 0-100 coins = 200 max speed
-    } else if (score <= 250) {
-        // Linear interpolation from 100% to 85% for 100-250 coins
-        const progress = (score - 100) / 150;
-        return 1.0 - (progress * 0.15);
-    } else if (score <= 500) {
-        // Linear interpolation from 85% to 70% for 250-500 coins
-        const progress = (score - 250) / 250;
+        } else if (score <= 250) {
+            // Linear interpolation from 100% to 85% for 100-250 coins
+            const progress = (score - 100) / 150;
+            return 1.0 - (progress * 0.15);
+        } else if (score <= 500) {
+            // Linear interpolation from 85% to 70% for 250-500 coins
+            const progress = (score - 250) / 250;
         return 0.85 - (progress * 0.15);
-    } else if (score <= 1000) {
-        // Linear interpolation from 70% to 55% for 500-1000 coins
-        const progress = (score - 500) / 500;
-        return 0.70 - (progress * 0.15);
-    } else {
+        } else if (score <= 1000) {
+            // Linear interpolation from 70% to 55% for 500-1000 coins
+            const progress = (score - 500) / 500;
+            return 0.70 - (progress * 0.15);
+        } else {
         // 40% speed for 1000+ coins = 80 max speed
-        return 0.40;
-    }
+            return 0.40;
+        }
 }
 
 // Function to update all player stats display elements
@@ -3322,10 +3322,10 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
             maxSpeedElement.textContent = '100';
             console.log('👹 Max speed limited to 100 (Player Eater active)');
         } else {
-            const baseSpeed = 200;
-            const sizeMultiplier = calculateSpeedMultiplier(player.score || 0);
-            const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
-            maxSpeedElement.textContent = maxSpeed.toString();
+        const baseSpeed = 200;
+        const sizeMultiplier = calculateSpeedMultiplier(player.score || 0);
+        const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
+        maxSpeedElement.textContent = maxSpeed.toString();
         }
     } else {
         console.warn('⚠️ maxSpeedValue element not found');
@@ -3892,7 +3892,7 @@ function updatePlayerRankDisplay() {
         
         // Only update if rank actually changed
         if (currentGameRankElement.textContent !== rankText) {
-            currentGameRankElement.textContent = rankText;
+    currentGameRankElement.textContent = rankText;
             lastRankUpdate = now;
         }
     } catch (error) {
@@ -4060,24 +4060,24 @@ function updateLeaderboard() {
         window.leaderboardManager.setMatchLeaderboard(allEntities.slice(0, 15));
     } else {
         // Fallback to old system if leaderboard manager not available
-        const leaderboardList = document.getElementById('leaderboardList');
+    const leaderboardList = document.getElementById('leaderboardList');
         if (leaderboardList) {
-            leaderboardList.innerHTML = '';
-            
+    leaderboardList.innerHTML = '';
+    
             allEntities.slice(0, 15).forEach((entity, index) => {
-                const entryDiv = document.createElement('div');
-                entryDiv.className = `flex justify-between items-center text-sm ${entity.id === gameState.playerId ? 'bg-blue-800 bg-opacity-50 rounded px-2 py-1' : ''}`;
-                
-                const rankEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-                const botIndicator = entity.isBot ? ' 🤖' : '';
-                
-                entryDiv.innerHTML = `
-                    <span class="flex-1 truncate">${rankEmoji} ${entity.name}${botIndicator}</span>
-                    <span class="text-yellow-400 font-bold">${entity.score}</span>
-                `;
-                
-                leaderboardList.appendChild(entryDiv);
-            });
+        const entryDiv = document.createElement('div');
+        entryDiv.className = `flex justify-between items-center text-sm ${entity.id === gameState.playerId ? 'bg-blue-800 bg-opacity-50 rounded px-2 py-1' : ''}`;
+        
+        const rankEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+        const botIndicator = entity.isBot ? ' 🤖' : '';
+        
+        entryDiv.innerHTML = `
+            <span class="flex-1 truncate">${rankEmoji} ${entity.name}${botIndicator}</span>
+            <span class="text-yellow-400 font-bold">${entity.score}</span>
+        `;
+        
+        leaderboardList.appendChild(entryDiv);
+    });
         }
     }
     
@@ -4411,14 +4411,14 @@ function gameLoop() {
     // Update booster display if any boosters changed
     if (boostersUpdated) {
         console.log('🔄 Boosters updated, refreshing display');
-        updateBoosterStatusDisplay();
-        
+    updateBoosterStatusDisplay();
+    
         // Also update player stats display to reflect booster changes
         if (localPlayer) {
-            const vx = localPlayer.vx || 0;
-            const vy = localPlayer.vy || 0;
-            const currentSpeed = Math.sqrt(vx * vx + vy * vy);
-            updatePlayerStatsDisplay(currentSpeed, localPlayer);
+        const vx = localPlayer.vx || 0;
+        const vy = localPlayer.vy || 0;
+        const currentSpeed = Math.sqrt(vx * vx + vy * vy);
+        updatePlayerStatsDisplay(currentSpeed, localPlayer);
         }
     }
     
@@ -5431,8 +5431,8 @@ function updateBoosterStatusDisplay() {
     boosterContainer.appendChild(header);
     
     // Show active boosters (only coins and player eater)
-    if (activeBoosters.coins.active) {
-        const timeLeft = Math.ceil((activeBoosters.coins.endTime - Date.now()) / 1000);
+            if (activeBoosters.coins.active) {
+            const timeLeft = Math.ceil((activeBoosters.coins.endTime - Date.now()) / 1000);
         
         // Check if booster has expired
         if (timeLeft <= 0) {
@@ -5459,7 +5459,7 @@ function updateBoosterStatusDisplay() {
             `;
             boosterContainer.appendChild(coinBooster);
         }
-    }
+        }
     
     if (activeBoosters.playerEater.active) {
         const timeLeft = Math.ceil((activeBoosters.playerEater.endTime - Date.now()) / 1000);
@@ -5469,25 +5469,25 @@ function updateBoosterStatusDisplay() {
             activeBoosters.playerEater.active = false;
             activeBoosters.playerEater.endTime = 0;
         } else {
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            
-            const playerEaterBooster = document.createElement('div');
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        const playerEaterBooster = document.createElement('div');
             playerEaterBooster.className = 'bg-purple-500 text-white px-2 py-1 rounded shadow-lg flex items-center justify-between min-w-[140px]';
-            playerEaterBooster.innerHTML = `
+        playerEaterBooster.innerHTML = `
                 <div class="flex items-center space-x-1">
                     <span class="text-sm">👹</span>
-                    <div>
+                <div>
                         <div class="font-bold text-sm">Player Eater</div>
-                    </div>
                 </div>
+            </div>
                 <div class="text-right ml-8">
                     <div class="font-mono text-sm font-bold">${timeText}</div>
-                </div>
-            `;
-            boosterContainer.appendChild(playerEaterBooster);
-        }
+            </div>
+        `;
+        boosterContainer.appendChild(playerEaterBooster);
+    }
     }
     
     // Check if we still have active boosters after expiration checks
