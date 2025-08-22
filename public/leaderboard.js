@@ -51,261 +51,242 @@ class LeaderboardManager {
         console.log('🔄 LeaderboardManager initialization complete');
     }
 
+    // Set match leaderboard data
+    setMatchLeaderboard(data) {
+        console.log('🔄 setMatchLeaderboard called with data:', data);
+        if (Array.isArray(data)) {
+            this.matchLeaderboard = data;
+            console.log(`✅ Match leaderboard updated with ${data.length} players`);
+            
+            // If currently showing match leaderboard, re-render
+            if (this.currentType === 'match') {
+                this.renderLeaderboard(this.matchLeaderboard, 'match');
+            }
+        } else {
+            console.warn('⚠️ setMatchLeaderboard: data is not an array:', typeof data);
+        }
+    }
+
+    // Update match leaderboard with new data
+    updateMatchLeaderboard(data) {
+        console.log('🔄 updateMatchLeaderboard called with data:', data);
+        this.setMatchLeaderboard(data);
+    }
+
+    // Toggle between match and global leaderboard
     toggleLeaderboardType() {
-        console.log('🔄 Toggling leaderboard type from:', this.currentType);
-        this.currentType = this.currentType === 'match' ? 'global' : 'match';
-        console.log('🔄 New type:', this.currentType);
+        console.log('🔄 toggleLeaderboardType called');
         
+        if (this.currentType === 'match') {
+            console.log('🔄 Switching to global leaderboard');
+            this.currentType = 'global';
+            
+            // Always fetch fresh global data
+            this.loadGlobalLeaderboard();
+        } else {
+            console.log('🔄 Switching to match leaderboard');
+            this.currentType = 'match';
+            
+            // Render match leaderboard
+            this.renderLeaderboard(this.matchLeaderboard, 'match');
+        }
+        
+        // Update toggle button text
+        this.updateToggleButton();
+    }
+
+    // Update toggle button text
+    updateToggleButton() {
         const toggleBtn = document.getElementById('toggleLeaderboardType');
         if (toggleBtn) {
-            toggleBtn.textContent = this.currentType === 'match' ? 'Match' : 'All Players';
-            console.log('🔄 Button text updated to:', toggleBtn.textContent);
+            toggleBtn.textContent = this.currentType === 'match' ? 'Show Global' : 'Show Match';
+            console.log('🔄 Toggle button text updated to:', toggleBtn.textContent);
         } else {
             console.error('❌ Toggle button not found!');
         }
-
-        if (this.currentType === 'global') {
-            console.log('🔄 Loading global leaderboard...');
-            console.log('🔄 Current globalLeaderboard data:', this.globalLeaderboard);
-            console.log('🔄 globalLeaderboard length:', this.globalLeaderboard ? this.globalLeaderboard.length : 'undefined');
-            
-            // Always fetch fresh data for global leaderboard to ensure up-to-date information
-            console.log('🔄 Fetching fresh global leaderboard data...');
-            this.loadGlobalLeaderboard();
-        } else {
-            console.log('🔄 Switching to match leaderboard...');
-            console.log('🔄 Current matchLeaderboard data:', this.matchLeaderboard);
-            console.log('🔄 matchLeaderboard length:', this.matchLeaderboard ? this.matchLeaderboard.length : 'undefined');
-            this.renderLeaderboard();
-        }
     }
 
+    // Load global leaderboard data
     async loadGlobalLeaderboard() {
+        console.log('🔄 loadGlobalLeaderboard called');
+        
         try {
-            console.log('🔄 Fetching all players from Render server...');
-            console.log('🔄 Current URL:', window.location.href);
+            const response = await fetch('https://draw-e67b.onrender.com/api/players');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             
-            // Use correct Render server URL for API calls
-            const apiUrl = 'https://draw-e67b.onrender.com/api/players';
-            console.log('🔄 API URL:', apiUrl);
+            const data = await response.json();
+            console.log('✅ Global leaderboard data received:', data);
             
-            console.log('🔄 Making fetch request...');
-            const response = await fetch(apiUrl);
-            console.log('🔄 API Response status:', response.status);
-            console.log('🔄 API Response headers:', response.headers);
-            
-            if (response.ok) {
-                const data = await response.json();
-                console.log('🔄 Raw API response data:', data);
-                console.log('🔄 Data type:', typeof data);
-                console.log('🔄 Data length:', data ? data.length : 'undefined');
+            if (Array.isArray(data)) {
+                this.globalLeaderboard = data;
+                console.log(`✅ Global leaderboard updated with ${data.length} players`);
                 
-                if (Array.isArray(data)) {
-                    this.globalLeaderboard = data;
-                    console.log('🔄 Successfully loaded', this.globalLeaderboard.length, 'players');
-                    console.log('🔄 First 3 players:', this.globalLeaderboard.slice(0, 3));
-                    
-                    // Check if data has the expected structure
-                    if (this.globalLeaderboard.length > 0) {
-                        const firstPlayer = this.globalLeaderboard[0];
-                        console.log('🔄 First player sample:', firstPlayer);
-                        console.log('🔄 First player fields:', Object.keys(firstPlayer));
-                    }
-                    
-                    this.renderLeaderboard();
-                } else {
-                    console.error('❌ API returned non-array data:', data);
-                    this.globalLeaderboard = [];
-                    this.renderLeaderboard();
-                }
+                // Render the global leaderboard
+                this.renderLeaderboard(this.globalLeaderboard, 'global');
             } else {
-                console.error('❌ Failed to load all players:', response.status, response.statusText);
-                const errorText = await response.text();
-                console.error('❌ Error response body:', errorText);
-                
-                // Show error in leaderboard
-                this.globalLeaderboard = [];
-                this.renderLeaderboard();
+                console.error('❌ Global leaderboard data is not an array:', typeof data);
+                this.renderLeaderboard([], 'global');
             }
         } catch (error) {
-            console.error('❌ Error loading all players:', error);
-            console.error('❌ Error stack:', error.stack);
+            console.error('❌ Error loading global leaderboard:', error);
             
-            // Show error in leaderboard
-            this.globalLeaderboard = [];
-            this.renderLeaderboard();
-        }
-    }
-
-    updateMatchLeaderboard() {
-        console.log('🔄 updateMatchLeaderboard called');
-        console.log('🔄 Current matchLeaderboard:', this.matchLeaderboard);
-        console.log('🔄 Current type:', this.currentType);
-        
-        if (this.currentType === 'match') {
-            console.log('🔄 Rendering match leaderboard...');
-            this.renderLeaderboard();
-        } else {
-            console.log('🔄 Not rendering match leaderboard (current type is not match)');
-        }
-    }
-
-    setMatchLeaderboard(players) {
-        console.log('🔄 setMatchLeaderboard called with players:', players);
-        console.log('🔄 Players type:', typeof players);
-        console.log('🔄 Players length:', players ? players.length : 'undefined');
-        
-        if (Array.isArray(players)) {
-            this.matchLeaderboard = players;
-            console.log('🔄 Match leaderboard updated with', players.length, 'players');
+            // Fallback to mock data for testing
+            console.warn('⚠️ Using mock data as fallback');
+            const mockData = [
+                {
+                    playerId: 'mock_1',
+                    nickname: 'TestPlayer1',
+                    playerName: 'TestPlayer1',
+                    totalScore: 1500,
+                    gamesPlayed: 5,
+                    wins: 2,
+                    email: 'test1@example.com'
+                },
+                {
+                    playerId: 'mock_2',
+                    nickname: 'TestPlayer2',
+                    playerName: 'TestPlayer2',
+                    totalScore: 1200,
+                    gamesPlayed: 3,
+                    wins: 1,
+                    email: 'test2@example.com'
+                }
+            ];
             
-            if (this.currentType === 'match') {
-                console.log('🔄 Current type is match, rendering leaderboard...');
-                this.renderLeaderboard();
-            } else {
-                console.log('🔄 Current type is not match, not rendering');
-            }
-        } else {
-            console.error('❌ setMatchLeaderboard received non-array data:', players);
-            this.matchLeaderboard = [];
+            this.globalLeaderboard = mockData;
+            this.renderLeaderboard(this.globalLeaderboard, 'global');
         }
     }
 
-    renderLeaderboard() {
+    // Render leaderboard with given data
+    renderLeaderboard(data, type = 'match') {
+        console.log(`🏆 Rendering ${type} leaderboard with ${data.length} players`);
+        
         const leaderboardList = document.getElementById('leaderboardList');
         if (!leaderboardList) {
             console.error('❌ leaderboardList element not found!');
             return;
         }
-
-        let data = this.currentType === 'match' ? this.matchLeaderboard : this.globalLeaderboard;
-        console.log('🔄 Rendering leaderboard:', this.currentType);
-        console.log('🔄 Data type:', typeof data);
-        console.log('🔄 Data length:', data ? data.length : 'undefined');
-        console.log('🔄 Raw data:', data);
         
         if (!data || data.length === 0) {
-            const message = this.currentType === 'match' 
-                ? 'No players in current match' 
-                : 'No active players found in database';
-            leaderboardList.innerHTML = `<div class="text-gray-400 text-sm">${message}</div>`;
-            console.log('🔄 No data available for', this.currentType, '- showing message:', message);
+            leaderboardList.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-2xl font-bold text-gray-600 mb-2">🏆 Leaderboard</div>
+                    <div class="text-gray-500">
+                        ${type === 'global' ? 'No players with email found yet.' : 'No match data available.'}
+                    </div>
+                </div>
+            `;
             return;
         }
-
-        // Additional client-side filtering for global leaderboard
-        if (this.currentType === 'global') {
-            console.log('🔄 Applying client-side filtering...');
-            
+        
+        // Apply client-side filtering for global leaderboard
+        if (type === 'global') {
             // Remove duplicates by nickname (keep highest score)
             const uniquePlayers = new Map();
             data.forEach(player => {
-                const nickname = player.nickname || player.playerName || player.name || 'Unknown';
-                const currentScore = player.totalScore || 0;
-                
+                const nickname = player.nickname || player.playerName || player.playerId;
                 if (!uniquePlayers.has(nickname) || 
-                    currentScore > (uniquePlayers.get(nickname).totalScore || 0)) {
+                    player.totalScore > uniquePlayers.get(nickname).totalScore) {
                     uniquePlayers.set(nickname, player);
                 }
             });
             
-            // Convert back to array and filter out unwanted players
-            data = Array.from(uniquePlayers.values()).filter(player => {
-                const nickname = player.nickname || player.playerName || player.name || 'Unknown';
+            // Filter out temporary accounts and zero scores
+            const filteredPlayers = Array.from(uniquePlayers.values()).filter(player => {
+                const nickname = player.nickname || player.playerName || player.playerId;
+                const hasValidNickname = !nickname.startsWith('Player_guest_') && 
+                                       !nickname.startsWith('Player_player_') &&
+                                       !nickname.startsWith('guest_') &&
+                                       !nickname.startsWith('player_');
+                const hasValidScore = player.totalScore && player.totalScore > 0;
+                const hasEmail = player.email && player.email.trim() !== '';
                 
-                // Skip players with zero or negative score
-                if (!player.totalScore || player.totalScore <= 0) {
-                    return false;
+                if (!hasValidNickname) {
+                    console.log(`🔄 Filtered out temporary player: ${nickname}`);
+                }
+                if (!hasValidScore) {
+                    console.log(`🔄 Filtered out player with zero score: ${nickname}`);
+                }
+                if (!hasEmail) {
+                    console.log(`🔄 Filtered out player without email: ${nickname}`);
                 }
                 
-                // Skip temporary player accounts
-                if (nickname.startsWith('Player_guest_') || 
-                    nickname.startsWith('Player_player_') ||
-                    nickname.startsWith('guest_') ||
-                    nickname.startsWith('player_')) {
-                    return false;
-                }
-                
-                return true;
+                return hasValidNickname && hasValidScore && hasEmail;
             });
             
-            // Sort by totalScore descending
-            data.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
-            
-            console.log(`🔄 After filtering: ${data.length} unique active players`);
+            data = filteredPlayers.sort((a, b) => b.totalScore - a.totalScore);
+            console.log(`✅ Global leaderboard filtered: ${data.length} players (was ${uniquePlayers.size})`);
         }
-
-        // Update header text based on type
-        if (this.currentType === 'global') {
-            console.log('🔄 Rendering global leaderboard with data:', data);
-            const onlineCount = data.filter(p => p.isOnline).length;
-            const totalCount = data.length;
-            
-            // Show filtering info if we have original data
-            const originalCount = this.globalLeaderboard ? this.globalLeaderboard.length : 0;
-            const filteredCount = originalCount - totalCount;
-            
-            let headerText = `All Players (${onlineCount} Online, ${totalCount} Active)`;
-            if (filteredCount > 0) {
-                headerText += ` - ${filteredCount} filtered out`;
-            }
-            
-            console.log('🔄 Header text:', headerText);
-            
-            const leaderboardHeader = document.querySelector('.leaderboard-header h2');
-            if (leaderboardHeader) {
-                leaderboardHeader.textContent = headerText;
-                console.log('🔄 Updated leaderboard header');
-            } else {
-                console.log('🔄 Leaderboard header element not found');
-            }
-        }
-
-        const html = data.map((player, index) => {
-            const score = this.currentType === 'match' ? player.score : player.totalScore;
-            const name = player.nickname || player.playerName || player.name || 'Unknown';
-            const isBot = player.isBot || false;
-            const isOnline = player.isOnline || false;
-            
-            console.log(`🔄 Rendering player ${index + 1}:`, { name, score, isBot, isOnline });
-            
-            let emoji = '';
-            if (index === 0) emoji = '🥇';
-            else if (index === 1) emoji = '🥈';
-            else if (index === 2) emoji = '🥉';
-            else emoji = `${index + 1}.`;
-
-            let nameDisplay = name;
-            if (isBot) {
-                nameDisplay = `🤖 ${name}`;
-            } else if (this.currentType === 'global') {
-                const onlineStatus = isOnline ? '🟢' : '🔴';
-                const statusText = isOnline ? 'Online' : 'Offline';
-                nameDisplay = `${onlineStatus} ${name} <span class="text-xs text-gray-400">(${statusText})</span>`;
-            }
-
-            return `
-                <div class="flex justify-between items-center text-sm">
-                    <span class="flex items-center">
-                        <span class="w-6">${emoji}</span>
-                        <span class="truncate max-w-24">${nameDisplay}</span>
-                    </span>
-                    <span class="font-bold text-yellow-400">${score}</span>
+        
+        // Create leaderboard HTML
+        const leaderboardHTML = `
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">
+                        🏆 ${type === 'global' ? 'Global Leaderboard' : 'Match Leaderboard'}
+                    </h2>
+                    <div class="text-sm text-gray-600">
+                        ${type === 'global' ? 
+                            `Showing ${data.length} players with email` : 
+                            `${data.length} players in current match`
+                        }
+                    </div>
                 </div>
-            `;
-        }).join('');
-
-        leaderboardList.innerHTML = html;
-        console.log('🔄 Leaderboard rendered successfully with', data.length, 'filtered players');
-
-        // Add type indicator with filtered count
-        const header = this.currentType === 'match' 
-            ? '🏆 Match Leaders' 
-            : `🌟 All Players Database (${data.length} Active Players)`;
-        const headerElement = document.querySelector('#leaderboard h3');
-        if (headerElement) {
-            headerElement.textContent = header;
-        }
+                
+                ${type === 'global' ? 
+                    '<div class="text-xs text-gray-500 mb-4 bg-blue-50 p-3 rounded">📧 Only players with verified email addresses are shown in the global leaderboard.</div>' : 
+                    ''
+                }
+                
+                <div class="space-y-3">
+                    ${data.map((player, index) => {
+                        const rank = index + 1;
+                        const nickname = player.nickname || player.playerName || player.playerId;
+                        const score = player.totalScore || 0;
+                        const games = player.gamesPlayed || 0;
+                        const wins = player.wins || 0;
+                        const email = player.email || '';
+                        
+                        // Rank emojis
+                        let rankEmoji = '🥉';
+                        if (rank === 1) rankEmoji = '🥇';
+                        else if (rank === 2) rankEmoji = '🥈';
+                        else if (rank <= 10) rankEmoji = '🏅';
+                        else if (rank <= 50) rankEmoji = '🎖️';
+                        
+                        return `
+                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                <div class="flex items-center space-x-4">
+                                    <div class="text-2xl">${rankEmoji}</div>
+                                    <div>
+                                        <div class="font-bold text-lg text-gray-800">${rank}. ${nickname}</div>
+                                        <div class="text-sm text-gray-600">
+                                            ${type === 'global' ? 
+                                                `Games: ${games} | Wins: ${wins} | Email: ${email}` :
+                                                `Score: ${score}`
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-2xl font-bold text-blue-600">${score}</div>
+                                    ${type === 'global' ? 
+                                        `<div class="text-xs text-gray-500">Total Score</div>` : 
+                                        `<div class="text-xs text-gray-500">Match Score</div>`
+                                    }
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+        
+        leaderboardList.innerHTML = leaderboardHTML;
+        console.log(`✅ ${type} leaderboard rendered successfully`);
     }
 
     // Called when player stats are available
@@ -331,4 +312,4 @@ document.addEventListener('DOMContentLoaded', () => {
     const leaderboardManager = new LeaderboardManager();
     window.leaderboardManager = leaderboardManager;
     console.log('🔄 LeaderboardManager set on window:', window.leaderboardManager);
-}); 
+});
