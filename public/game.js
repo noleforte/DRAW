@@ -5600,15 +5600,17 @@ function updateBoosterStatusDisplay() {
     console.log('💰 Coin booster state:', activeBoosters.coins);
     console.log('👹 Player Eater state:', activeBoosters.playerEater);
     
-    // Create or update booster status elements
-    let boosterContainer = document.getElementById('boosterStatusContainer');
+    // Use existing activeBoostersCenter element instead of creating new container
+    let boosterContainer = document.getElementById('activeBoostersCenter');
     
     if (!boosterContainer) {
+        console.log('⚠️ activeBoostersCenter element not found, creating fallback container');
+        // Fallback: create container only if activeBoostersCenter doesn't exist
         boosterContainer = document.createElement('div');
         boosterContainer.id = 'boosterStatusContainer';
         boosterContainer.className = 'fixed top-4 right-4 z-50 space-y-2';
         document.body.appendChild(boosterContainer);
-        console.log('✅ Created new booster container');
+        console.log('✅ Created fallback booster container');
     }
     
     // Clear existing booster displays
@@ -5621,7 +5623,8 @@ function updateBoosterStatusDisplay() {
     
     if (!hasActiveBoosters) {
         console.log('ℹ️ No active boosters to display');
-        return; // Don't show container if no boosters
+        // Don't clear the container, just return
+        return;
     }
     
     // Add header
@@ -5738,10 +5741,9 @@ function updateBoosterStatusDisplay() {
                                   activeBoosters.playerEater.active;
     
     if (!stillHasActiveBoosters) {
-        console.log('ℹ️ All boosters expired, hiding container');
-        boosterContainer.style.display = 'none';
+        console.log('ℹ️ All boosters expired, clearing display');
+        boosterContainer.innerHTML = '';
     } else {
-        boosterContainer.style.display = 'block';
         console.log(`✅ Displaying ${[activeBoosters.speed.active, activeBoosters.coins.active, activeBoosters.playerEater.active].filter(Boolean).length} active boosters`);
     }
 }
