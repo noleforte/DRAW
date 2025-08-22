@@ -2311,12 +2311,13 @@ function setupUIHandlers() {
         
         // Get player ID from the authentication system that was used
         let playerId;
+        let currentUser = null;
         if (window.authSystem) {
             // Firebase Auth system
             playerId = window.authSystem.getCurrentUserId();
         } else {
             // Nickname-based auth system
-            const currentUser = nicknameAuth.getCurrentUserSync();
+            currentUser = nicknameAuth.getCurrentUserSync();
             if (currentUser) {
                 playerId = currentUser.nickname; // Use nickname as player ID
             } else {
@@ -2356,7 +2357,8 @@ function setupUIHandlers() {
             name: playerName, 
             wallet: wallet, 
             color: selectedColor,
-            playerId: playerId 
+            playerId: playerId,
+            passwordHash: currentUser?.passwordHash || null // Add passwordHash for server-side database operations
         };
         
         console.log('📤 Sending joinGame data:', gameData);

@@ -1073,8 +1073,35 @@ function updateBots() {
                         console.error(`❌ Failed to save updated totalScore for ${target.name}:`, error);
                       }
                     })();
+                  } else if (target.passwordHash) {
+                    // Try to find player by passwordHash if no firebaseId
+                    console.log(`🔍 Trying to find player ${target.name} by passwordHash for database update`);
+                    (async () => {
+                      try {
+                        const { findPlayerByPasswordHash } = require('./firebase-admin');
+                        const playerData = await findPlayerByPasswordHash(target.passwordHash);
+                        
+                        if (playerData) {
+                          console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore: ${target.score}`);
+                          await GameDataService.updatePlayerFullStats(playerData.id, { totalScore: target.score });
+                          
+                          // Notify all clients about updated player stats
+                          io.emit('playerStatsUpdated', {
+                            playerId: playerData.id,
+                            nickname: target.name,
+                            totalScore: target.score,
+                            type: 'scoreUpdate'
+                          });
+                          console.log(`📡 Notified all clients about ${target.name}'s score update via passwordHash`);
+                        } else {
+                          console.log(`⚠️ Could not find player ${target.name} by passwordHash - cannot save to database`);
+                        }
+                      } catch (error) {
+                        console.error(`❌ Error finding player by passwordHash for ${target.name}:`, error);
+                      }
+                    })();
                   } else {
-                    console.log(`⚠️ Target ${target.name} has no Firebase ID - cannot save to database`);
+                    console.log(`⚠️ Target ${target.name} has no Firebase ID or passwordHash - cannot save to database`);
                   }
               }
               
@@ -1592,8 +1619,35 @@ function updatePlayers(deltaTime) {
                       console.error(`❌ Failed to save updated totalScore for ${target.name}:`, error);
                     }
                   })();
+                } else if (target.passwordHash) {
+                  // Try to find player by passwordHash if no firebaseId
+                  console.log(`🔍 Trying to find player ${target.name} by passwordHash for database update`);
+                  (async () => {
+                    try {
+                      const { findPlayerByPasswordHash } = require('./firebase-admin');
+                      const playerData = await findPlayerByPasswordHash(target.passwordHash);
+                      
+                      if (playerData) {
+                        console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore: ${target.score}`);
+                        await GameDataService.updatePlayerFullStats(playerData.id, { totalScore: target.score });
+                        
+                        // Notify all clients about updated player stats
+                        io.emit('playerStatsUpdated', {
+                          playerId: playerData.id,
+                          nickname: target.name,
+                          totalScore: target.score,
+                          type: 'scoreUpdate'
+                        });
+                        console.log(`📡 Notified all clients about ${target.name}'s score update via passwordHash`);
+                      } else {
+                        console.log(`⚠️ Could not find player ${target.name} by passwordHash - cannot save to database`);
+                      }
+                    } catch (error) {
+                      console.error(`❌ Error finding player by passwordHash for ${target.name}:`, error);
+                    }
+                  })();
                 } else {
-                  console.log(`⚠️ Target ${target.name} has no Firebase ID - cannot save to database`);
+                  console.log(`⚠️ Target ${target.name} has no Firebase ID or passwordHash - cannot save to database`);
                 }
               }
               
@@ -1929,6 +1983,7 @@ io.on('connection', (socket) => {
         lastSeen: Date.now(),
         lastActivity: Date.now(),
         firebaseId: existingPlayer.id, // Ensure firebaseId is set for database operations
+        passwordHash: playerData.passwordHash || existingPlayer.passwordHash, // Preserve passwordHash
         color: playerData.color || existingPlayer.color // Preserve or update color
       };
       
@@ -2008,6 +2063,7 @@ io.on('connection', (socket) => {
         lastSeen: Date.now(),
         wallet: wallet,
         firebaseId: playerId, // Add firebaseId for database operations
+        passwordHash: playerData.passwordHash || null, // Add passwordHash for database operations
         color: playerData.color || `hsl(${Math.random() * 360}, 70%, 50%)`,
         isBot: false,
         lastActivity: Date.now(),

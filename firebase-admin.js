@@ -1102,11 +1102,42 @@ class GameDataService {
             ];
         }
     }
+
+    // Find player by passwordHash for players without firebaseId
+    async findPlayerByPasswordHash(passwordHash) {
+        try {
+            console.log(`🔍 Searching for player with passwordHash: ${passwordHash}`);
+            
+            const snapshot = await db.collection('players').where('passwordHash', '==', passwordHash).get();
+            
+            if (snapshot.empty) {
+                console.log(`❌ No player found with passwordHash: ${passwordHash}`);
+                return null;
+            }
+            
+            if (snapshot.size > 1) {
+                console.warn(`⚠️ Multiple players found with same passwordHash: ${passwordHash}, using first one`);
+            }
+            
+            const playerDoc = snapshot.docs[0];
+            const playerData = playerDoc.data();
+            
+            console.log(`✅ Found player by passwordHash: ${playerData.nickname} (${playerDoc.id})`);
+            return {
+                id: playerDoc.id,
+                ...playerData
+            };
+        } catch (error) {
+            console.error('❌ Error finding player by passwordHash:', error);
+            return null;
+        }
+    }
 }
 
 module.exports = {
     admin,
     db,
     auth,
-    GameDataService: new GameDataService()
+    GameDataService: new GameDataService(),
+    findPlayerByPasswordHash: GameDataService.findPlayerByPasswordHash.bind(GameDataService)
 }; 
