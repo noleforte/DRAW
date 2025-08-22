@@ -1034,21 +1034,6 @@ function updateBots() {
                 size: target.size
               });
               
-              // Debug: Check if victim is still in game state after a short delay
-              setTimeout(() => {
-                const stillInGame = gameState.players.has(target.socketId);
-                console.log(`🔍 Victim ${target.name} still in game after 100ms: ${stillInGame}`);
-                if (!stillInGame) {
-                  console.log(`⚠️ WARNING: Victim ${target.name} was removed from game state!`);
-                  console.log(`🔍 Current players:`, Array.from(gameState.players.values()).map(p => ({
-                    name: p.name,
-                    id: p.id,
-                    firebaseId: p.firebaseId,
-                    score: p.score,
-                    size: p.size
-                  })));
-                }
-              }, 100);
               
               // Send eating notification
               io.emit('chatMessage', {
