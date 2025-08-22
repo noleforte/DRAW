@@ -2216,3 +2216,15 @@ app.post('/api/cleanup-duplicates', async (req, res) => {
     res.status(500).json({ error: 'Failed to cleanup duplicates' });
   }
 }); 
+
+// API endpoint for cleaning up duplicate players by wallet
+app.post('/api/cleanup-duplicates-wallet', async (req, res) => {
+  try {
+    console.log('🧹 API /api/cleanup-duplicates-wallet called');
+    await GameDataService.cleanupDuplicatePlayerDocumentsByWallet();
+    res.json({ message: 'Wallet duplicate cleanup completed successfully' });
+  } catch (error) {
+    console.error('❌ Error cleaning up wallet duplicates:', error);
+    res.status(500).json({ error: 'Failed to cleanup wallet duplicates' });
+  }
+}); 

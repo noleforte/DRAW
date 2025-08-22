@@ -4,18 +4,18 @@ require('dotenv').config();
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
     try {
-        const serviceAccount = {
-            type: "service_account",
-            project_id: process.env.FIREBASE_PROJECT_ID,
-            private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-            private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-            client_email: process.env.FIREBASE_CLIENT_EMAIL,
-            client_id: process.env.FIREBASE_CLIENT_ID,
-            auth_uri: "https://accounts.google.com/o/oauth2/auth",
-            token_uri: "https://oauth2.googleapis.com/token",
-            auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-            client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_CLIENT_EMAIL}`
-        };
+    const serviceAccount = {
+        type: "service_account",
+        project_id: process.env.FIREBASE_PROJECT_ID,
+        private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+        private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        client_email: process.env.FIREBASE_CLIENT_EMAIL,
+        client_id: process.env.FIREBASE_CLIENT_ID,
+        auth_uri: "https://accounts.google.com/o/oauth2/auth",
+        token_uri: "https://oauth2.googleapis.com/token",
+        auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+        client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_CLIENT_EMAIL}`
+    };
 
         // Check if required environment variables are set
         if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_PRIVATE_KEY) {
@@ -23,10 +23,10 @@ if (!admin.apps.length) {
             console.warn('⚠️ Set FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, etc. for full functionality');
         }
 
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-            projectId: process.env.FIREBASE_PROJECT_ID
-        });
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: process.env.FIREBASE_PROJECT_ID
+    });
         
         console.log('✅ Firebase Admin SDK initialized successfully');
     } catch (error) {
@@ -65,59 +65,91 @@ class GameDataService {
             
             // Check if player exists by nickname to prevent duplicates
             const nickname = gameData.playerName || normalizedPlayerId;
-            const existingPlayerQuery = await db.collection('players')
+            const walletAddress = gameData.walletAddress || '';
+            
+            // First, try to find existing player by nickname
+            let existingPlayerDoc = null;
+            let existingPlayerId = null;
+            let foundByWallet = false;
+            
+            // Search by nickname first
+            const nicknameQuery = await db.collection('players')
                 .where('nickname', '==', nickname)
                 .limit(1)
                 .get();
             
-            let existingPlayerDoc = null;
-            let existingPlayerId = null;
-            
-            if (!existingPlayerQuery.empty) {
-                existingPlayerDoc = existingPlayerQuery.docs[0];
+            if (!nicknameQuery.empty) {
+                existingPlayerDoc = nicknameQuery.docs[0];
                 existingPlayerId = existingPlayerDoc.id;
                 console.log(`🔍 Found existing player with nickname "${nickname}" and ID: ${existingPlayerId}`);
+            }
+            
+            // If not found by nickname and wallet is provided, search by wallet
+            if (!existingPlayerDoc && walletAddress) {
+                const walletQuery = await db.collection('players')
+                    .where('wallet', '==', walletAddress)
+                    .limit(1)
+                    .get();
                 
-                // If this is a different playerId, we need to merge or update the existing one
+                if (!walletQuery.empty) {
+                    existingPlayerDoc = walletQuery.docs[0];
+                    existingPlayerId = existingPlayerDoc.id;
+                    foundByWallet = true;
+                    console.log(`🔍 Found existing player with wallet "${walletAddress}" and ID: ${existingPlayerId}`);
+                }
+            }
+            
+            // If we found an existing player, update it instead of creating new
+            if (existingPlayerDoc) {
+                console.log(`⚠️ Found existing player, updating instead of creating new`);
+                
+                // Get existing player data
+                const existingData = existingPlayerDoc.data();
+                const existingScore = existingData.totalScore || existingData.stats?.totalScore || 0;
+                const newScore = gameData.score;
+                
+                // Keep the higher score and merge other data
+                const finalScore = Math.max(existingScore, newScore);
+                const finalGamesPlayed = (existingData.gamesPlayed || 0) + 1;
+                const finalBestScore = Math.max(existingData.bestScore || 0, newScore);
+                
+                // Prepare update data
+                const updateData = {
+                    totalScore: finalScore,
+                    bestScore: finalBestScore,
+                    gamesPlayed: finalGamesPlayed,
+                    lastPlayed: admin.firestore.FieldValue.serverTimestamp(),
+                    // Ensure consistent field names
+                    nickname: nickname,
+                    playerName: nickname,
+                    // Clean up old stats structure if it exists
+                    stats: admin.firestore.FieldValue.delete()
+                };
+                
+                // Update wallet if it's new or different
+                if (walletAddress && walletAddress !== existingData.wallet) {
+                    updateData.wallet = walletAddress;
+                    console.log(`🔄 Updated wallet from "${existingData.wallet}" to "${walletAddress}"`);
+                }
+                
+                // Update existing document
+                await existingPlayerDoc.ref.update(updateData);
+                console.log(`✅ Updated existing player "${nickname}" with merged data: score=${finalScore}, games=${finalGamesPlayed}`);
+                
+                // If this was a different playerId, delete the duplicate document
                 if (existingPlayerId !== normalizedPlayerId) {
-                    console.log(`⚠️ PlayerId mismatch: existing ${existingPlayerId} vs new ${normalizedPlayerId}`);
-                    
-                    // Get existing player data
-                    const existingData = existingPlayerDoc.data();
-                    const existingScore = existingData.totalScore || existingData.stats?.totalScore || 0;
-                    const newScore = gameData.score;
-                    
-                    // Keep the higher score
-                    const finalScore = Math.max(existingScore, newScore);
-                    const finalGamesPlayed = (existingData.gamesPlayed || 0) + 1;
-                    const finalBestScore = Math.max(existingData.bestScore || 0, newScore);
-                    
-                    // Update existing player with merged data
-                    await existingPlayerDoc.ref.update({
-                        totalScore: finalScore,
-                        bestScore: finalBestScore,
-                        gamesPlayed: finalGamesPlayed,
-                        lastPlayed: admin.firestore.FieldValue.serverTimestamp(),
-                        // Ensure consistent field names
-                        nickname: nickname,
-                        playerName: nickname
-                    });
-                    
-                    console.log(`✅ Updated existing player "${nickname}" with merged data: score=${finalScore}, games=${finalGamesPlayed}`);
-                    
-                    // Delete the duplicate document if it exists
                     try {
                         await db.collection('players').doc(normalizedPlayerId).delete();
                         console.log(`🗑️ Deleted duplicate document: ${normalizedPlayerId}`);
                     } catch (deleteError) {
                         console.log(`ℹ️ No duplicate document to delete: ${normalizedPlayerId}`);
                     }
-                    
-                    return true;
                 }
+                
+                return true;
             }
             
-            // If no existing player found or it's the same playerId, proceed normally
+            // If no existing player found, create new one
             const playerRef = db.collection('players').doc(normalizedPlayerId);
             const playerDoc = await playerRef.get();
             
@@ -134,12 +166,12 @@ class GameDataService {
                     gamesPlayed: currentGamesPlayed + 1,
                     bestScore: Math.max(currentBestScore, gameData.score),
                     lastPlayed: admin.firestore.FieldValue.serverTimestamp(),
-                    walletAddress: gameData.walletAddress || currentStats.walletAddress,
+                    wallet: walletAddress || currentStats.wallet || '',
                     // Ensure consistent field names
                     nickname: nickname,
                     playerName: nickname,
                     // Clean up old stats structure if it exists
-                    stats: admin.firestore.FieldValue.delete() // Remove old nested stats
+                    stats: admin.firestore.FieldValue.delete()
                 });
                 
                 console.log(`✅ Updated existing player "${nickname}" with merged data`);
@@ -147,7 +179,7 @@ class GameDataService {
                 await playerRef.set({
                     nickname: nickname,
                     playerName: nickname,
-                    walletAddress: gameData.walletAddress || '',
+                    wallet: walletAddress || '',
                     totalScore: gameData.score,
                     gamesPlayed: 1,
                     bestScore: gameData.score,
@@ -676,6 +708,105 @@ class GameDataService {
         }
     }
 
+    // Cleanup duplicate player documents by wallet
+    async cleanupDuplicatePlayerDocumentsByWallet() {
+        try {
+            // Check if Firebase is available
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, mock cleanup duplicate player documents by wallet');
+                console.log('📝 Mock cleanup: No duplicates to clean in mock mode');
+                return;
+            }
+            
+            console.log('🧹 Starting cleanup of duplicate player documents by wallet...');
+            
+            const playersSnapshot = await db.collection('players').get();
+            const walletGroups = new Map(); // Group players by wallet
+            
+            // Group players by wallet
+            playersSnapshot.forEach(doc => {
+                const data = doc.data();
+                const wallet = data.wallet || data.walletAddress || '';
+                
+                if (wallet) {
+                    if (!walletGroups.has(wallet)) {
+                        walletGroups.set(wallet, []);
+                    }
+                    walletGroups.get(wallet).push({
+                        docId: doc.id,
+                        data: data,
+                        totalScore: data.totalScore || data.stats?.totalScore || 0,
+                        gamesPlayed: data.gamesPlayed || data.stats?.gamesPlayed || 0
+                    });
+                }
+            });
+            
+            let totalDuplicates = 0;
+            
+            // Process each wallet group
+            for (const [wallet, players] of walletGroups) {
+                if (players.length > 1) {
+                    console.log(`🔍 Found ${players.length} players with wallet: ${wallet}`);
+                    
+                    // Sort by totalScore (highest first) and gamesPlayed
+                    players.sort((a, b) => {
+                        if (b.totalScore !== a.totalScore) {
+                            return b.totalScore - a.totalScore;
+                        }
+                        return b.gamesPlayed - a.gamesPlayed;
+                    });
+                    
+                    // Keep the best player (first in sorted array)
+                    const bestPlayer = players[0];
+                    const duplicates = players.slice(1);
+                    
+                    console.log(`✅ Keeping best player: ${bestPlayer.data.nickname} (score: ${bestPlayer.totalScore}, games: ${bestPlayer.gamesPlayed})`);
+                    
+                    // Merge data from duplicates into best player
+                    let mergedScore = bestPlayer.totalScore;
+                    let mergedGames = bestPlayer.gamesPlayed;
+                    let mergedBestScore = bestPlayer.data.bestScore || bestPlayer.data.stats?.bestScore || 0;
+                    
+                    for (const duplicate of duplicates) {
+                        mergedScore = Math.max(mergedScore, duplicate.totalScore);
+                        mergedGames = Math.max(mergedGames, duplicate.gamesPlayed);
+                        mergedBestScore = Math.max(mergedBestScore, duplicate.data.bestScore || duplicate.data.stats?.bestScore || 0);
+                        
+                        console.log(`🔄 Merging from duplicate: ${duplicate.data.nickname} (score: ${duplicate.totalScore}, games: ${duplicate.gamesPlayed})`);
+                    }
+                    
+                    // Update best player with merged data
+                    const bestPlayerRef = db.collection('players').doc(bestPlayer.docId);
+                    await bestPlayerRef.update({
+                        totalScore: mergedScore,
+                        gamesPlayed: mergedGames,
+                        bestScore: mergedBestScore,
+                        lastPlayed: admin.firestore.FieldValue.serverTimestamp(),
+                        // Clean up old stats structure
+                        stats: admin.firestore.FieldValue.delete()
+                    });
+                    
+                    console.log(`✅ Updated best player with merged data: score=${mergedScore}, games=${mergedGames}`);
+                    
+                    // Delete duplicate documents
+                    for (const duplicate of duplicates) {
+                        try {
+                            await db.collection('players').doc(duplicate.docId).delete();
+                            console.log(`🗑️ Deleted duplicate document: ${duplicate.docId} (${duplicate.data.nickname})`);
+                            totalDuplicates++;
+                        } catch (deleteError) {
+                            console.error(`❌ Error deleting duplicate ${duplicate.docId}:`, deleteError);
+                        }
+                    }
+                }
+            }
+            
+            console.log(`✅ Cleanup of duplicate player documents by wallet completed! Deleted ${totalDuplicates} duplicates.`);
+        } catch (error) {
+            console.error('❌ Error during cleanup of duplicate player documents by wallet:', error);
+        }
+    }
+
     // Save completed game session (only called when player finishes a session)
     async saveGameSession(playerId, sessionData) {
         try {
@@ -775,6 +906,7 @@ class GameDataService {
             
             const players = [];
             const seenNicknames = new Map(); // Track seen nicknames with best data
+            const seenWallets = new Map(); // Track seen wallets with best data
             
             playersSnapshot.forEach(doc => {
                 const data = doc.data();
@@ -786,6 +918,7 @@ class GameDataService {
                 const bestScore = data.bestScore || data.stats?.bestScore || 0;
                 const gamesPlayed = data.gamesPlayed || data.stats?.gamesPlayed || 0;
                 const wins = data.wins || data.stats?.wins || 0;
+                const wallet = data.wallet || data.walletAddress || '';
                 
                 // Skip players with zero or negative total score
                 if (!totalScore || totalScore <= 0) {
@@ -802,9 +935,12 @@ class GameDataService {
                     return;
                 }
                 
-                // Check if we already have this nickname
+                // Check for duplicates by nickname
+                let isDuplicate = false;
+                let existingPlayer = null;
+                
                 if (seenNicknames.has(nickname)) {
-                    const existingPlayer = seenNicknames.get(nickname);
+                    existingPlayer = seenNicknames.get(nickname);
                     console.log(`🔄 Found duplicate nickname: ${nickname}`);
                     console.log(`🔄 Existing: score=${existingPlayer.totalScore}, games=${existingPlayer.gamesPlayed}`);
                     console.log(`🔄 New: score=${totalScore}, games=${gamesPlayed}`);
@@ -813,42 +949,63 @@ class GameDataService {
                     if (totalScore > existingPlayer.totalScore || 
                         (totalScore === existingPlayer.totalScore && gamesPlayed > existingPlayer.gamesPlayed)) {
                         console.log(`🔄 Replacing existing player with better data`);
-                        seenNicknames.set(nickname, {
-                            playerId: doc.id,
-                            nickname: nickname,
-                            playerName: nickname,
-                            totalScore: totalScore,
-                            bestScore: bestScore,
-                            gamesPlayed: gamesPlayed,
-                            wins: wins,
-                            wallet: data.wallet || data.walletAddress || '',
-                            email: data.email || '',
-                            lastLogin: data.lastLogin || null,
-                            lastPlayed: data.lastPlayed || null,
-                            lastSize: data.lastSize || null,
-                            isOnline: false
-                        });
+                        isDuplicate = false; // This one is better
                     } else {
                         console.log(`🔄 Keeping existing player with better data`);
+                        isDuplicate = true;
                     }
-                } else {
-                    // First time seeing this nickname
-                    seenNicknames.set(nickname, {
-                        playerId: doc.id,
-                        nickname: nickname,
-                        playerName: nickname,
-                        totalScore: totalScore,
-                        bestScore: bestScore,
-                        gamesPlayed: gamesPlayed,
-                        wins: wins,
-                        wallet: data.wallet || data.walletAddress || '',
-                        email: data.email || '',
-                        lastLogin: data.lastLogin || null,
-                        lastPlayed: data.lastPlayed || null,
-                        lastSize: data.lastSize || null,
-                        isOnline: false
-                    });
                 }
+                
+                // Check for duplicates by wallet (if wallet is provided)
+                if (!isDuplicate && wallet && seenWallets.has(wallet)) {
+                    existingPlayer = seenWallets.get(wallet);
+                    console.log(`🔄 Found duplicate wallet: ${wallet}`);
+                    console.log(`🔄 Existing: nickname=${existingPlayer.nickname}, score=${existingPlayer.totalScore}`);
+                    console.log(`🔄 New: nickname=${nickname}, score=${totalScore}`);
+                    
+                    // Keep the player with higher score
+                    if (totalScore > existingPlayer.totalScore) {
+                        console.log(`🔄 Replacing existing wallet player with better data`);
+                        // Remove from nickname map if it was there
+                        if (seenNicknames.has(existingPlayer.nickname)) {
+                            seenNicknames.delete(existingPlayer.nickname);
+                        }
+                        isDuplicate = false; // This one is better
+                    } else {
+                        console.log(`🔄 Keeping existing wallet player with better data`);
+                        isDuplicate = true;
+                    }
+                }
+                
+                if (isDuplicate) {
+                    console.log(`🔄 Skipping duplicate player: ${nickname}`);
+                    return;
+                }
+                
+                // Create player object
+                const player = {
+                    playerId: doc.id,
+                    nickname: nickname,
+                    playerName: nickname,
+                    totalScore: totalScore,
+                    bestScore: bestScore,
+                    gamesPlayed: gamesPlayed,
+                    wins: wins,
+                    wallet: wallet,
+                    email: data.email || '',
+                    lastLogin: data.lastLogin || null,
+                    lastPlayed: data.lastPlayed || null,
+                    lastSize: data.lastSize || null,
+                    isOnline: false
+                };
+                
+                // Add to both maps
+                seenNicknames.set(nickname, player);
+                if (wallet) {
+                    seenWallets.set(wallet, player);
+                }
+                
+                console.log(`🔄 Added player: ${nickname} (wallet: ${wallet})`);
             });
             
             // Convert map values to array
