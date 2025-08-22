@@ -1049,28 +1049,32 @@ function updateBots() {
                   score: target.score
                 });
                 
-                                  // Save oldScore as totalScore to database for the victim (real player) - IMMEDIATELY
+                                  // Save current score as totalScore to database for the victim (real player) - IMMEDIATELY
                   if (target.firebaseId || target.playerId) {
                     const playerIdForFirebase = target.firebaseId || target.playerId;
-                    console.log(`💾 IMMEDIATELY saving oldScore as totalScore for ${target.name}: ${oldScore} (was ${target.score})`);
+                    console.log(`💾 IMMEDIATELY saving current score as totalScore for ${target.name}: ${target.score} (was ${oldScore})`);
                     
                     // Save immediately without setTimeout
                     (async () => {
                       try {
-                        // Save oldScore as totalScore (highest achieved score)
-                        await GameDataService.updatePlayerFullStats(playerIdForFirebase, { totalScore: oldScore });
-                        console.log(`💰 Successfully saved oldScore as totalScore for ${target.name}: ${oldScore} (current score: ${target.score})`);
+                        // Use existing savePlayerStats function which properly handles totalScore
+                        await GameDataService.savePlayerStats(playerIdForFirebase, {
+                          score: target.score,
+                          playerName: target.name,
+                          email: target.email || 'unknown@example.com' // Required field
+                        });
+                        console.log(`💰 Successfully saved current score as totalScore for ${target.name}: ${target.score} (previous score: ${oldScore})`);
                         
                         // Notify all clients about updated player stats for real-time leaderboard updates
                         io.emit('playerStatsUpdated', {
                           playerId: playerIdForFirebase,
                           nickname: target.name,
-                          totalScore: oldScore,
+                          totalScore: target.score,
                           type: 'scoreUpdate'
                         });
-                        console.log(`📡 Notified all clients about ${target.name}'s totalScore update: ${oldScore}`);
+                        console.log(`📡 Notified all clients about ${target.name}'s totalScore update: ${target.score}`);
                       } catch (error) {
-                        console.error(`❌ Failed to save oldScore as totalScore for ${target.name}:`, error);
+                        console.error(`❌ Failed to save current score as totalScore for ${target.name}:`, error);
                       }
                     })();
                   } else if (target.passwordHash) {
@@ -1082,17 +1086,21 @@ function updateBots() {
                         const playerData = await findPlayerByPasswordHash(target.passwordHash);
                         
                         if (playerData) {
-                          console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore to oldScore: ${oldScore}`);
-                          await GameDataService.updatePlayerFullStats(playerData.id, { totalScore: oldScore });
+                          console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore to current score: ${target.score}`);
+                          await GameDataService.savePlayerStats(playerData.id, {
+                            score: target.score,
+                            playerName: target.name,
+                            email: playerData.email || 'unknown@example.com' // Required field
+                          });
                           
                           // Notify all clients about updated player stats
                           io.emit('playerStatsUpdated', {
                             playerId: playerData.id,
                             nickname: target.name,
-                            totalScore: oldScore,
+                            totalScore: target.score,
                             type: 'scoreUpdate'
                           });
-                          console.log(`📡 Notified all clients about ${target.name}'s totalScore update via passwordHash: ${oldScore}`);
+                          console.log(`📡 Notified all clients about ${target.name}'s totalScore update via passwordHash: ${target.score}`);
                         } else {
                           console.log(`⚠️ Could not find player ${target.name} by passwordHash - cannot save to database`);
                         }
@@ -1595,28 +1603,32 @@ function updatePlayers(deltaTime) {
                   score: target.score
                 });
                 
-                // Save oldScore as totalScore to database for the victim (real player) - IMMEDIATELY
+                // Save current score as totalScore to database for the victim (real player) - IMMEDIATELY
                 if (target.firebaseId || target.playerId) {
                   const playerIdForFirebase = target.firebaseId || target.playerId;
-                  console.log(`💾 IMMEDIATELY saving oldScore as totalScore for ${target.name}: ${oldScore} (was ${target.score})`);
+                  console.log(`💾 IMMEDIATELY saving current score as totalScore for ${target.name}: ${target.score} (was ${oldScore})`);
                   
                   // Save immediately without setTimeout
                   (async () => {
                     try {
-                      // Save oldScore as totalScore (highest achieved score)
-                      await GameDataService.updatePlayerFullStats(playerIdForFirebase, { totalScore: oldScore });
-                      console.log(`💰 Successfully saved oldScore as totalScore for ${target.name}: ${oldScore} (current score: ${target.score})`);
+                      // Use existing savePlayerStats function which properly handles totalScore
+                      await GameDataService.savePlayerStats(playerIdForFirebase, {
+                        score: target.score,
+                        playerName: target.name,
+                        email: target.email || 'unknown@example.com' // Required field
+                      });
+                      console.log(`💰 Successfully saved current score as totalScore for ${target.name}: ${target.score} (previous score: ${oldScore})`);
                       
                       // Notify all clients about updated player stats for real-time leaderboard updates
                       io.emit('playerStatsUpdated', {
                         playerId: playerIdForFirebase,
                         nickname: target.name,
-                        totalScore: oldScore,
+                        totalScore: target.score,
                         type: 'scoreUpdate'
                       });
-                      console.log(`📡 Notified all clients about ${target.name}'s totalScore update: ${oldScore}`);
+                      console.log(`📡 Notified all clients about ${target.name}'s totalScore update: ${target.score}`);
                     } catch (error) {
-                      console.error(`❌ Failed to save oldScore as totalScore for ${target.name}:`, error);
+                      console.error(`❌ Failed to save current score as totalScore for ${target.name}:`, error);
                     }
                   })();
                 } else if (target.passwordHash) {
@@ -1628,17 +1640,21 @@ function updatePlayers(deltaTime) {
                       const playerData = await findPlayerByPasswordHash(target.passwordHash);
                       
                       if (playerData) {
-                        console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore to oldScore: ${oldScore}`);
-                        await GameDataService.updatePlayerFullStats(playerData.id, { totalScore: oldScore });
+                        console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore to current score: ${target.score}`);
+                        await GameDataService.savePlayerStats(playerData.id, {
+                          score: target.score,
+                          playerName: target.name,
+                          email: playerData.email || 'unknown@example.com' // Required field
+                        });
                         
                         // Notify all clients about updated player stats
                         io.emit('playerStatsUpdated', {
                           playerId: playerData.id,
                           nickname: target.name,
-                          totalScore: oldScore,
+                          totalScore: target.score,
                           type: 'scoreUpdate'
                         });
-                        console.log(`📡 Notified all clients about ${target.name}'s totalScore update via passwordHash: ${oldScore}`);
+                        console.log(`📡 Notified all clients about ${target.name}'s totalScore update via passwordHash: ${target.score}`);
                       } else {
                         console.log(`⚠️ Could not find player ${target.name} by passwordHash - cannot save to database`);
                       }

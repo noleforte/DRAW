@@ -166,7 +166,7 @@ class GameDataService {
                 const currentStats = playerDoc.data();
                 
                 // Merge data from different field structures
-                const currentScore = currentStats.totalScore || currentStats.stats?.totalScore || 0;
+                const currentScore = currentStats.totalScore || 0;
                 const currentBestScore = currentStats.bestScore || currentStats.stats?.bestScore || 0;
                 const currentGamesPlayed = currentStats.gamesPlayed || currentStats.stats?.gamesPlayed || 0;
                 
