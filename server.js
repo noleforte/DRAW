@@ -453,17 +453,26 @@ function generateBoosters(count = 2) { // Player Eater + Coin Booster
   };
   gameState.boosters.set(playerEaterBooster.id, playerEaterBooster);
   
-  // Generate Coin Booster
-  const coinBooster = {
-    id: `booster_${gameState.nextBoosterId++}`,
-    ...getRandomPosition(),
-    type: 'coins',
-    name: 'Coin Multiplier',
-    color: '#FFD700', // Gold color
-    effect: 'x2 Coins for 2 minutes',
-    isBooster: true
-  };
-  gameState.boosters.set(coinBooster.id, coinBooster);
+  // Generate 5 Coin Boosters with spawn timers
+  for (let i = 0; i < 5; i++) {
+    const coinBooster = {
+      id: `booster_${gameState.nextBoosterId++}`,
+      ...getRandomPosition(),
+      type: 'coins',
+      name: 'Coin Multiplier',
+      color: '#FFD700', // Gold color
+      effect: 'x2 Coins for 2 minutes',
+      isBooster: true,
+      spawnTime: Date.now(), // Track when booster spawned
+      respawnTimer: null // Timer for respawning
+    };
+    gameState.boosters.set(coinBooster.id, coinBooster);
+    
+    // Set respawn timer for this coin booster (2 minutes)
+    coinBooster.respawnTimer = setTimeout(() => {
+      respawnCoinBooster(coinBooster.id);
+    }, 120000); // 2 minutes = 120000ms
+  }
 }
 
 // Create AI bot
@@ -483,6 +492,42 @@ function createBot(id) {
     speedVariation: 0.8 + Math.random() * 0.4 // 0.8 to 1.2 speed multiplier for variety
   };
   return bot;
+}
+
+// Function to respawn coin booster in new random location
+function respawnCoinBooster(boosterId) {
+  const oldBooster = gameState.boosters.get(boosterId);
+  if (!oldBooster) return;
+  
+  // Clear old respawn timer
+  if (oldBooster.respawnTimer) {
+    clearTimeout(oldBooster.respawnTimer);
+  }
+  
+  // Remove old booster
+  gameState.boosters.delete(boosterId);
+  
+  // Create new coin booster in random location
+  const newCoinBooster = {
+    id: `booster_${gameState.nextBoosterId++}`,
+    ...getRandomPosition(),
+    type: 'coins',
+    name: 'Coin Multiplier',
+    color: '#FFD700',
+    effect: 'x2 Coins for 2 minutes',
+    isBooster: true,
+    spawnTime: Date.now(), // Reset spawn time
+    respawnTimer: null
+  };
+  
+  // Set new respawn timer
+  newCoinBooster.respawnTimer = setTimeout(() => {
+    respawnCoinBooster(newCoinBooster.id);
+  }, 120000); // 2 minutes
+  
+  gameState.boosters.set(newCoinBooster.id, newCoinBooster);
+  
+  console.log(`🔄 Coin booster respawned at new location: ${Math.round(newCoinBooster.x)}, ${Math.round(newCoinBooster.y)}`);
 }
 
 // Calculate safe flee target that avoids world boundaries
@@ -871,19 +916,30 @@ function updateBots() {
         } else if (booster.type === 'coins') {
           console.log(`💰 Bot ${bot.name} collected Coin Multiplier!`);
           
+          // Calculate remaining time based on when booster spawned
+          const timeSinceSpawn = Date.now() - (booster.spawnTime || Date.now());
+          const remainingTime = Math.max(0, 120000 - timeSinceSpawn); // 2 minutes total - time since spawn
+          
           // Mark bot as having coin boost - time starts from collection moment
           bot.coinBoost = true;
-          bot.coinBoostEndTime = Date.now() + 120000; // 2 minutes from NOW
+          bot.coinBoostEndTime = Date.now() + remainingTime;
           
-          // Send notification to all players
+          // Send notification to all players with remaining time
+          const remainingMinutes = Math.floor(remainingTime / 60000);
+          const remainingSeconds = Math.floor((remainingTime % 60000) / 1000);
+          const timeText = `${remainingMinutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+          
           io.emit('chatMessage', {
             playerId: 'system',
             playerName: 'System',
-            message: `💰 Bot ${bot.name} collected Coin Multiplier! x2 coins for 2 minutes!`,
+            message: `💰 Bot ${bot.name} collected Coin Multiplier! x2 coins for ${timeText} remaining!`,
             timestamp: Date.now()
           });
           
-          // Remove booster
+          // Remove booster and clear its respawn timer
+          if (booster.respawnTimer) {
+            clearTimeout(booster.respawnTimer);
+          }
           gameState.boosters.delete(booster.id);
         }
       }
@@ -1150,15 +1206,24 @@ function updatePlayers(deltaTime) {
                     } else if (booster.type === 'coins') {
                         // Coin Multiplier effect
                         console.log(`💰 Player ${player.name} collected Coin Multiplier!`);
+                        
+                        // Calculate remaining time based on when booster spawned
+                        const timeSinceSpawn = Date.now() - (booster.spawnTime || Date.now());
+                        const remainingTime = Math.max(0, 120000 - timeSinceSpawn); // 2 minutes total - time since spawn
+                        
                         // Mark player as having coin boost - time starts from collection moment
                         player.coinBoost = true;
-                        player.coinBoostEndTime = Date.now() + 120000; // 2 minutes from NOW
+                        player.coinBoostEndTime = Date.now() + remainingTime;
                         
-                        // Send notification to all players
+                        // Send notification to all players with remaining time
+                        const remainingMinutes = Math.floor(remainingTime / 60000);
+                        const remainingSeconds = Math.floor((remainingTime % 60000) / 1000);
+                        const timeText = `${remainingMinutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+                        
                         io.emit('chatMessage', {
                             playerId: 'system',
                             playerName: 'System',
-                            message: `💰 ${player.name} collected Coin Multiplier! x2 coins for 2 minutes!`,
+                            message: `💰 ${player.name} collected Coin Multiplier! x2 coins for ${timeText} remaining!`,
                             timestamp: Date.now()
                         });
                     }
@@ -1191,21 +1256,9 @@ function updatePlayers(deltaTime) {
           };
           gameState.boosters.set(newBooster.id, newBooster);
         }, 60000); // Respawn after 1 minute (when effect expires)
-      } else if (boosterType === 'coins') {
-        // Coin Booster respawns after 2 minutes (same as effect duration)
-        setTimeout(() => {
-          const newBooster = {
-            id: `booster_${gameState.nextBoosterId++}`,
-            ...getRandomPosition(),
-            type: 'coins',
-            name: 'Coin Multiplier',
-            color: '#FFD700',
-            effect: 'x2 Coins for 2 minutes',
-            isBooster: true
-          };
-          gameState.boosters.set(newBooster.id, newBooster);
-        }, 120000); // Respawn after 2 minutes
       }
+      // Coin Booster respawn is now handled automatically by spawn timers
+      // No need to manually respawn here
     });
     
     // Check and expire boosters
@@ -1566,6 +1619,14 @@ function startNewMatch() {
 async function endMatch() {
   gameState.gameEnded = true;
   gameState.gameStarted = false;
+  
+  // Clear all coin booster respawn timers to prevent memory leaks
+  for (const booster of gameState.boosters.values()) {
+    if (booster.type === 'coins' && booster.respawnTimer) {
+      clearTimeout(booster.respawnTimer);
+      console.log(`🧹 Cleared respawn timer for coin booster ${booster.id}`);
+    }
+  }
   
   // Get final results
   const allPlayers = [...gameState.players.values(), ...gameState.bots.values()];
