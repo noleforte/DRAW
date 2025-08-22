@@ -161,11 +161,9 @@ class LeaderboardManager {
 
     // Render leaderboard with given data
     renderLeaderboard(data, type = 'match') {
-        console.log(`🏆 Rendering ${type} leaderboard with ${data.length} players`);
         
         const leaderboardList = document.getElementById('leaderboardList');
         if (!leaderboardList) {
-            console.error('❌ leaderboardList element not found!');
             return;
         }
         
@@ -280,7 +278,6 @@ class LeaderboardManager {
         }
         
         leaderboardList.innerHTML = leaderboardHTML;
-        console.log(`✅ ${type} leaderboard rendered successfully`);
     }
 
     // Called when player stats are available

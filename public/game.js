@@ -734,9 +734,8 @@ async function sendCoinsToFirestore(coinsGained) {
         const playerId = currentUser.nickname;
         const totalScore = window.localPlayer.score; // Use total current score
         
-        console.log(`💾 Saving total score ${totalScore} to Firestore for player: ${playerId} (gained ${coinsGained})`);
-        console.log('🔍 Debug - localPlayer object:', window.localPlayer);
-        console.log('🔍 Debug - currentUser stats:', currentUser.stats);
+
+
         
         // Update Firestore directly
         const playerRef = window.firebaseDb.collection('players').doc(playerId);
@@ -752,6 +751,10 @@ async function sendCoinsToFirestore(coinsGained) {
                 lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
             });
             console.log(`✅ Updated total score to ${totalScore} in Firestore for ${playerId}`);
+            
+            // Update local user stats immediately after successful save
+            currentUser.stats.totalScore = totalScore;
+            window.nicknameAuth.setCurrentUser(currentUser);
         } else {
             // Create new player document
             await playerRef.set({
@@ -763,17 +766,18 @@ async function sendCoinsToFirestore(coinsGained) {
                 lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
             });
             console.log(`🆕 Created new player ${playerId} with total score ${totalScore}`);
+            
+            // Update local user stats immediately after successful save
+            currentUser.stats.totalScore = totalScore;
+            window.nicknameAuth.setCurrentUser(currentUser);
         }
         
         // Force refresh stats from Firestore
         setTimeout(async () => {
             await window.nicknameAuth.syncUserStatsFromFirestore();
-            console.log('🔄 Stats refreshed after coin save');
-            
             // Also force update Player Info panel
             if (window.panelManager) {
                 await window.panelManager.updateUserInfoPanel();
-                console.log('🔄 Player Info panel updated after coin save');
             }
             
             // Update player rank display after coin save
@@ -1075,6 +1079,8 @@ function setupSocketListeners() {
         
         // Check if player score increased (coin collected)
         if (previousLocalPlayer && localPlayer && localPlayer.score > previousLocalPlayer.score) {
+            const coinsGained = localPlayer.score - previousLocalPlayer.score;
+            
             // Check if size also increased
             if (localPlayer.size > previousLocalPlayer.size) {
                 // Update display immediately when size changes
@@ -1082,9 +1088,6 @@ function setupSocketListeners() {
                 const vy = localPlayer.vy || 0;
                 const currentSpeed = Math.sqrt(vx * vx + vy * vy);
                 updatePlayerStatsDisplay(currentSpeed, localPlayer);
-                
-                // Log size changes for debugging
-                console.log('📏 Size display updated:', Math.round(previousLocalPlayer.size), '→', Math.round(localPlayer.size));
             }
             
             // Update display immediately when score changes
@@ -1093,14 +1096,11 @@ function setupSocketListeners() {
             const currentSpeed = Math.sqrt(vx * vx + vy * vy);
             updatePlayerStatsDisplay(currentSpeed, localPlayer);
             
-            // Log score changes for debugging
-            console.log('💰 Score display updated:', previousLocalPlayer.score, '→', localPlayer.score);
-            
             // Only send coins to Firestore if this is a real score increase (not initialization)
             // Check if the score increase is reasonable (not a huge jump from initialization)
             const maxReasonableIncrease = 1000; // Maximum reasonable coins gained in one update
             if (coinsGained <= maxReasonableIncrease) {
-            sendCoinsToFirestore(coinsGained);
+                sendCoinsToFirestore(coinsGained);
             } else {
                 console.log(`⚠️ Skipping Firestore update - unreasonable score increase: ${coinsGained} (likely initialization)`);
             }
@@ -1111,7 +1111,7 @@ function setupSocketListeners() {
             gameState.boosters.forEach(booster => {
                 const distance = Math.sqrt((booster.x - localPlayer.x) ** 2 + (booster.y - localPlayer.y) ** 2);
                 if (distance < localPlayer.size) {
-                    console.log(`🚀 Player collected booster: ${booster.name} (${booster.effect})`);
+
                     
                     // Remove booster from client-side state (server will handle respawn)
                     gameState.boosters = gameState.boosters.filter(b => b.id !== booster.id);
@@ -1127,7 +1127,7 @@ function setupSocketListeners() {
             if (localPlayer.speedBoost && localPlayer.speedBoostEndTime) {
                 // Check if boost has expired
                 if (now > localPlayer.speedBoostEndTime) {
-                    console.log('🚀 Speed boost expired from server data');
+
                     activeBoosters.speed.active = false;
                     activeBoosters.speed.multiplier = 1;
                     activeBoosters.speed.endTime = 0;
@@ -3287,13 +3287,7 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
         console.warn('⚠️ currentGameScore element not found');
     }
     
-    // Update player size
-    const playerSizeElement = document.getElementById('playerSizeValue');
-    if (playerSizeElement) {
-        playerSizeElement.textContent = Math.round(player.size || 20);
-    } else {
-        console.warn('⚠️ playerSizeValue element not found');
-    }
+    // Note: playerSizeValue element was removed, size is now shown in currentGameSize
     
     // Update current speed
     const speedElement = document.getElementById('speedValue');
@@ -4249,7 +4243,7 @@ function gameLoop() {
         
         // Update player stats every second during gameplay
         if (now - lastStatsUpdate > 1000 && localPlayer) {
-            console.log('🔄 Updating player stats - Score:', localPlayer.score, 'User:', nicknameAuth.getCurrentUserSync()?.nickname);
+
             
             // Calculate current speed and update display
             const vx = localPlayer.vx || 0;
@@ -4269,6 +4263,17 @@ function gameLoop() {
             // Update player rank display
             updatePlayerRankDisplay();
             
+            // Auto-save totalScore to database every second if score > 0
+            const currentUser = nicknameAuth.getCurrentUserSync();
+            if (currentUser && window.authSystem?.currentUser && localPlayer.score > 0) {
+                const savedTotalScore = currentUser.stats.totalScore || 0;
+                // Only save if current score is higher than saved totalScore
+                if (localPlayer.score > savedTotalScore) {
+                    // Use the same savePlayerCoin function for consistency
+                    sendCoinsToFirestore(localPlayer.score - savedTotalScore);
+                }
+            }
+            
             lastStatsUpdate = now;
         }
         
@@ -4276,44 +4281,7 @@ function gameLoop() {
         if (localPlayer) {
             updateCurrentGameScoreDisplay(localPlayer.score || 0);
             
-            // Also update totalScore in Firebase if score changed significantly
-            if (localPlayer.lastSavedScore !== localPlayer.score) {
-                const currentUser = nicknameAuth.getCurrentUserSync();
-                if (currentUser && window.authSystem?.currentUser && localPlayer.score > 0) {
-                    // Only update totalScore if current score is higher than saved totalScore
-                    const savedTotalScore = currentUser.stats.totalScore || 0;
-                    if (localPlayer.score > savedTotalScore) {
-                        // Save totalScore update to Firebase
-                        fetch(`/api/player/${window.authSystem.currentUser.uid}/stats`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ 
-                                score: localPlayer.score,
-                                totalScore: localPlayer.score, // Score = Total Score
-                                gamesPlayed: Math.max((currentUser.stats.gamesPlayed || 0), 1)
-                            })
-                        }).then(response => {
-                            if (response.ok) {
-                                console.log(`💰 Real-time totalScore update: ${localPlayer.score} (was ${savedTotalScore})`);
-                                localPlayer.lastSavedScore = localPlayer.score;
-                                
-                                // Also update local stats
-                                if (currentUser.stats.totalScore !== localPlayer.score) {
-                                    currentUser.stats.totalScore = localPlayer.score;
-                                    nicknameAuth.updateUserStats(currentUser.nickname, currentUser.stats);
-                                }
-                            }
-                        }).catch(error => {
-                            console.warn('⚠️ Failed to update totalScore in real-time:', error);
-                        });
-                    } else {
-                        console.log(`💰 Skipping totalScore update - current score ${localPlayer.score} not higher than saved ${savedTotalScore}`);
-                        localPlayer.lastSavedScore = localPlayer.score; // Still update lastSavedScore to prevent repeated checks
-                    }
-                }
-            }
+            // Note: totalScore is now auto-saved every second in the stats update block above
         }
         
         // Refresh user data from Firestore every 60 seconds
