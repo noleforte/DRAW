@@ -1276,35 +1276,7 @@ function setupSocketListeners() {
     socket.on('playerEaten', (data) => {
         // Handle when our player gets eaten
         if (localPlayer && localPlayer.id === data.victimId) {
-            // Handle AFK kick
-            if (data.afkKick) {
-                console.log(`⏰ You were kicked for being AFK! Saved ${data.coinsLost} coins to your balance.`);
-                
-                // Show AFK kick message
-                addChatMessage({
-                    playerName: 'System',
-                    message: `⏰ You were kicked for being inactive! 💰 ${data.coinsLost} coins saved to your Total Coins!`,
-                    timestamp: Date.now()
-                });
-                
-                // Show AFK kick notification
-                showServerMessage(`⏰ You were kicked for being inactive for 2 minutes! 💰 ${data.coinsLost} coins saved to your Total Coins! Returning to main menu in 3 seconds...`, 'warning');
-            
-            // Force refresh Total Coins from Firestore to show the updated balance
-            setTimeout(async () => {
-                try {
-                    await window.nicknameAuth.syncUserStatsFromFirestore();
-                        console.log('💰 Total Coins refreshed after AFK kick');
-                    
-                    // Update Player Info panel if open
-                    if (window.panelManager) {
-                        await window.panelManager.updateUserInfoPanel();
-                    }
-                } catch (error) {
-                        console.warn('⚠️ Failed to refresh Total Coins after AFK kick:', error);
-                }
-            }, 1500); // Refresh after 1.5 seconds to allow server to save
-        } else {
+            // Handle regular player eating
             // Handle regular player eating (not AFK kick)
             console.log(`👹 You were eaten by ${data.eatenBy}! Lost ${data.coinsLost} coins, remaining: ${data.remainingScore}`);
             
@@ -1546,10 +1518,8 @@ function setupSocketListeners() {
                         console.log('💰 Player data refreshed on main menu after AFK kick');
                 }, 500);
                 
-                    console.log('🔄 Returned to main menu after AFK kick');
+                    console.log('🔄 Returned to main menu after being eaten');
             }, 3000); // 3 second delay to show message
-            }
-            // Note: Eating mechanics are disabled, so no other death handling needed
         }
     });
     
@@ -1681,13 +1651,7 @@ function setupSocketListeners() {
     
 
 
-    // Handle AFK kick - simple page reload
-    socket.on('afkKick', (data) => {
-        console.log('⏰ AFK kick received, reloading page...', data);
-        
-        // Simple page reload immediately
-            window.location.reload();
-    });
+
     
     socket.on('connect_error', (error) => {
         // Show user-friendly message for connection issues

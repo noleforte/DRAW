@@ -289,23 +289,12 @@ function checkAFKPlayers() {
     if (socket) {
       console.log(`📤 Sending AFK kick to player: ${player.name}`);
       
-      // Send AFK kick event first
-      socket.emit('afkKick', {
-        reason: 'AFK timeout',
-        score: player.score,
-        timeInactive: Math.floor((now - player.lastActivity) / 1000),
-        playerName: player.name,
-        lastActivity: player.lastActivity,
-        kickTime: now
-      });
-      
-      // Also send playerEaten event for compatibility
+      // Send playerEaten event for compatibility
       socket.emit('playerEaten', {
         victimId: socketId,
         eatenByBot: 'AFK System',
         coinsLost: player.score,
-        coinsSaved: player.score,
-        afkKick: true // Special flag for AFK kick
+        coinsSaved: player.score
       });
       
       console.log(`✅ AFK kick sent to player: ${player.name}`);
