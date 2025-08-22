@@ -970,27 +970,16 @@ class GameDataService {
                 const wallet = data.wallet || data.walletAddress || '';
                 const email = data.email || '';
                 
-                // Skip players without email field (email is required)
+                // Skip players without email field
                 if (!email || email.trim() === '') {
                     console.log(`🔄 Skipping player ${doc.id} (${nickname}) - no email field`);
                     return;
                 }
                 
-                // Skip players with negative total score (but allow 0 for new players)
-                if (totalScore < 0) {
-                    console.log(`🔄 Skipping player ${doc.id} (${nickname}) with negative score: ${totalScore}`);
+                // Skip players with zero or negative total score
+                if (!totalScore || totalScore <= 0) {
+                    console.log(`🔄 Skipping player ${doc.id} (${nickname}) with score: ${totalScore}`);
                     return;
-                }
-                
-                // Log players with zero score for debugging
-                if (totalScore === 0) {
-                    console.log(`🔄 Player ${doc.id} (${nickname}) has zero score - including for new players`);
-                }
-                
-                // For new players with zero score, give them a minimum starting score
-                if (totalScore === 0) {
-                    totalScore = 20; // Minimum starting score for new players
-                    console.log(`🔄 New player ${nickname} given minimum starting score: 20`);
                 }
                 
                 // Skip guest and temporary player accounts
@@ -1061,7 +1050,7 @@ class GameDataService {
                     gamesPlayed: gamesPlayed,
                     wins: wins,
                     wallet: wallet,
-                    email: email || 'no-email@placeholder.com', // Provide placeholder for players without email
+                    email: email,
                     lastLogin: data.lastLogin || null,
                     lastPlayed: data.lastPlayed || null,
                     lastSize: data.lastSize || null,
@@ -1074,7 +1063,7 @@ class GameDataService {
                     seenWallets.set(wallet, player);
                 }
                 
-                console.log(`🔄 Added player: ${nickname} - email: ${email || 'none'}, score: ${totalScore}, wallet: ${wallet || 'none'}`);
+                console.log(`🔄 Added player with email: ${nickname} (${email}) - wallet: ${wallet}`);
             });
             
             // Convert map values to array

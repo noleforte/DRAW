@@ -180,12 +180,10 @@ class AuthSystem {
                 // Create new player document
                 this.playerStats = {
                     playerName: this.currentUser.displayName || `Player${Math.floor(Math.random() * 1000)}`,
-                    nickname: this.currentUser.displayName || `Player${Math.floor(Math.random() * 1000)}`,
-                    email: this.currentUser.email, // Add email field
                     walletAddress: '',
-                    totalScore: 20, // Minimum starting score for new players
+                    totalScore: 0,
                     gamesPlayed: 0,
-                    bestScore: 20, // Minimum starting best score
+                    bestScore: 0,
                     firstPlayed: firebase.firestore.FieldValue.serverTimestamp(),
                     lastPlayed: firebase.firestore.FieldValue.serverTimestamp()
                 };
