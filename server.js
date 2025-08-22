@@ -1017,18 +1017,29 @@ function updateBots() {
                   remainingScore: target.score
                 });
                 
+                // Debug: Check if target has Firebase ID
+                console.log(`🔍 Target ${target.name} Firebase info:`, {
+                  firebaseId: target.firebaseId,
+                  playerId: target.playerId,
+                  socketId: target.socketId,
+                  score: target.score
+                });
+                
                 // Save updated totalScore to database for the victim (real player)
                 if (target.firebaseId || target.playerId) {
                   const playerIdForFirebase = target.firebaseId || target.playerId;
+                  console.log(`💾 Attempting to save totalScore for ${target.name} with ID: ${playerIdForFirebase}`);
                   setTimeout(async () => {
                     try {
                       // Save to totalScore field (not score)
                       await GameDataService.updatePlayerFullStats(playerIdForFirebase, { totalScore: target.score });
-                      console.log(`💰 Saved updated totalScore for ${target.name} after being eaten by bot: ${target.score}`);
+                      console.log(`💰 Successfully saved updated totalScore for ${target.name} after being eaten by bot: ${target.score}`);
                     } catch (error) {
                       console.error(`❌ Failed to save updated totalScore for ${target.name}:`, error);
                     }
                   }, 0);
+                } else {
+                  console.log(`⚠️ Target ${target.name} has no Firebase ID - cannot save to database`);
                 }
               }
               
@@ -1490,18 +1501,29 @@ function updatePlayers(deltaTime) {
                   remainingScore: target.score
                 });
                 
+                // Debug: Check if target has Firebase ID
+                console.log(`🔍 Target ${target.name} Firebase info:`, {
+                  firebaseId: target.firebaseId,
+                  playerId: target.playerId,
+                  socketId: target.socketId,
+                  score: target.score
+                });
+                
                 // Save updated totalScore to database for the victim (real player)
                 if (target.firebaseId || target.playerId) {
                   const playerIdForFirebase = target.firebaseId || target.playerId;
+                  console.log(`💾 Attempting to save totalScore for ${target.name} with ID: ${playerIdForFirebase}`);
                   setTimeout(async () => {
                     try {
                       // Save to totalScore field (not score)
                       await GameDataService.updatePlayerFullStats(playerIdForFirebase, { totalScore: target.score });
-                      console.log(`💰 Saved updated totalScore for ${target.name} after being eaten by player: ${target.score}`);
+                      console.log(`💰 Successfully saved updated totalScore for ${target.name} after being eaten by player: ${target.score}`);
                     } catch (error) {
                       console.error(`❌ Failed to save updated totalScore for ${target.name}:`, error);
                     }
                   }, 0);
+                } else {
+                  console.log(`⚠️ Target ${target.name} has no Firebase ID - cannot save to database`);
                 }
               }
               
@@ -1836,6 +1858,7 @@ io.on('connection', (socket) => {
         socketId: socket.id,
         lastSeen: Date.now(),
         lastActivity: Date.now(),
+        firebaseId: existingPlayer.id, // Ensure firebaseId is set for database operations
         color: playerData.color || existingPlayer.color // Preserve or update color
       };
       
@@ -1914,6 +1937,7 @@ io.on('connection', (socket) => {
         socketId: socket.id,
         lastSeen: Date.now(),
         wallet: wallet,
+        firebaseId: playerId, // Add firebaseId for database operations
         color: playerData.color || `hsl(${Math.random() * 360}, 70%, 50%)`,
         isBot: false,
         lastActivity: Date.now(),

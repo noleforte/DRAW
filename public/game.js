@@ -4680,17 +4680,11 @@ function updatePlayerInfoPanel(nickname, status) {
 }
 
 async function updatePlayerInfoPanelWithStats(user) {
-    console.log('🔄 updatePlayerInfoPanelWithStats called with:', user);
     
     const playerInfoName = document.getElementById('playerInfoName');
     const playerInfoStatus = document.getElementById('playerInfoStatus');
     const logoutBtn = document.getElementById('logoutBtn');
 
-    console.log('🔍 Found elements:', {
-        playerInfoName: !!playerInfoName,
-        playerInfoStatus: !!playerInfoStatus,
-        logoutBtn: !!logoutBtn
-    });
 
     if (playerInfoName) {
         playerInfoName.textContent = user.nickname || 'Guest';
@@ -4718,11 +4712,9 @@ async function updatePlayerInfoPanelWithStats(user) {
     const matchesPlayedElement = document.getElementById('matchesPlayed');
     const bestScoreElement = document.getElementById('bestScore');
     
-    console.log('📊 Loading user stats:', user.stats);
     
     // Load real-time total coins from Firebase if available
     if (window.authSystem && window.authSystem.currentUser) {
-        console.log('🔄 Loading real-time coins from Firebase...');
         try {
             await window.authSystem.loadPlayerTotalCoins();
         } catch (error) {
@@ -4734,7 +4726,6 @@ async function updatePlayerInfoPanelWithStats(user) {
         // Show accumulated total coins from all games (fallback to local data if Firebase fails)
         if (totalCoinsElement && !window.authSystem?.currentUser) {
             totalCoinsElement.textContent = user.stats.totalScore || 0;
-            console.log('💰 Total coins loaded from local:', user.stats.totalScore);
         }
         
         // Show matches played
@@ -4746,10 +4737,8 @@ async function updatePlayerInfoPanelWithStats(user) {
         // Show best score
         if (bestScoreElement) {
             bestScoreElement.textContent = user.stats.bestScore || 0;
-            console.log('🏆 Best score loaded:', user.stats.bestScore);
         }
     } else {
-        console.log('⚠️ No user stats found, using defaults');
         // Set default values only if not using Firebase
         if (!window.authSystem?.currentUser) {
             if (totalCoinsElement) totalCoinsElement.textContent = '0';
@@ -4763,7 +4752,6 @@ async function updatePlayerInfoPanelWithStats(user) {
 }
 
 async function updatePlayerInfoPanelStats(player) {
-    console.log('📊 updatePlayerInfoPanelStats called with player:', player?.name, 'score:', player?.score);
     
     // Get current user - try fresh data first, then cached
     let currentUser = null;
@@ -4772,10 +4760,8 @@ async function updatePlayerInfoPanelStats(player) {
         if (Date.now() - (window.lastFirestoreRefresh || 0) > 15000) { // 15 seconds (more frequent)
             currentUser = await nicknameAuth.syncUserStatsFromFirestore();
             window.lastFirestoreRefresh = Date.now();
-            console.log('🔥 Synced user stats from Firestore');
         } else {
             currentUser = nicknameAuth.getCurrentUserSync();
-            console.log('💾 Using cached user data');
         }
     } catch (error) {
         console.warn('⚠️ Failed to sync stats from Firestore, using cache:', error);
@@ -4784,12 +4770,9 @@ async function updatePlayerInfoPanelStats(player) {
     
     // Debug localStorage state
     const currentUserFromStorage = localStorage.getItem('currentUser');
-    console.log('🔍 Debug - currentUser in localStorage:', currentUserFromStorage ? JSON.parse(currentUserFromStorage).nickname : 'none');
     
-    console.log('👤 Current user:', currentUser?.nickname, 'stats:', currentUser?.stats);
     
     if (!currentUser) {
-        console.log('⚠️ No authenticated user found - player is in guest mode. Stats will not be saved.');
         // For guest players, we can still update the UI with current game stats
         // but we won't have persistent total stats to display
         const totalCoinsElement = document.getElementById('totalCoins');
@@ -4800,7 +4783,6 @@ async function updatePlayerInfoPanelStats(player) {
         if (totalMatchesElement) totalMatchesElement.textContent = '0 (Guest)';
         if (bestScoreElement) bestScoreElement.textContent = player.score || '0';
         
-        console.log('📊 Updated UI for guest player with current score:', player.score);
         return;
     }
     
@@ -4812,22 +4794,18 @@ async function updatePlayerInfoPanelStats(player) {
             bestScore: 0,
             wins: 0
         };
-        console.log('🔧 Initialized missing stats object');
     }
     
     if (player.name !== currentUser.nickname) {
-        console.log('❌ User check failed - currentUser:', currentUser?.nickname, 'player:', player?.name);
         return; // Only update for authenticated current user
     }
     
-    console.log('✅ Proceeding with stats update');
     
     // Update total coins from Firestore data
     const totalCoinsElement = document.getElementById('totalCoins');
     if (totalCoinsElement) {
         const totalCoins = currentUser.stats.totalScore || 0;
         totalCoinsElement.textContent = totalCoins;
-        console.log('💰 Updated total coins to:', totalCoins);
     } else {
         console.log('❌ totalCoinsElement not found');
     }
@@ -4838,7 +4816,6 @@ async function updatePlayerInfoPanelStats(player) {
         const baseMatches = currentUser.stats.gamesPlayed || 0;
         const newValue = baseMatches + 1; // +1 for current active game
         matchesPlayedElement.textContent = newValue;
-        console.log('🎮 Updated matches played to:', newValue, '(base:', baseMatches, '+1 active)');
     } else {
         console.log('❌ matchesPlayedElement not found');
     }
@@ -4852,7 +4829,6 @@ async function updatePlayerInfoPanelStats(player) {
         // Show the highest between saved best score and current score
         const displayScore = Math.max(savedBestScore, currentGameScore);
         bestScoreElement.textContent = displayScore;
-        console.log('🏆 Best Score updated to:', displayScore, '(saved:', savedBestScore, 'current:', currentGameScore, ')');
         
         // If current score is new best, update in database
         if (currentGameScore > savedBestScore) {
@@ -4877,14 +4853,12 @@ async function updatePlayerInfoPanelStats(player) {
                         })
                     });
                     if (response.ok) {
-                        console.log('📊 Full stats updated in Firebase: score=', currentGameScore, 'totalScore=', currentGameScore, 'gamesPlayed=', (currentUser.stats.gamesPlayed || 0) + 1);
                     }
                 } catch (error) {
                     console.warn('⚠️ Failed to update full stats in Firebase:', error);
                 }
             }
             
-            console.log('🏆 New best score recorded:', currentGameScore);
         }
     } else {
         console.log('❌ bestScoreElement not found');
@@ -4894,10 +4868,8 @@ async function updatePlayerInfoPanelStats(player) {
     const currentGameSizeElement = document.getElementById('currentGameSize');
     if (currentGameSizeElement && player.size) {
         currentGameSizeElement.textContent = Math.round(player.size);
-        console.log('📏 Updated current game size to:', Math.round(player.size));
     } else if (currentGameSizeElement) {
         currentGameSizeElement.textContent = '...';
-        console.log('📏 Current game size not available yet');
     }
     
     // Update current game rank (if PanelManager exists)
@@ -4905,22 +4877,18 @@ async function updatePlayerInfoPanelStats(player) {
 }
 
 async function loadSavedPlayerData() {
-    console.log('📂 loadSavedPlayerData called - checking authentication...');
     
     // Check if user is authenticated and get fresh data from Firestore
     let currentUser = await nicknameAuth.getCurrentUser();
     if (currentUser) {
-        console.log('🔄 Loading saved player data for:', currentUser.nickname);
-        console.log('📊 Current user stats before sync:', currentUser.stats);
+       
         
         // Force sync with Firestore FIRST to get latest data
         if (nicknameAuth.isOnline && window.firebaseDb) {
             try {
-                console.log('🔄 Force syncing with Firestore for latest data...');
                 const freshUser = await nicknameAuth.syncUserStatsFromFirestore();
                 if (freshUser) {
                     currentUser = freshUser;
-                    console.log('📊 User stats after Firestore sync:', currentUser.stats);
                 }
             } catch (error) {
                 console.warn('⚠️ Failed to sync with Firestore:', error.message);
@@ -4936,18 +4904,15 @@ async function loadSavedPlayerData() {
         // Force update Player Info panel
         if (window.panelManager) {
             await window.panelManager.updateUserInfoPanel();
-            console.log('🔄 Forced Player Info panel update in loadSavedPlayerData');
             
             // Initialize player rank display
             setTimeout(() => updatePlayerRankDisplay(), 500);
         }
         
-        console.log('✅ Player data loading completed');
         
         // Initialize player rank display after data loading
         setTimeout(() => updatePlayerRankDisplay(), 500);
     } else {
-        console.log('ℹ️ No saved user data found');
         
         // Initialize player rank display even for guests
         setTimeout(() => updatePlayerRankDisplay(), 500);
@@ -4956,7 +4921,6 @@ async function loadSavedPlayerData() {
 
 // Update main player info panel with current user data
 function updateMainPlayerInfoPanel(user) {
-    console.log('🔄 Updating main player info panel with user:', user);
     
     const playerInfoName = document.getElementById('playerInfoName');
     const playerInfoStatus = document.getElementById('playerInfoStatus');
@@ -4966,27 +4930,22 @@ function updateMainPlayerInfoPanel(user) {
     
     if (playerInfoName && user.nickname) {
         playerInfoName.textContent = user.nickname;
-        console.log('✅ Updated playerInfoName to:', user.nickname);
     }
     
     if (playerInfoStatus) {
         playerInfoStatus.textContent = 'Authenticated';
-        console.log('✅ Updated playerInfoStatus to: Authenticated');
     }
     
     // Update stats if available
     if (user.stats) {
         if (totalCoins) {
             totalCoins.textContent = user.stats.totalScore || 0;
-            console.log('💰 Updated totalCoins to:', user.stats.totalScore);
         }
         if (matchesPlayed) {
             matchesPlayed.textContent = user.stats.gamesPlayed || 0;
-            console.log('🎮 Updated matchesPlayed to:', user.stats.gamesPlayed);
         }
         if (bestScore) {
             bestScore.textContent = user.stats.bestScore || 0;
-            console.log('🏆 Updated bestScore to:', user.stats.bestScore);
         }
     }
     
@@ -4994,7 +4953,6 @@ function updateMainPlayerInfoPanel(user) {
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.classList.remove('hidden');
-        console.log('✅ Showed logout button');
     }
     
     // Initialize player rank display
@@ -5008,8 +4966,6 @@ function forceUpdateGameStatsDisplay(player) {
     const currentUser = nicknameAuth.getCurrentUserSync();
     if (!currentUser || player.name !== currentUser.nickname) return;
     
-    console.log('🔧 Force updating stats display for:', player.name, 'score:', player.score);
-    console.log('📊 Current user stats:', currentUser.stats);
     
     // Debug UI elements
     debugUIElements();
@@ -5020,7 +4976,6 @@ function forceUpdateGameStatsDisplay(player) {
         const baseMatches = currentUser.stats?.gamesPlayed || 0;
         const newMatchesValue = baseMatches + 1; // +1 for current active game
         matchesPlayedElement.textContent = newMatchesValue;
-        console.log('🎮 Updated matches to:', newMatchesValue, '(base:', baseMatches, ')');
     } else {
         console.log('❌ matchesPlayedElement not found');
     }
@@ -5032,7 +4987,6 @@ function forceUpdateGameStatsDisplay(player) {
         const currentGameScore = player.score || 0;
         const displayScore = Math.max(savedBestScore, currentGameScore);
         bestScoreElement.textContent = displayScore;
-        console.log('🏆 Updated best score to:', displayScore, '(saved:', savedBestScore, 'current:', currentGameScore, ')');
     } else {
         console.log('❌ bestScoreElement not found');
     }
@@ -5041,28 +4995,23 @@ function forceUpdateGameStatsDisplay(player) {
     const currentGameSizeElement = document.getElementById('currentGameSize');
     if (currentGameSizeElement && player.size) {
         currentGameSizeElement.textContent = Math.round(player.size);
-        console.log('📏 Force updated current game size to:', Math.round(player.size));
     } else if (currentGameSizeElement) {
         currentGameSizeElement.textContent = '...';
-        console.log('📏 Current game size not available for force update');
     }
     
     // Force update current game score display
     updateCurrentGameScoreDisplay(player.score || 0);
-    console.log('💰 Force updated currentGameScore to:', player.score || 0);
     
     // Force update max speed display
     const maxSpeedElement = document.getElementById('maxSpeedValue');
     if (maxSpeedElement) {
         if (player.playerEater) {
             maxSpeedElement.textContent = '100';
-            console.log('👹 Force updated max speed to 100 (Player Eater active)');
         } else {
             const baseSpeed = 200;
             const sizeMultiplier = calculateSpeedMultiplier(player.score || 0);
             const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
             maxSpeedElement.textContent = maxSpeed.toString();
-            console.log(`🏃 Force updated max speed: ${baseSpeed} × ${sizeMultiplier.toFixed(2)} = ${maxSpeed} (Score: ${player.score || 0})`);
         }
     }
     
@@ -5146,7 +5095,6 @@ class PanelManager {
             }
         });
         
-        console.log('🎛️ Panel Manager initialized');
         
         // Listen for window resize to handle orientation changes
         window.addEventListener('resize', () => {
@@ -5165,11 +5113,9 @@ class PanelManager {
             );
             
             if (openPanels.length > 1) {
-                console.log('📱 Screen resized to mobile, closing extra panels');
                 // Keep only the first open panel, close the rest
                 openPanels.slice(1).forEach(([name]) => {
                     this.closePanel(name);
-                    console.log(`📱 Auto-closed panel ${name} due to mobile resize`);
                 });
                 
                 // Update rank display after resize
@@ -5181,7 +5127,6 @@ class PanelManager {
     calculatePlayerRank(localPlayer) {
         // Calculate player's rank based on current leaderboard from gameState
         if (!localPlayer || !window.gameState) {
-            console.log('❌ calculatePlayerRank: Missing localPlayer or gameState');
             return null;
         }
         
@@ -5189,7 +5134,6 @@ class PanelManager {
         const allEntities = [...(window.gameState.players || []), ...(window.gameState.bots || [])];
         allEntities.sort((a, b) => (b.score || 0) - (a.score || 0));
         
-        console.log('🔍 calculatePlayerRank: Looking for player:', localPlayer.id, localPlayer.name, 'in', allEntities.length, 'entities');
         
         // Find local player's position in sorted leaderboard
         const playerRank = allEntities.findIndex(entity => 
@@ -5198,17 +5142,17 @@ class PanelManager {
             (entity.id === window.gameState?.playerId)
         ) + 1;
         
-        console.log('🔍 calculatePlayerRank: Found rank:', playerRank, 'for player score:', localPlayer.score);
+
         
         // Debug: show top 5 players
-        console.log('🏆 Top 5 leaderboard:', allEntities.slice(0, 5).map(e => `${e.name}(${e.score})`));
+
         
         // Also update the rank display element directly
         const currentGameRankElement = document.querySelector('#userinfoLeftPanel #currentGameRank');
         if (currentGameRankElement) {
             const rankText = playerRank > 0 ? `#${playerRank}` : '#-';
             currentGameRankElement.textContent = rankText;
-            console.log('🏆 Direct rank update:', rankText);
+           
         }
         
         return playerRank > 0 ? playerRank : null;
@@ -5222,7 +5166,6 @@ class PanelManager {
                 Object.entries(this.panels).forEach(([name, otherPanel]) => {
                     if (name !== panelName && otherPanel.panel && !otherPanel.panel.classList.contains('hidden')) {
                         this.closePanel(name);
-                        console.log(`📱 Mobile: Auto-closed panel ${name} to open ${panelName}`);
                     }
                 });
             }
@@ -5231,7 +5174,6 @@ class PanelManager {
             panel.toggle.style.display = 'none';
             panel.panel.classList.remove('hidden');
             
-            console.log(`📂 Opened panel: ${panelName}`);
             
             // Special handling for different panels
             if (panelName === 'userinfoLeft') {
@@ -5239,7 +5181,6 @@ class PanelManager {
                 this.updateUserInfoPanel().catch(err => console.warn('Panel update failed:', err));
                 // Also update rank display immediately
                 setTimeout(() => updatePlayerRankDisplay(), 100);
-                console.log('👤 User info panel opened, refreshing data');
             } else if (panelName === 'chat') {
                 // Auto-scroll chat to bottom when opened
                 setTimeout(() => {
@@ -5259,7 +5200,6 @@ class PanelManager {
             panel.toggle.style.display = 'flex';
             panel.panel.classList.add('hidden');
             
-            console.log(`📁 Closed panel: ${panelName}`);
         
         // Update rank display when panel closes
         setTimeout(() => updatePlayerRankDisplay(), 100);
@@ -5273,14 +5213,9 @@ class PanelManager {
             let currentUser;
             try {
                 // ALWAYS sync for debugging (remove caching)
-                console.log('🔄 PanelManager: ALWAYS attempting Firestore sync for debugging...');
-                console.log('🔍 PanelManager: window.firebaseDb exists:', !!window.firebaseDb);
-                console.log('🔍 PanelManager: isOnline:', window.nicknameAuth.isOnline);
                 
                 currentUser = await window.nicknameAuth.syncUserStatsFromFirestore();
-                console.log('🔥 PanelManager: Completed sync attempt');
             } catch (error) {
-                console.warn('⚠️ PanelManager: Failed to sync, using cache:', error);
                 currentUser = window.nicknameAuth.getCurrentUserSync();
             }
             
@@ -5288,7 +5223,6 @@ class PanelManager {
                 // Debug logging
                 const playerScore = window.localPlayer?.score || 0;
                 const playerSize = window.localPlayer?.size || 20;
-                console.log('📊 PanelManager: Updating user info panel - User:', currentUser.nickname, 'Stats:', currentUser.stats, 'Current game:', playerScore, 'size:', Math.round(playerSize));
                 const nameElement = document.querySelector('#userinfoLeftPanel #playerInfoNameLeft');
                 const statusElement = document.querySelector('#userinfoLeftPanel #playerInfoStatusLeft');
                 const totalCoinsElement = document.querySelector('#userinfoLeftPanel #totalCoinsLeft');
@@ -5321,17 +5255,14 @@ class PanelManager {
                 if (totalCoinsElement) {
                     const totalCoins = currentUser.stats?.totalScore || 0;
                     totalCoinsElement.textContent = totalCoins;
-                    console.log('🪙 PanelManager: Updated total coins to:', totalCoins);
                 }
                 if (totalMatchesElement) {
                     const totalMatches = currentUser.stats?.gamesPlayed || 0;
                     totalMatchesElement.textContent = totalMatches;
-                    console.log('🎮 PanelManager: Updated total matches to:', totalMatches);
                 }
                 if (bestScoreElement) {
                     const bestScore = currentUser.stats?.bestScore || 0;
                     bestScoreElement.textContent = bestScore;
-                    console.log('🏆 PanelManager: Updated best score to:', bestScore);
                 }
                 
                 // Update current game stats
@@ -5352,7 +5283,6 @@ class PanelManager {
                     if (currentUser.nickname) {
                         logoutBtn.classList.remove('hidden');
                         logoutBtn.onclick = () => {
-                            console.log('🚪 Panel logout button clicked');
                             performLogout();
                         };
                     } else {
@@ -5360,7 +5290,6 @@ class PanelManager {
                     }
                 }
             } else {
-                console.log('⚠️ PanelManager: No authenticated user found for panel update');
                 // Update panel to show guest state
                 const nameElement = document.querySelector('#userinfoLeftPanel #playerInfoNameLeft');
                 const statusElement = document.querySelector('#userinfoLeftPanel #playerInfoStatusLeft');
@@ -5560,29 +5489,22 @@ document.addEventListener('DOMContentLoaded', () => {
         panelManager = new PanelManager();
         window.panelManager = panelManager; // Make globally accessible immediately
         panelManager.startAutoRefresh();
-        console.log('🚀 Panel system ready and globally accessible');
     }, 500); // Delay to ensure all elements are loaded
 });
 
 // Function to update booster status display
 function updateBoosterStatusDisplay() {
     // Debug logging
-    console.log('🔄 updateBoosterStatusDisplay called');
-    console.log('🚀 Speed booster state:', activeBoosters.speed);
-    console.log('💰 Coin booster state:', activeBoosters.coins);
-    console.log('👹 Player Eater state:', activeBoosters.playerEater);
     
     // Use existing activeBoostersCenter element instead of creating new container
     let boosterContainer = document.getElementById('activeBoostersCenter');
     
     if (!boosterContainer) {
-        console.log('⚠️ activeBoostersCenter element not found, creating fallback container');
         // Fallback: create container only if activeBoostersCenter doesn't exist
         boosterContainer = document.createElement('div');
         boosterContainer.id = 'boosterStatusContainer';
         boosterContainer.className = 'fixed top-4 right-4 z-50 space-y-2';
         document.body.appendChild(boosterContainer);
-        console.log('✅ Created fallback booster container');
     }
     
     // Clear existing booster displays
@@ -5593,7 +5515,6 @@ function updateBoosterStatusDisplay() {
                              activeBoosters.playerEater.active;
     
     if (!hasActiveBoosters) {
-        console.log('ℹ️ No active boosters to display');
         // Hide the container with animation
         boosterContainer.classList.remove('show');
         return;
@@ -5601,7 +5522,6 @@ function updateBoosterStatusDisplay() {
     
     // Show the container with animation
     boosterContainer.classList.add('show');
-    console.log('🎯 Added "show" class to booster container');
     
     // Debug: check if element has correct positioning
     if (boosterContainer.id === 'activeBoostersCenter') {
@@ -5625,7 +5545,6 @@ function updateBoosterStatusDisplay() {
         
         // Check if booster has expired
         if (timeLeft <= 0) {
-            console.log('💰 Coin boost expired, deactivating');
             activeBoosters.coins.active = false;
             activeBoosters.coins.multiplier = 1;
             activeBoosters.coins.endTime = 0;
@@ -5648,7 +5567,6 @@ function updateBoosterStatusDisplay() {
                 </div>
             `;
             boosterContainer.appendChild(coinBooster);
-            console.log(`💰 Displaying coin boost with ${timeText} remaining`);
         }
     }
     
@@ -5657,7 +5575,6 @@ function updateBoosterStatusDisplay() {
         
         // Check if booster has expired
         if (timeLeft <= 0) {
-            console.log('👹 Player Eater expired, deactivating');
             activeBoosters.playerEater.active = false;
             activeBoosters.playerEater.endTime = 0;
         } else {
@@ -5679,7 +5596,6 @@ function updateBoosterStatusDisplay() {
                 </div>
             `;
             boosterContainer.appendChild(playerEaterBooster);
-            console.log(`👹 Displaying player eater boost with ${timeText} remaining`);
         }
     }
     
@@ -5688,12 +5604,10 @@ function updateBoosterStatusDisplay() {
                                   activeBoosters.playerEater.active;
     
     if (!stillHasActiveBoosters) {
-        console.log('ℹ️ All boosters expired, clearing display');
         boosterContainer.innerHTML = '';
         // Hide the container with animation
         boosterContainer.classList.remove('show');
     } else {
-        console.log(`✅ Displaying ${[activeBoosters.coins.active, activeBoosters.playerEater.active].filter(Boolean).length} active boosters`);
         // Ensure the container is visible
         boosterContainer.classList.add('show');
     }
@@ -5704,13 +5618,11 @@ function updateBoosterStatusDisplay() {
         if (maxSpeedElement) {
             if (localPlayer.playerEater) {
                 maxSpeedElement.textContent = '100';
-                console.log('👹 Max speed updated to 100 in booster display (Player Eater active)');
             } else {
                 const baseSpeed = 200;
                 const sizeMultiplier = calculateSpeedMultiplier(localPlayer.score || 0);
                 const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
                 maxSpeedElement.textContent = maxSpeed.toString();
-                console.log(`🏃 Max speed updated to ${maxSpeed} in booster display (Player Eater inactive) - Score: ${localPlayer.score || 0}, Multiplier: ${sizeMultiplier.toFixed(2)}`);
             }
         }
     }
