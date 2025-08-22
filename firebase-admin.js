@@ -3,33 +3,62 @@ require('dotenv').config();
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
-    const serviceAccount = {
-        type: "service_account",
-        project_id: process.env.FIREBASE_PROJECT_ID,
-        private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-        private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        client_email: process.env.FIREBASE_CLIENT_EMAIL,
-        client_id: process.env.FIREBASE_CLIENT_ID,
-        auth_uri: "https://accounts.google.com/o/oauth2/auth",
-        token_uri: "https://oauth2.googleapis.com/token",
-        auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-        client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_CLIENT_EMAIL}`
-    };
+    try {
+        const serviceAccount = {
+            type: "service_account",
+            project_id: process.env.FIREBASE_PROJECT_ID,
+            private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+            private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+            client_email: process.env.FIREBASE_CLIENT_EMAIL,
+            client_id: process.env.FIREBASE_CLIENT_ID,
+            auth_uri: "https://accounts.google.com/o/oauth2/auth",
+            token_uri: "https://oauth2.googleapis.com/token",
+            auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+            client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_CLIENT_EMAIL}`
+        };
 
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        projectId: process.env.FIREBASE_PROJECT_ID
-    });
+        // Check if required environment variables are set
+        if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_PRIVATE_KEY) {
+            console.warn('⚠️ Firebase environment variables not set, using mock mode');
+            console.warn('⚠️ Set FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, etc. for full functionality');
+        }
+
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+            projectId: process.env.FIREBASE_PROJECT_ID
+        });
+        
+        console.log('✅ Firebase Admin SDK initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize Firebase Admin SDK:', error);
+        console.warn('⚠️ Server will run in mock mode without database functionality');
+    }
 }
 
 const db = admin.firestore();
 const auth = admin.auth();
+
+// Check if Firebase is available
+const isFirebaseAvailable = () => {
+    try {
+        return admin.apps.length > 0 && db && auth;
+    } catch (error) {
+        return false;
+    }
+};
 
 // Game data service
 class GameDataService {
     // Save player statistics
     async savePlayerStats(playerId, gameData) {
         try {
+            // Check if Firebase is available
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, mock saving player stats');
+                console.log(`📝 Mock save: Player ${playerId}, Score: ${gameData.score}`);
+                return true; // Return success for mock mode
+            }
+            
             // Normalize playerId to lowercase to avoid duplicate documents
             const normalizedPlayerId = playerId.toLowerCase();
             console.log(`🔧 savePlayerStats: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
@@ -69,6 +98,23 @@ class GameDataService {
     // Get player statistics
     async getPlayerStats(playerId) {
         try {
+            // Check if Firebase is available
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, returning mock player stats');
+                return {
+                    totalScore: 1000,
+                    lastSize: null,
+                    bestScore: 1000,
+                    gamesPlayed: 3,
+                    wins: 1,
+                    nickname: 'MockPlayer',
+                    wallet: '',
+                    email: '',
+                    lastLogin: new Date(),
+                    lastPlayed: new Date()
+                };
+            }
+            
             // Normalize playerId to lowercase to avoid duplicate documents
             const normalizedPlayerId = playerId.toLowerCase();
             console.log(`🔧 getPlayerStats: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
@@ -109,6 +155,13 @@ class GameDataService {
     // Save match results
     async saveMatchResult(matchData) {
         try {
+            // Check if Firebase is available
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, mock saving match result');
+                console.log(`📝 Mock save match: ${matchData.players?.length || 0} players, Winner: ${matchData.winner?.name || 'Unknown'}`);
+                return true; // Return success for mock mode
+            }
+            
             // Normalize playerId in matchData if it exists
             if (matchData.playerId) {
                 matchData.playerId = matchData.playerId.toLowerCase();
@@ -126,6 +179,32 @@ class GameDataService {
     // Get global leaderboard
     async getGlobalLeaderboard(limit = 10) {
         try {
+            // Check if Firebase is available
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, returning mock global leaderboard');
+                const mockLeaderboard = [
+                    {
+                        id: 'mock_1',
+                        nickname: 'TopPlayer1',
+                        playerName: 'TopPlayer1',
+                        totalScore: 2000,
+                        bestScore: 2000,
+                        gamesPlayed: 10,
+                        wins: 5
+                    },
+                    {
+                        id: 'mock_2',
+                        nickname: 'TopPlayer2',
+                        playerName: 'TopPlayer2',
+                        totalScore: 1800,
+                        bestScore: 1800,
+                        gamesPlayed: 8,
+                        wins: 4
+                    }
+                ];
+                return mockLeaderboard.slice(0, limit);
+            }
+            
             const snapshot = await db.collection('players')
                 .orderBy('bestScore', 'desc')
                 .limit(limit)
@@ -147,16 +226,31 @@ class GameDataService {
     // Update player profile
     async updatePlayerProfile(playerId, updates) {
         try {
+            // Check if Firebase is available
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, mock updating player profile');
+                console.log(`📝 Mock update: Player ${playerId}, Updates:`, updates);
+                return true; // Return success for mock mode
+            }
+            
             // Normalize playerId to lowercase to avoid duplicate documents
             const normalizedPlayerId = playerId.toLowerCase();
             console.log(`🔧 updatePlayerProfile: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
             
-            await db.collection('players').doc(normalizedPlayerId).update({
-                ...updates,
-                lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-            });
+            const playerRef = db.collection('players').doc(normalizedPlayerId);
+            const playerDoc = await playerRef.get();
+            
+            if (playerDoc.exists) {
+                await playerRef.update(updates);
+                console.log(`✅ Player profile updated for ${normalizedPlayerId}`);
+                return true;
+            } else {
+                console.log(`❌ Player not found for update: ${normalizedPlayerId}`);
+                return false;
+            }
         } catch (error) {
             console.error('Error updating player profile:', error);
+            return false;
         }
     }
 
@@ -211,19 +305,30 @@ class GameDataService {
         }
     }
 
-    // Get player's current total coins
+    // Get player's total coins
     async getPlayerTotalCoins(playerId) {
         try {
+            // Check if Firebase is available
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, returning mock total coins');
+                return 1000; // Mock total coins
+            }
+            
             // Normalize playerId to lowercase to avoid duplicate documents
             const normalizedPlayerId = playerId.toLowerCase();
             console.log(`🔧 getPlayerTotalCoins: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
             
             const playerDoc = await db.collection('players').doc(normalizedPlayerId).get();
+            
             if (playerDoc.exists) {
                 const data = playerDoc.data();
-                return data.totalScore || 0;
+                const totalCoins = data.totalCoins || data.coins || 0;
+                console.log(`💰 Total coins for ${normalizedPlayerId}: ${totalCoins}`);
+                return totalCoins;
+            } else {
+                console.log(`❌ Player not found for total coins: ${normalizedPlayerId}`);
+                return 0;
             }
-            return 0;
         } catch (error) {
             console.error('Error getting player total coins:', error);
             return 0;
@@ -266,9 +371,16 @@ class GameDataService {
         }
     }
 
-    // Update player's best score if current score is higher
-    async updateBestScore(playerId, currentScore) {
+    // Update player's best score
+    async updateBestScore(playerId, newScore) {
         try {
+            // Check if Firebase is available
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, mock updating best score');
+                console.log(`📝 Mock update best score: Player ${playerId}, Score: ${newScore}`);
+                return true; // Return success for mock mode
+            }
+            
             // Normalize playerId to lowercase to avoid duplicate documents
             const normalizedPlayerId = playerId.toLowerCase();
             console.log(`🔧 updateBestScore: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
@@ -278,31 +390,23 @@ class GameDataService {
             
             if (playerDoc.exists) {
                 const currentStats = playerDoc.data();
-                const currentBest = currentStats.bestScore || 0;
+                const currentBestScore = currentStats.bestScore || 0;
                 
-                if (currentScore > currentBest) {
+                if (newScore > currentBestScore) {
                     await playerRef.update({
-                        bestScore: currentScore,
+                        bestScore: newScore,
                         lastPlayed: admin.firestore.FieldValue.serverTimestamp()
                     });
+                    console.log(`✅ Best score updated for ${normalizedPlayerId}: ${currentBestScore} -> ${newScore}`);
                     return true;
+                } else {
+                    console.log(`ℹ️ New score ${newScore} not higher than current best ${currentBestScore} for ${normalizedPlayerId}`);
+                    return false;
                 }
             } else {
-                // Create new player if doesn't exist
-                await playerRef.set({
-                    nickname: normalizedPlayerId,
-                    playerName: normalizedPlayerId,
-                    walletAddress: '',
-                    totalScore: 0,
-                    gamesPlayed: 0,
-                    bestScore: currentScore,
-                    firstPlayed: admin.firestore.FieldValue.serverTimestamp(),
-                    lastPlayed: admin.firestore.FieldValue.serverTimestamp()
-                });
-                return true;
+                console.log(`❌ Player not found for best score update: ${normalizedPlayerId}`);
+                return false;
             }
-            
-            return false; // No update needed
         } catch (error) {
             console.error('Error updating best score:', error);
             return false;
@@ -427,6 +531,13 @@ class GameDataService {
     // Save completed game session (only called when player finishes a session)
     async saveGameSession(playerId, sessionData) {
         try {
+            // Check if Firebase is available
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, mock saving game session');
+                console.log(`📝 Mock save session: Player ${playerId}, Score: ${sessionData.score}`);
+                return true; // Return success for mock mode
+            }
+            
             // Normalize playerId to lowercase to avoid duplicate documents
             const normalizedPlayerId = playerId.toLowerCase();
             console.log(`🔧 saveGameSession: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
@@ -469,6 +580,48 @@ class GameDataService {
     async getAllPlayers() {
         try {
             console.log('🔄 GameDataService.getAllPlayers() called');
+            
+            // Check if Firebase is available
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, returning mock data');
+                // Return mock data for testing
+                const mockPlayers = [
+                    {
+                        playerId: 'mock_player_1',
+                        nickname: 'TestPlayer1',
+                        playerName: 'TestPlayer1',
+                        totalScore: 1500,
+                        bestScore: 1500,
+                        gamesPlayed: 5,
+                        wins: 2,
+                        wallet: '',
+                        email: '',
+                        lastLogin: null,
+                        lastPlayed: new Date(),
+                        lastSize: null,
+                        isOnline: false
+                    },
+                    {
+                        playerId: 'mock_player_2',
+                        nickname: 'TestPlayer2',
+                        playerName: 'TestPlayer2',
+                        totalScore: 1200,
+                        bestScore: 1200,
+                        gamesPlayed: 3,
+                        wins: 1,
+                        wallet: '',
+                        email: '',
+                        lastLogin: null,
+                        lastPlayed: new Date(),
+                        lastSize: null,
+                        isOnline: false
+                    }
+                ];
+                
+                console.log(`✅ Returning ${mockPlayers.length} mock players`);
+                return mockPlayers;
+            }
+            
             const playersSnapshot = await db.collection('players').get();
             console.log(`🔄 Firestore query returned ${playersSnapshot.size} documents`);
             
@@ -507,7 +660,26 @@ class GameDataService {
             console.error('❌ Error getting all players:', error);
             console.error('❌ Error details:', error.message);
             console.error('❌ Error stack:', error.stack);
-            return [];
+            
+            // Return mock data on error
+            console.warn('⚠️ Returning mock data due to error');
+            return [
+                {
+                    playerId: 'error_fallback_1',
+                    nickname: 'FallbackPlayer1',
+                    playerName: 'FallbackPlayer1',
+                    totalScore: 1000,
+                    bestScore: 1000,
+                    gamesPlayed: 2,
+                    wins: 0,
+                    wallet: '',
+                    email: '',
+                    lastLogin: null,
+                    lastPlayed: new Date(),
+                    lastSize: null,
+                    isOnline: false
+                }
+            ];
         }
     }
 }

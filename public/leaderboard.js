@@ -10,8 +10,15 @@ class LeaderboardManager {
     init() {
         console.log('🔄 Initializing LeaderboardManager...');
         
+        // Check if required elements exist
         const toggleBtn = document.getElementById('toggleLeaderboardType');
-        console.log('🔄 Toggle button found:', toggleBtn);
+        const leaderboardList = document.getElementById('leaderboardList');
+        const leaderboardHeader = document.querySelector('.leaderboard-header h2');
+        
+        console.log('🔄 Required elements check:');
+        console.log('🔄 - toggleBtn:', toggleBtn ? 'Found' : 'Not found');
+        console.log('🔄 - leaderboardList:', leaderboardList ? 'Found' : 'Not found');
+        console.log('🔄 - leaderboardHeader:', leaderboardHeader ? 'Found' : 'Not found');
         
         if (toggleBtn) {
             console.log('🔄 Adding click event listener to toggle button');
@@ -23,10 +30,6 @@ class LeaderboardManager {
                 console.log('🔄 This.toggleLeaderboardType:', this.toggleLeaderboardType);
                 this.toggleLeaderboardType();
             });
-            
-            // Also add a test click to see if the button is working
-            console.log('🔄 Testing button click...');
-            toggleBtn.click();
             
             console.log('🔄 Event listener added successfully');
         } else {
@@ -40,6 +43,7 @@ class LeaderboardManager {
         // Auto-refresh global leaderboard every 10 seconds for real-time online status
         setInterval(() => {
             if (this.currentType === 'global') {
+                console.log('🔄 Auto-refreshing global leaderboard...');
                 this.loadGlobalLeaderboard();
             }
         }, 10000);
@@ -65,16 +69,14 @@ class LeaderboardManager {
             console.log('🔄 Current globalLeaderboard data:', this.globalLeaderboard);
             console.log('🔄 globalLeaderboard length:', this.globalLeaderboard ? this.globalLeaderboard.length : 'undefined');
             
-            if (!this.globalLeaderboard || this.globalLeaderboard.length === 0) {
-                console.log('🔄 globalLeaderboard is empty, fetching fresh data...');
-                this.loadGlobalLeaderboard();
-            } else {
-                console.log('🔄 Using cached globalLeaderboard data');
-                this.renderLeaderboard();
-            }
+            // Always fetch fresh data for global leaderboard to ensure up-to-date information
+            console.log('🔄 Fetching fresh global leaderboard data...');
+            this.loadGlobalLeaderboard();
         } else {
-            console.log('🔄 Updating match leaderboard...');
-            this.updateMatchLeaderboard();
+            console.log('🔄 Switching to match leaderboard...');
+            console.log('🔄 Current matchLeaderboard data:', this.matchLeaderboard);
+            console.log('🔄 matchLeaderboard length:', this.matchLeaderboard ? this.matchLeaderboard.length : 'undefined');
+            this.renderLeaderboard();
         }
     }
 
@@ -87,6 +89,7 @@ class LeaderboardManager {
             const apiUrl = 'https://royale-ball-server.onrender.com/api/players';
             console.log('🔄 API URL:', apiUrl);
             
+            console.log('🔄 Making fetch request...');
             const response = await fetch(apiUrl);
             console.log('🔄 API Response status:', response.status);
             console.log('🔄 API Response headers:', response.headers);
@@ -94,49 +97,99 @@ class LeaderboardManager {
             if (response.ok) {
                 const data = await response.json();
                 console.log('🔄 Raw API response data:', data);
+                console.log('🔄 Data type:', typeof data);
+                console.log('🔄 Data length:', data ? data.length : 'undefined');
                 
-                this.globalLeaderboard = data;
-                console.log('🔄 Loaded', this.globalLeaderboard.length, 'players:', this.globalLeaderboard);
-                
-                // Check if data has the expected structure
-                if (this.globalLeaderboard.length > 0) {
-                    console.log('🔄 First player sample:', this.globalLeaderboard[0]);
+                if (Array.isArray(data)) {
+                    this.globalLeaderboard = data;
+                    console.log('🔄 Successfully loaded', this.globalLeaderboard.length, 'players');
+                    console.log('🔄 First 3 players:', this.globalLeaderboard.slice(0, 3));
+                    
+                    // Check if data has the expected structure
+                    if (this.globalLeaderboard.length > 0) {
+                        const firstPlayer = this.globalLeaderboard[0];
+                        console.log('🔄 First player sample:', firstPlayer);
+                        console.log('🔄 First player fields:', Object.keys(firstPlayer));
+                    }
+                    
+                    this.renderLeaderboard();
+                } else {
+                    console.error('❌ API returned non-array data:', data);
+                    this.globalLeaderboard = [];
+                    this.renderLeaderboard();
                 }
-                
-                this.renderLeaderboard();
             } else {
                 console.error('❌ Failed to load all players:', response.status, response.statusText);
                 const errorText = await response.text();
                 console.error('❌ Error response body:', errorText);
+                
+                // Show error in leaderboard
+                this.globalLeaderboard = [];
+                this.renderLeaderboard();
             }
         } catch (error) {
             console.error('❌ Error loading all players:', error);
             console.error('❌ Error stack:', error.stack);
+            
+            // Show error in leaderboard
+            this.globalLeaderboard = [];
+            this.renderLeaderboard();
         }
     }
 
     updateMatchLeaderboard() {
-        // This will be called from the main game logic
-        this.renderLeaderboard();
+        console.log('🔄 updateMatchLeaderboard called');
+        console.log('🔄 Current matchLeaderboard:', this.matchLeaderboard);
+        console.log('🔄 Current type:', this.currentType);
+        
+        if (this.currentType === 'match') {
+            console.log('🔄 Rendering match leaderboard...');
+            this.renderLeaderboard();
+        } else {
+            console.log('🔄 Not rendering match leaderboard (current type is not match)');
+        }
     }
 
     setMatchLeaderboard(players) {
-        this.matchLeaderboard = players;
-        if (this.currentType === 'match') {
-            this.renderLeaderboard();
+        console.log('🔄 setMatchLeaderboard called with players:', players);
+        console.log('🔄 Players type:', typeof players);
+        console.log('🔄 Players length:', players ? players.length : 'undefined');
+        
+        if (Array.isArray(players)) {
+            this.matchLeaderboard = players;
+            console.log('🔄 Match leaderboard updated with', players.length, 'players');
+            
+            if (this.currentType === 'match') {
+                console.log('🔄 Current type is match, rendering leaderboard...');
+                this.renderLeaderboard();
+            } else {
+                console.log('🔄 Current type is not match, not rendering');
+            }
+        } else {
+            console.error('❌ setMatchLeaderboard received non-array data:', players);
+            this.matchLeaderboard = [];
         }
     }
 
     renderLeaderboard() {
         const leaderboardList = document.getElementById('leaderboardList');
-        if (!leaderboardList) return;
+        if (!leaderboardList) {
+            console.error('❌ leaderboardList element not found!');
+            return;
+        }
 
         const data = this.currentType === 'match' ? this.matchLeaderboard : this.globalLeaderboard;
-        console.log('🔄 Rendering leaderboard:', this.currentType, 'Data length:', data.length, 'Data:', data);
+        console.log('🔄 Rendering leaderboard:', this.currentType);
+        console.log('🔄 Data type:', typeof data);
+        console.log('🔄 Data length:', data ? data.length : 'undefined');
+        console.log('🔄 Raw data:', data);
         
-        if (data.length === 0) {
-            leaderboardList.innerHTML = '<div class="text-gray-400 text-sm">No data available</div>';
-            console.log('🔄 No data available for', this.currentType);
+        if (!data || data.length === 0) {
+            const message = this.currentType === 'match' 
+                ? 'No players in current match' 
+                : 'No players found in database';
+            leaderboardList.innerHTML = `<div class="text-gray-400 text-sm">${message}</div>`;
+            console.log('🔄 No data available for', this.currentType, '- showing message:', message);
             return;
         }
 
@@ -162,6 +215,8 @@ class LeaderboardManager {
             const name = player.nickname || player.playerName || player.name || 'Unknown';
             const isBot = player.isBot || false;
             const isOnline = player.isOnline || false;
+            
+            console.log(`🔄 Rendering player ${index + 1}:`, { name, score, isBot, isOnline });
             
             let emoji = '';
             if (index === 0) emoji = '🥇';
@@ -190,6 +245,7 @@ class LeaderboardManager {
         }).join('');
 
         leaderboardList.innerHTML = html;
+        console.log('🔄 Leaderboard rendered successfully with', data.length, 'players');
 
         // Add type indicator
         const header = this.currentType === 'match' ? '🏆 Match Leaders' : '🌟 All Players Database (🟢 Online, 🔴 Offline)';
@@ -222,14 +278,4 @@ document.addEventListener('DOMContentLoaded', () => {
     const leaderboardManager = new LeaderboardManager();
     window.leaderboardManager = leaderboardManager;
     console.log('🔄 LeaderboardManager set on window:', window.leaderboardManager);
-});
-
-// Also try to initialize immediately if DOM is already loaded
-if (document.readyState === 'loading') {
-    console.log('🔄 DOM is still loading, waiting for DOMContentLoaded...');
-} else {
-    console.log('🔄 DOM already loaded, initializing LeaderboardManager immediately...');
-    const leaderboardManager = new LeaderboardManager();
-    window.leaderboardManager = leaderboardManager;
-    console.log('🔄 LeaderboardManager set on window:', window.leaderboardManager);
-} 
+}); 

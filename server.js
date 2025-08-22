@@ -27,6 +27,28 @@ app.use(express.json());
 app.use(express.raw({ type: 'application/json' })); // For sendBeacon support
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Game state - must be defined before API endpoints
+const gameState = {
+  players: new Map(),
+  coins: new Map(),
+  bots: new Map(),
+  boosters: new Map(),
+  worldSize: 4000, // Large world size
+  nextCoinId: 0,
+  nextBotId: 0,
+  nextBoosterId: 0,
+  matchTimeLeft: getTimeUntilEndOfGMTDay(), // Time until end of current GMT day
+  matchStartTime: null, // When the current match started
+  matchDuration: getTimeUntilEndOfGMTDay(), // Duration until end of GMT day
+  gameStarted: false,
+  gameEnded: false
+};
+
 // API endpoint for global leaderboard
 app.get('/api/leaderboard', async (req, res) => {
   try {
@@ -179,16 +201,6 @@ app.post('/api/player/:playerId/session', async (req, res) => {
   }
 });
 
-// Health check endpoint for Render
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'healthy', 
-    timestamp: new Date().toISOString(),
-    players: Object.keys(gameState.players).length,
-    matches: Object.keys(gameState.matches).length
-  });
-});
-
 // Calculate speed multiplier based on score (more coins = slower)
 function calculateSpeedMultiplier(score) {
   // Score-based speed system:
@@ -306,23 +318,6 @@ function checkAFKPlayers() {
     console.log(`⏰ AFK check completed: kicked ${playersToKick.length} inactive players`);
   }
 }
-
-// Game state
-const gameState = {
-  players: new Map(),
-  coins: new Map(),
-  bots: new Map(),
-  boosters: new Map(),
-  worldSize: 4000, // Large world size
-  nextCoinId: 0,
-  nextBotId: 0,
-  nextBoosterId: 0,
-  matchTimeLeft: getTimeUntilEndOfGMTDay(), // Time until end of current GMT day
-  matchStartTime: null, // When the current match started
-  matchDuration: getTimeUntilEndOfGMTDay(), // Duration until end of GMT day
-  gameStarted: false,
-  gameEnded: false
-};
 
 // Bot names (realistic player names)
 const botNames = [
@@ -830,7 +825,7 @@ function updateBots() {
           attempts++;
         }
         
-        gameState.coins.set(newCoin.id, newCoin);
+      gameState.coins.set(newCoin.id, newCoin);
         
         // Player growth based on score (Agar.io style) - but don't override Player Eater boost
         if (!bot.playerEater) {
@@ -2181,6 +2176,13 @@ setInterval(() => {
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
+  console.log(`🚀 Server started on port ${PORT}`);
+  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  console.log(`📊 API endpoints:`);
+  console.log(`   - GET /api/players - All players with online status`);
+  console.log(`   - GET /api/leaderboard - Global leaderboard`);
+  console.log(`   - GET /api/player/:id - Player stats`);
 });
 
 // Graceful shutdown
