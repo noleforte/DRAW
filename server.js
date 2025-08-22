@@ -1309,7 +1309,6 @@ function updatePlayers(deltaTime) {
                             // Apply booster effect
                     if (booster.type === 'playerEater') {
                         // Player Eater effect
-                        console.log(`👹 Player ${player.name} collected Player Eater!`);
                         // Mark player as having player eater boost
                         player.playerEater = true;
                         player.playerEaterEndTime = Date.now() + 60000; // 1 minute
@@ -1325,7 +1324,6 @@ function updatePlayers(deltaTime) {
                         // Set fixed speed for Player Eater boost - exactly 1.0 (100)
                         player.speed = 1.0;
                         
-                        console.log(`👹 Player ${player.name} Player Eater speed: 1.0 (fixed at 100)`);
                         
                         // Send notification to all players
                         io.emit('chatMessage', {
@@ -1336,7 +1334,6 @@ function updatePlayers(deltaTime) {
                         });
                     } else if (booster.type === 'coins') {
                         // Coin Multiplier effect
-                        console.log(`💰 Player ${player.name} collected Coin Multiplier!`);
                         
                         // Calculate remaining time based on when booster spawned
                         const timeSinceSpawn = Date.now() - (booster.spawnTime || Date.now());
@@ -1381,7 +1378,7 @@ function updatePlayers(deltaTime) {
             type: 'playerEater',
             name: 'Player Eater',
             color: 'rainbow',
-            effect: 'Eat other players + Level 5 stats',
+            effect: 'Eat other players',
             isBooster: true,
             rainbowHue: 0
           };
@@ -1426,7 +1423,6 @@ function updatePlayers(deltaTime) {
         player.speed = player.playerEaterOriginalSpeed;
         player.playerEaterOriginalSpeed = undefined;
       }
-      console.log(`👹 Player Eater expired for player ${player.name} - restored original size and speed`);
       
       // Respawn Player Eater booster on the map after 1 minute delay
       setTimeout(() => {
@@ -1441,7 +1437,6 @@ function updatePlayers(deltaTime) {
           rainbowHue: 0
         };
         gameState.boosters.set(newBooster.id, newBooster);
-        console.log(`👹 Player Eater booster respawned on map after player ${player.name} expired (1 minute delay)`);
       }, 60000); // 1 minute delay before respawn
     }
     
@@ -1573,21 +1568,6 @@ function updatePlayers(deltaTime) {
                 size: target.size
               });
               
-              // Debug: Check if victim is still in game state after a short delay
-              setTimeout(() => {
-                const stillInGame = gameState.players.has(target.socketId);
-                console.log(`🔍 Victim ${target.name} still in game after 100ms: ${stillInGame}`);
-                if (!stillInGame) {
-                  console.log(`⚠️ WARNING: Victim ${target.name} was removed from game state!`);
-                  console.log(`🔍 Current players:`, Array.from(gameState.players.values()).map(p => ({
-                    name: p.name,
-                    id: p.id,
-                    firebaseId: p.firebaseId,
-                    score: p.score,
-                    size: p.size
-                  })));
-                }
-              }, 100);
               
               // Send eating notification
               io.emit('chatMessage', {
@@ -2166,13 +2146,11 @@ io.on('connection', (socket) => {
       // Apply Player Eater speed limit if active
       if (player.playerEater) {
         speed = Math.min(100, speed); // Limit speed to 100 when Player Eater is active
-        console.log(`👹 Player Eater speed limit applied for player ${player.name}: ${speed}`);
       }
       
       // Apply speed booster if active
       if (player.speedBoost) {
         speed *= 2; // Double speed
-        console.log(`🚀 Speed boost applied for player ${player.name}`);
       }
       
       // Set target velocity instead of instant position update
