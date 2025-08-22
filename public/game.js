@@ -26,6 +26,7 @@ let chatMessages = [];
 let isMobile = window.innerWidth < 1024;
 let selectedColor = 0; // Default color
 let chatCollapsed = false;
+let gameStarted = false;
 let matchTimeLeft = null; // Will be calculated based on GMT day end
 let matchDuration = 86400; // Total match duration in seconds (24 hours)
 let gameEnded = false;
@@ -1549,6 +1550,7 @@ function setupSocketListeners() {
     });
     
     socket.on('matchStarted', (data) => {
+        gameStarted = true;
         matchTimeLeft = data.timeLeft;
         gameEnded = false;
         timeOffset = 0; // Reset time offset for new match
@@ -1590,6 +1592,7 @@ function setupSocketListeners() {
     });
     
     socket.on('gameEnded', async (finalResults) => {
+        gameStarted = false;
         gameEnded = true;
         stopClientTimer();
         
@@ -4268,7 +4271,7 @@ let lastBestScoreSave = 0; // Track when we last saved best score
 let lastFirestoreRefresh = 0; // Track when we last refreshed from Firestore
 
 function gameLoop() {
-    if (gameEnded) {
+    if (gameEnded || !gameStarted) {
         requestAnimationFrame(gameLoop);
         return;
     }
@@ -4277,7 +4280,7 @@ function gameLoop() {
     updateMovement();
     
     // Send movement to server (throttled to 30fps max)
-    if (socket) {
+    if (socket && gameStarted && !gameEnded && localPlayer) {
         const now = Date.now();
         if (now - lastMovementSent > MOVEMENT_SEND_INTERVAL) {
             socket.emit('playerMove', movement);

@@ -1949,14 +1949,11 @@ io.on('connection', (socket) => {
       // Debug: Log calculated target velocity
       console.log(`🎮 Player ${player.name} target velocity: (${Math.round(player.targetVx * 10) / 10}, ${Math.round(player.targetVy * 10) / 10})`);
     } else {
-      // Enhanced debugging for playerMove issues
-      console.log(`⚠️ playerMove ignored - Socket ID: ${socket.id}`);
-      console.log(`⚠️ Player found: ${!!player}`);
-      console.log(`⚠️ GameStarted: ${gameState.gameStarted}`);
-      console.log(`⚠️ GameEnded: ${gameState.gameEnded}`);
-      console.log(`⚠️ Total players in game: ${gameState.players.size}`);
-      console.log(`⚠️ Available player names: ${Array.from(gameState.players.values()).map(p => p.name).join(', ')}`);
-      console.log(`⚠️ Available socket IDs: ${Array.from(gameState.players.keys()).join(', ')}`);
+      // Only log once per socket to avoid spam
+      if (!socket.playerMoveLogged) {
+        console.log(`⚠️ playerMove ignored - Socket ID: ${socket.id} (Game not ready: started=${gameState.gameStarted}, ended=${gameState.gameEnded}, players=${gameState.players.size})`);
+        socket.playerMoveLogged = true;
+      }
     }
   });
 
