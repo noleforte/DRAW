@@ -494,6 +494,65 @@ function createBot(id) {
   return bot;
 }
 
+// Safe function to create game update data without circular references
+function createSafeGameUpdate() {
+  try {
+    return {
+      players: Array.from(gameState.players.values()).map(p => ({
+        id: p.id,
+        x: Math.round(p.x),
+        y: Math.round(p.y),
+        vx: Math.round(p.vx * 10) / 10,
+        vy: Math.round(p.vy * 10) / 10,
+        score: p.score,
+        size: p.size,
+        name: p.name,
+        color: p.playerEater ? `hsl(${p.rainbowHue || 0}, 70%, 50%)` : p.color,
+        playerEater: !!p.playerEater,
+        playerEaterEndTime: p.playerEaterEndTime || 0,
+        coinBoost: !!p.coinBoost,
+        coinBoostEndTime: p.coinBoostEndTime || 0
+      })),
+      bots: Array.from(gameState.bots.values()).map(b => ({
+        id: b.id,
+        x: Math.round(b.x),
+        y: Math.round(b.y),
+        score: b.score,
+        size: b.size,
+        name: b.name,
+        color: b.playerEater ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
+        playerEater: !!b.playerEater,
+        playerEaterEndTime: b.playerEaterEndTime || 0,
+        coinBoost: !!b.coinBoost,
+        coinBoostEndTime: b.coinBoostEndTime || 0
+      })),
+      coins: Array.from(gameState.coins.values()).map(c => ({
+        id: c.id,
+        x: Math.round(c.x),
+        y: Math.round(c.y)
+      })),
+      boosters: Array.from(gameState.boosters.values()).map(b => ({
+        id: b.id,
+        x: Math.round(b.x),
+        y: Math.round(b.y),
+        type: b.type,
+        name: b.name,
+        color: b.type === 'playerEater' ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
+        effect: b.effect
+      }))
+    };
+  } catch (error) {
+    console.error('❌ Error creating game update:', error.message);
+    return {
+      players: gameState.players.size,
+      bots: gameState.bots.size,
+      coins: gameState.coins.size,
+      boosters: gameState.boosters.size,
+      error: 'Failed to create full update'
+    };
+  }
+}
+
 // Function to respawn coin booster in new random location
 function respawnCoinBooster(boosterId) {
   const oldBooster = gameState.boosters.get(boosterId);
@@ -1989,46 +2048,9 @@ io.on('connection', (socket) => {
         console.log(`💰 Updating player ${player.name} score from ${player.score} to ${data.score}`);
         player.score = data.score;
         
-        // Broadcast updated game state to all clients
-        io.emit('gameUpdate', {
-          players: Array.from(gameState.players.values()).map(p => ({
-            id: p.id,
-            x: Math.round(p.x),
-            y: Math.round(p.y),
-            vx: Math.round(p.vx * 10) / 10,
-            vy: Math.round(p.vy * 10) / 10,
-            score: p.score,
-            size: p.size,
-            name: p.name,
-            color: p.color,
-            playerEater: p.playerEater || false
-          })),
-          bots: Array.from(gameState.bots.values()).map(b => ({
-            id: b.id,
-            x: Math.round(b.x),
-            y: Math.round(b.y),
-            score: b.score,
-            size: b.size,
-            name: b.name,
-            color: b.color,
-            playerEater: b.playerEater || false
-          })),
-        coins: Array.from(gameState.coins.values()).map(c => ({
-          id: c.id,
-          x: Math.round(c.x),
-          y: Math.round(c.y),
-          value: c.value
-        })),
-        boosters: Array.from(gameState.boosters.values()).map(b => ({
-          id: b.id,
-          x: Math.round(b.x),
-          y: Math.round(b.y),
-          type: b.type,
-          name: b.name,
-          color: b.color,
-          effect: b.effect
-        }))
-      });
+        // Broadcast updated game state to all clients using safe function
+        const gameUpdate = createSafeGameUpdate();
+        io.emit('gameUpdate', gameUpdate);
     }
   });
 
@@ -2039,46 +2061,9 @@ io.on('connection', (socket) => {
           console.log(`📏 Updating player ${player.name} size from ${player.size} to ${data.size}`);
           player.size = data.size;
           
-          // Broadcast updated game state to all clients
-          io.emit('gameUpdate', {
-            players: Array.from(gameState.players.values()).map(p => ({
-              id: p.id,
-              x: Math.round(p.x),
-              y: Math.round(p.y),
-              vx: Math.round(p.vx * 10) / 10,
-              vy: Math.round(p.vy * 10) / 10,
-              score: p.score,
-              size: p.size,
-              name: p.name,
-              color: p.color,
-              playerEater: p.playerEater || false
-            })),
-            bots: Array.from(gameState.bots.values()).map(b => ({
-              id: b.id,
-              x: Math.round(b.x),
-              y: Math.round(b.y),
-              score: b.score,
-              size: b.size,
-              name: b.name,
-              color: b.color,
-              playerEater: b.playerEater || false
-            })),
-        coins: Array.from(gameState.coins.values()).map(c => ({
-          id: c.id,
-          x: Math.round(c.x),
-          y: Math.round(c.y),
-          value: c.value
-        })),
-        boosters: Array.from(gameState.boosters.values()).map(b => ({
-          id: b.id,
-          x: Math.round(b.x),
-          y: Math.round(b.y),
-          type: b.type,
-          name: b.name,
-          color: b.color,
-          effect: b.effect
-        }))
-      });
+          // Broadcast updated game state to all clients using safe function
+          const gameUpdate = createSafeGameUpdate();
+          io.emit('gameUpdate', gameUpdate);
     }
   });
 
@@ -2206,70 +2191,16 @@ setInterval(() => {
       console.log(`🎮 Player ${firstPlayer.name} - Pos: (${Math.round(firstPlayer.x)}, ${Math.round(firstPlayer.y)}), Vel: (${Math.round(firstPlayer.vx * 10) / 10}, ${Math.round(firstPlayer.vy * 10) / 10})`);
     }
     
-    // Only send essential data, not full objects - simplified to prevent circular references
-    const gameUpdate = {
-      players: Array.from(gameState.players.values()).map(p => ({
-        id: p.id,
-        x: Math.round(p.x),
-        y: Math.round(p.y),
-        vx: Math.round(p.vx * 10) / 10,
-        vy: Math.round(p.vy * 10) / 10,
-        score: p.score,
-        size: p.size,
-        name: p.name,
-        color: p.playerEater ? `hsl(${p.rainbowHue || 0}, 70%, 50%)` : p.color,
-        playerEater: !!p.playerEater,
-        playerEaterEndTime: p.playerEaterEndTime || 0,
-        coinBoost: !!p.coinBoost,
-        coinBoostEndTime: p.coinBoostEndTime || 0
-      })),
-      bots: Array.from(gameState.bots.values()).map(b => ({
-        id: b.id,
-        x: Math.round(b.x),
-        y: Math.round(b.y),
-        score: b.score,
-        size: b.size,
-        name: b.name,
-        color: b.playerEater ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
-        playerEater: !!b.playerEater,
-        playerEaterEndTime: b.playerEaterEndTime || 0,
-        coinBoost: !!b.coinBoost,
-        coinBoostEndTime: b.coinBoostEndTime || 0
-      })),
-      coins: Array.from(gameState.coins.values()).map(c => ({
-        id: c.id,
-        x: Math.round(c.x),
-        y: Math.round(c.y)
-      })),
-      boosters: Array.from(gameState.boosters.values()).map(b => ({
-        id: b.id,
-        x: Math.round(b.x),
-        y: Math.round(b.y),
-        type: b.type,
-        name: b.name,
-        color: b.type === 'playerEater' ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
-        effect: b.effect
-        // Исключаем spawnTime, respawnTimer и другие серверные поля
-      }))
-    };
+    // Use safe function to create game update data
+    const gameUpdate = createSafeGameUpdate();
     
-    // Safely emit game update with error handling for circular references
+    // Safely emit game update
     try {
       io.emit('gameUpdate', gameUpdate);
     } catch (error) {
       console.error('❌ Error sending gameUpdate:', error.message);
-      
-      // If circular reference error, send simplified data
-      if (error.message.includes('circular') || error.message.includes('stack')) {
-        console.log('🔄 Sending simplified gameUpdate due to circular reference');
-        const simplifiedUpdate = {
-          players: gameState.players.size,
-          bots: gameState.bots.size,
-          coins: gameState.coins.size,
-          boosters: gameState.boosters.size
-        };
-        io.emit('gameUpdate', simplifiedUpdate);
-      }
+      // Fallback to simple update if needed
+      io.emit('gameUpdate', { error: 'Update failed', timestamp: Date.now() });
     }
   }
 }, 1000 / 60); // 60 FPS logic, 20 FPS network
