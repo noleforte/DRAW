@@ -626,15 +626,40 @@ class GameDataService {
             console.log(`🔄 Firestore query returned ${playersSnapshot.size} documents`);
             
             const players = [];
+            const seenNicknames = new Set(); // Track seen nicknames to avoid duplicates
             
             playersSnapshot.forEach(doc => {
                 const data = doc.data();
                 console.log(`🔄 Processing document ${doc.id}:`, data);
                 
+                // Skip players with zero or negative total score
+                if (!data.totalScore || data.totalScore <= 0) {
+                    console.log(`🔄 Skipping player ${doc.id} with score: ${data.totalScore}`);
+                    return;
+                }
+                
+                // Skip guest and temporary player accounts
+                const nickname = data.nickname || data.playerName || doc.id;
+                if (nickname.startsWith('Player_guest_') || 
+                    nickname.startsWith('Player_player_') ||
+                    nickname.startsWith('guest_') ||
+                    nickname.startsWith('player_')) {
+                    console.log(`🔄 Skipping temporary player: ${nickname}`);
+                    return;
+                }
+                
+                // Skip duplicate nicknames (keep the one with higher score)
+                if (seenNicknames.has(nickname)) {
+                    console.log(`🔄 Skipping duplicate nickname: ${nickname}`);
+                    return;
+                }
+                
+                seenNicknames.add(nickname);
+                
                 const player = {
                     playerId: doc.id,
-                    nickname: data.nickname || data.playerName || doc.id,
-                    playerName: data.playerName || data.nickname || doc.id,
+                    nickname: nickname,
+                    playerName: nickname,
                     totalScore: data.totalScore || 0,
                     bestScore: data.bestScore || 0,
                     gamesPlayed: data.gamesPlayed || 0,
@@ -654,7 +679,7 @@ class GameDataService {
             // Sort by totalScore descending
             players.sort((a, b) => b.totalScore - a.totalScore);
             
-            console.log(`✅ Retrieved ${players.length} players from database, top 3:`, players.slice(0, 3));
+            console.log(`✅ Retrieved ${players.length} filtered players from database, top 3:`, players.slice(0, 3));
             return players;
         } catch (error) {
             console.error('❌ Error getting all players:', error);

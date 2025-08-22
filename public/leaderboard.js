@@ -178,7 +178,7 @@ class LeaderboardManager {
             return;
         }
 
-        const data = this.currentType === 'match' ? this.matchLeaderboard : this.globalLeaderboard;
+        let data = this.currentType === 'match' ? this.matchLeaderboard : this.globalLeaderboard;
         console.log('🔄 Rendering leaderboard:', this.currentType);
         console.log('🔄 Data type:', typeof data);
         console.log('🔄 Data length:', data ? data.length : 'undefined');
@@ -187,10 +187,52 @@ class LeaderboardManager {
         if (!data || data.length === 0) {
             const message = this.currentType === 'match' 
                 ? 'No players in current match' 
-                : 'No players found in database';
+                : 'No active players found in database';
             leaderboardList.innerHTML = `<div class="text-gray-400 text-sm">${message}</div>`;
             console.log('🔄 No data available for', this.currentType, '- showing message:', message);
             return;
+        }
+
+        // Additional client-side filtering for global leaderboard
+        if (this.currentType === 'global') {
+            console.log('🔄 Applying client-side filtering...');
+            
+            // Remove duplicates by nickname (keep highest score)
+            const uniquePlayers = new Map();
+            data.forEach(player => {
+                const nickname = player.nickname || player.playerName || player.name || 'Unknown';
+                const currentScore = player.totalScore || 0;
+                
+                if (!uniquePlayers.has(nickname) || 
+                    currentScore > (uniquePlayers.get(nickname).totalScore || 0)) {
+                    uniquePlayers.set(nickname, player);
+                }
+            });
+            
+            // Convert back to array and filter out unwanted players
+            data = Array.from(uniquePlayers.values()).filter(player => {
+                const nickname = player.nickname || player.playerName || player.name || 'Unknown';
+                
+                // Skip players with zero or negative score
+                if (!player.totalScore || player.totalScore <= 0) {
+                    return false;
+                }
+                
+                // Skip temporary player accounts
+                if (nickname.startsWith('Player_guest_') || 
+                    nickname.startsWith('Player_player_') ||
+                    nickname.startsWith('guest_') ||
+                    nickname.startsWith('player_')) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            // Sort by totalScore descending
+            data.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
+            
+            console.log(`🔄 After filtering: ${data.length} unique active players`);
         }
 
         // Update header text based on type
@@ -198,7 +240,16 @@ class LeaderboardManager {
             console.log('🔄 Rendering global leaderboard with data:', data);
             const onlineCount = data.filter(p => p.isOnline).length;
             const totalCount = data.length;
-            const headerText = `All Players (${onlineCount} Online, ${totalCount - onlineCount} Offline)`;
+            
+            // Show filtering info if we have original data
+            const originalCount = this.globalLeaderboard ? this.globalLeaderboard.length : 0;
+            const filteredCount = originalCount - totalCount;
+            
+            let headerText = `All Players (${onlineCount} Online, ${totalCount} Active)`;
+            if (filteredCount > 0) {
+                headerText += ` - ${filteredCount} filtered out`;
+            }
+            
             console.log('🔄 Header text:', headerText);
             
             const leaderboardHeader = document.querySelector('.leaderboard-header h2');
@@ -245,10 +296,12 @@ class LeaderboardManager {
         }).join('');
 
         leaderboardList.innerHTML = html;
-        console.log('🔄 Leaderboard rendered successfully with', data.length, 'players');
+        console.log('🔄 Leaderboard rendered successfully with', data.length, 'filtered players');
 
-        // Add type indicator
-        const header = this.currentType === 'match' ? '🏆 Match Leaders' : '🌟 All Players Database (🟢 Online, 🔴 Offline)';
+        // Add type indicator with filtered count
+        const header = this.currentType === 'match' 
+            ? '🏆 Match Leaders' 
+            : `🌟 All Players Database (${data.length} Active Players)`;
         const headerElement = document.querySelector('#leaderboard h3');
         if (headerElement) {
             headerElement.textContent = header;
