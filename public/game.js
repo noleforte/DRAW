@@ -450,9 +450,6 @@ class HybridAuthSystem {
     // Sync user stats from Firestore and update localStorage
     async syncUserStatsFromFirestore() {
         const currentUser = this.getCurrentUserSync();
-        console.log('🔍 syncUserStatsFromFirestore - currentUser:', currentUser?.nickname);
-        console.log('🔍 syncUserStatsFromFirestore - isOnline:', this.isOnline);
-        console.log('🔍 syncUserStatsFromFirestore - firebaseDb:', !!window.firebaseDb);
         
         if (!currentUser || !this.isOnline || !window.firebaseDb) {
             console.log('⚠️ Cannot sync - missing requirements');
@@ -470,13 +467,11 @@ class HybridAuthSystem {
             
             // Try to get data from players collection (game data)
             try {
-            console.log('🔍 Fetching from Firestore collection players, doc:', normalizedNickname);
+
                 const playersDoc = await window.firebaseDb.collection('players').doc(normalizedNickname).get();
                 
                 if (playersDoc.exists) {
                     const playersData = playersDoc.data();
-                    console.log('🔍 Players collection data:', JSON.stringify(playersData, null, 2));
-                    
                     // Extract stats from players collection (check both root and nested stats)
                     const playersStats = {
                         totalScore: Math.max(playersData.totalScore || 0, playersData.stats?.totalScore || 0),
@@ -484,8 +479,6 @@ class HybridAuthSystem {
                         bestScore: Math.max(playersData.bestScore || 0, playersData.stats?.bestScore || 0),
                         wins: Math.max(playersData.wins || 0, playersData.stats?.wins || 0)
                     };
-                    
-                    console.log('📊 Players collection stats:', playersStats);
                     
                     // Use maximum values between players and current stats
                     bestStats.totalScore = Math.max(bestStats.totalScore, playersStats.totalScore);
@@ -500,19 +493,12 @@ class HybridAuthSystem {
             }
             
             // Note: Users collection access is restricted, so we'll work with players collection only
-            console.log('ℹ️ Skipping users collection due to access restrictions');
             
-            console.log('📊 Best combined stats:', bestStats);
-                console.log('👤 Current user stats before update:', currentUser.stats);
-                
             // Update localStorage user stats with best combined data
             currentUser.stats = bestStats;
                 
-                console.log('👤 Current user stats after assignment:', currentUser.stats);
-                
                 // Save updated user back to localStorage
                 this.setCurrentUser(currentUser);
-                console.log('🔄 Synced user stats from Firestore:', currentUser.stats);
                 
                 return currentUser;
         } catch (error) {
@@ -541,7 +527,6 @@ class HybridAuthSystem {
         }
         
         localStorage.setItem('currentUser', JSON.stringify(user));
-        console.log('👤 User set as current:', user.nickname, 'with stats:', user.stats);
     }
 
     // Update user stats (Firestore first, then cache locally)
@@ -1050,9 +1035,7 @@ function setupSocketListeners() {
         // If not found by socketId, try to find by name (fallback for reconnection)
         if (!localPlayer && previousLocalPlayer) {
             localPlayer = gameState.players.find(p => p.name === previousLocalPlayer.name);
-            if (localPlayer) {
-                console.log('🔄 Found localPlayer by name fallback:', localPlayer.name);
-            }
+
         }
         
         // If still not found, try gameState.playerId as last resort
@@ -3209,7 +3192,6 @@ function updateCamera() {
             const sizeMultiplier = calculateSpeedMultiplier(localPlayer.score || 0);
             const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
             maxSpeedElement.textContent = maxSpeed.toString();
-            console.log(`🏃 Max speed calculated: ${baseSpeed} × ${sizeMultiplier.toFixed(2)} = ${maxSpeed} (Score: ${localPlayer.score || 0})`);
         }
     }
     
@@ -3300,8 +3282,7 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
             }
         });
         
-        // Log the update for debugging
-        console.log('💰 Updated currentGameScore display to:', player.score || 0);
+
     } else {
         console.warn('⚠️ currentGameScore element not found');
     }
@@ -3351,7 +3332,6 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
             const sizeMultiplier = calculateSpeedMultiplier(player.score || 0);
             const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
             maxSpeedElement.textContent = maxSpeed.toString();
-            console.log(`🏃 Max speed calculated: ${baseSpeed} × ${sizeMultiplier.toFixed(2)} = ${maxSpeed} (Score: ${player.score || 0})`);
         }
     } else {
         console.warn('⚠️ maxSpeedValue element not found');
@@ -3393,8 +3373,7 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
         console.warn('⚠️ speedLevel element not found');
     }
     
-    // Log updates for debugging
-    console.log('📊 Updated player stats display - Score:', player.score, 'Size:', player.size, 'Speed:', currentSpeed);
+
     
     // Update booster status in stats if elements exist
     updateBoosterStatusDisplay();
@@ -3445,12 +3424,9 @@ function render() {
     
     // Draw boosters
     if (gameState.boosters) {
-        console.log(`🎯 Rendering ${gameState.boosters.length} boosters:`, gameState.boosters);
         gameState.boosters.forEach(booster => {
             drawBooster(booster);
         });
-    } else {
-        console.log('⚠️ No boosters in gameState');
     }
     
     // Draw players and bots
@@ -3613,19 +3589,14 @@ function drawCoin(coin) {
 }
 
 function drawBooster(booster) {
-    console.log(`🎯 Drawing booster: ${booster.name} at (${booster.x}, ${booster.y})`);
-    
     const screenPos = worldToScreen(booster.x, booster.y);
     const radius = 12 * camera.zoom; // Slightly larger than coins
     
     // Skip if off-screen
     if (screenPos.x < -radius || screenPos.x > canvas.width + radius ||
         screenPos.y < -radius || screenPos.y > canvas.height + radius) {
-        console.log(`🎯 Booster ${booster.name} is off-screen, skipping`);
         return;
     }
-    
-    console.log(`🎯 Drawing booster ${booster.name} on screen at (${screenPos.x}, ${screenPos.y})`);
     
     // Booster body
     ctx.fillStyle = booster.color;
@@ -3668,10 +3639,7 @@ function drawEntity(entity) {
     const screenPos = worldToScreen(entity.x, entity.y);
     const radius = entity.size * camera.zoom;
     
-    // Debug: log first few draws
-    if (Math.random() < 0.01) { // 1% chance to avoid spam
-        console.log(`🎯 Drawing entity "${entity.name}" at (${entity.x}, ${entity.y}) screen: (${screenPos.x}, ${screenPos.y}) radius: ${radius}`);
-    }
+
     
     // Skip if off-screen
     if (screenPos.x < -radius || screenPos.x > canvas.width + radius ||
@@ -4998,10 +4966,7 @@ function debugUIElements() {
         playerInfoStatus: document.getElementById('playerInfoStatus')
     };
     
-    console.log('🔍 UI Elements debug:');
-    Object.entries(elements).forEach(([name, element]) => {
-        console.log(`  ${name}:`, element ? '✅ Found' : '❌ Missing', element);
-    });
+
     
     return elements;
 }
