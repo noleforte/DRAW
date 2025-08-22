@@ -1463,6 +1463,9 @@ function startBotSimulation() {
 function initializeGame() {
   generateCoins(300);
   
+  // Generate initial boosters
+  generateBoosters(3);
+  
   // Create initial AI bots (start with fewer)
   for (let i = 0; i < 8; i++) {
     const bot = createBot(gameState.nextBotId++);

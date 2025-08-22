@@ -833,6 +833,9 @@ function setupSocketListeners() {
         gameState.boosters = data.boosters || [];
         window.gameState = gameState; // Make gameState globally available
         
+        // Log boosters in gameState
+        console.log(`🎯 gameState - Boosters received: ${data.boosters ? data.boosters.length : 0}`, data.boosters);
+        
         // Initialize boosters array if not present
         if (!gameState.boosters) {
             gameState.boosters = [];
@@ -1031,6 +1034,9 @@ function setupSocketListeners() {
         gameState.coins = data.coins;
         gameState.boosters = data.boosters || [];
         window.gameState = gameState; // Update global reference
+        
+        // Log boosters update
+        console.log(`🎯 gameUpdate - Boosters received: ${data.boosters ? data.boosters.length : 0}`, data.boosters);
         
         // Initialize boosters array if not present
         if (!gameState.boosters) {
@@ -3391,9 +3397,12 @@ function render() {
     
     // Draw boosters
     if (gameState.boosters) {
+        console.log(`🎯 Rendering ${gameState.boosters.length} boosters:`, gameState.boosters);
         gameState.boosters.forEach(booster => {
             drawBooster(booster);
         });
+    } else {
+        console.log('⚠️ No boosters in gameState');
     }
     
     // Draw players and bots
@@ -3556,14 +3565,19 @@ function drawCoin(coin) {
 }
 
 function drawBooster(booster) {
+    console.log(`🎯 Drawing booster: ${booster.name} at (${booster.x}, ${booster.y})`);
+    
     const screenPos = worldToScreen(booster.x, booster.y);
     const radius = 12 * camera.zoom; // Slightly larger than coins
     
     // Skip if off-screen
     if (screenPos.x < -radius || screenPos.x > canvas.width + radius ||
         screenPos.y < -radius || screenPos.y > canvas.height + radius) {
+        console.log(`🎯 Booster ${booster.name} is off-screen, skipping`);
         return;
     }
+    
+    console.log(`🎯 Drawing booster ${booster.name} on screen at (${screenPos.x}, ${screenPos.y})`);
     
     // Booster body
     ctx.fillStyle = booster.color;
