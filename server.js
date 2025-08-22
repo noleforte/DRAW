@@ -1069,6 +1069,15 @@ function updateBots() {
                       // Save to totalScore field (not score)
                       await GameDataService.updatePlayerFullStats(playerIdForFirebase, { totalScore: target.score });
                       console.log(`💰 Successfully saved updated totalScore for ${target.name} after being eaten by bot: ${target.score}`);
+                      
+                      // Notify all clients about updated player stats for real-time leaderboard updates
+                      io.emit('playerStatsUpdated', {
+                        playerId: playerIdForFirebase,
+                        nickname: target.name,
+                        totalScore: target.score,
+                        type: 'scoreUpdate'
+                      });
+                      console.log(`📡 Notified all clients about ${target.name}'s score update`);
                     } catch (error) {
                       console.error(`❌ Failed to save updated totalScore for ${target.name}:`, error);
                     }
@@ -1579,6 +1588,15 @@ function updatePlayers(deltaTime) {
                       // Save to totalScore field (not score)
                       await GameDataService.updatePlayerFullStats(playerIdForFirebase, { totalScore: target.score });
                       console.log(`💰 Successfully saved updated totalScore for ${target.name} after being eaten by player: ${target.score}`);
+                      
+                      // Notify all clients about updated player stats for real-time leaderboard updates
+                      io.emit('playerStatsUpdated', {
+                        playerId: playerIdForFirebase,
+                        nickname: target.name,
+                        totalScore: target.score,
+                        type: 'scoreUpdate'
+                      });
+                      console.log(`📡 Notified all clients about ${target.name}'s score update`);
                     } catch (error) {
                       console.error(`❌ Failed to save updated totalScore for ${target.name}:`, error);
                     }
@@ -2078,6 +2096,15 @@ io.on('connection', (socket) => {
       
       // Broadcast new player to all other players
       socket.broadcast.emit('playerJoined', player);
+      
+      // Notify all clients about new player for real-time leaderboard updates
+      io.emit('playerStatsUpdated', {
+        playerId: playerId,
+        nickname: name,
+        totalScore: player.score,
+        type: 'newPlayer'
+      });
+      console.log(`📡 Notified all clients about new player ${name}`);
       
       console.log(`🎮 New player ${name} joined with ID: ${playerId}, initial score: ${player.score}, initial size: ${player.size} (score starts at 0 for new game)`);
     }

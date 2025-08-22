@@ -48,6 +48,14 @@ class LeaderboardManager {
             }
         }, 10000);
         
+        // Listen for real-time player stats updates from server
+        if (window.socket) {
+            window.socket.on('playerStatsUpdated', (data) => {
+                console.log('📡 Received playerStatsUpdated event:', data);
+                this.handlePlayerStatsUpdate(data);
+            });
+        }
+        
         console.log('🔄 LeaderboardManager initialization complete');
     }
 
@@ -103,6 +111,21 @@ class LeaderboardManager {
             console.log('🔄 Toggle button text updated to:', toggleBtn.textContent);
         } else {
             console.error('❌ Toggle button not found!');
+        }
+    }
+
+    // Handle real-time player stats updates from server
+    handlePlayerStatsUpdate(data) {
+        console.log('🔄 Handling player stats update:', data);
+        
+        if (data.type === 'newPlayer') {
+            console.log(`🆕 New player detected: ${data.nickname}`);
+            // Force refresh global leaderboard to include new player
+            this.loadGlobalLeaderboard();
+        } else if (data.type === 'scoreUpdate') {
+            console.log(`💰 Score update detected for: ${data.nickname}`);
+            // Force refresh global leaderboard to show updated scores
+            this.loadGlobalLeaderboard();
         }
     }
 

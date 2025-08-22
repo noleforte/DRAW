@@ -1304,6 +1304,16 @@ function setupSocketListeners() {
     
 
     
+    // Listen for real-time player stats updates from server
+    socket.on('playerStatsUpdated', (data) => {
+        console.log('📡 Received playerStatsUpdated event in game.js:', data);
+        
+        // Notify leaderboard manager if it exists
+        if (window.leaderboardManager) {
+            window.leaderboardManager.handlePlayerStatsUpdate(data);
+        }
+    });
+    
     socket.on('chatMessage', (data) => {
         addChatMessage(data);
         showSpeechBubble(data);

@@ -21,6 +21,17 @@ class AuthSystem {
                     // Auto-fill player name if signed in
                     this.autoFillPlayerInfo();
                     this.setupCoinsListener(); // Setup listener for coins updates
+                    
+                    // Notify leaderboard manager about new user if it exists
+                    if (window.leaderboardManager) {
+                        console.log('📡 Notifying leaderboard manager about new user');
+                        window.leaderboardManager.handlePlayerStatsUpdate({
+                            playerId: user.uid,
+                            nickname: user.displayName || user.email,
+                            totalScore: 0,
+                            type: 'newPlayer'
+                        });
+                    }
                 } else {
                     this.showGuestUI();
                     this.stopCoinsListener(); // Stop listener when user signs out
