@@ -32,7 +32,7 @@ let gameEnded = false;
 let matchStartTime = null;
 let clientTimerInterval = null;
 let timeOffset = 0; // Offset between client and server time
-let gamePaused = false; // Game pause state
+// Game pause state removed - ESC now reloads page
 let activeBoosters = {
     speed: { active: false, multiplier: 1, endTime: 0 },
     coins: { active: false, multiplier: 1, endTime: 0 },
@@ -1369,7 +1369,7 @@ function setupSocketListeners() {
                     speechBubbles.clear();
                     
                     // Reset pause state
-                    gamePaused = false;
+                    // Game pause state removed
                     const pauseModal = document.getElementById('pauseModal');
                     if (pauseModal) {
                         pauseModal.style.display = 'none';
@@ -1655,13 +1655,8 @@ function setupSocketListeners() {
     socket.on('afkKick', (data) => {
         console.log('⏰ AFK kick received, reloading page...', data);
         
-        // Show brief notification
-        showNotification(`⏰ Отключен за неактивность (AFK)`, 'warning', 1000);
-        
-        // Simple page reload after short delay
-        setTimeout(() => {
-            window.location.reload();
-        }, 1000);
+        // Simple page reload immediately
+        window.location.reload();
     });
     
     socket.on('connect_error', (error) => {
@@ -2195,70 +2190,17 @@ function setupInputHandlers() {
                 }
             }
             
-            // Escape key to blur chat input (but don't interfere with pause system)
+            // Escape key to reload page
             if (e.code === 'Escape') {
-                console.log('🎮 ESC key detected in setupInputHandlers!');
-                const chatInput = document.getElementById('chatInput');
-                if (chatInput && document.activeElement === chatInput) {
-                    chatInput.blur();
-                    e.preventDefault();
-                    return; // Exit early to avoid other ESC handling
-                }
-                
-                // Handle pause/resume logic here to avoid conflicts
-                console.log('🎮 ESC key pressed in setupInputHandlers, gamePaused:', gamePaused, 'gameEnded:', gameEnded, 'localPlayer:', !!localPlayer);
-                
-                // First check if pause modal is open - if so, resume
-                if (gamePaused) {
-                    console.log('🎮 Game is paused, resuming...');
-                    resumeGame();
-                    return;
-                }
-                
-                // Only allow pause/resume when in game (not in menus)
-                const nameModal = document.getElementById('nameModal');
-                const authModal = document.getElementById('authModal');
-                const registrationModal = document.getElementById('registrationModal');
-                const gameOverModal = document.getElementById('gameOverModal');
-                
-                // Check if any modal is visible
-                const anyModalVisible = (
-                    !nameModal.classList.contains('hidden') ||
-                    !authModal.classList.contains('hidden') ||
-                    !registrationModal.classList.contains('hidden') ||
-                    !gameOverModal.classList.contains('hidden')
-                );
-                
-                console.log('🎮 Modal check details:');
-                console.log('  - nameModal:', nameModal ? 'found' : 'not found');
-                console.log('  - nameModal.classList.contains("hidden"):', nameModal?.classList.contains('hidden'));
-                console.log('  - nameModal.style.display:', nameModal?.style.display);
-                console.log('  - authModal.classList.contains("hidden"):', authModal?.classList.contains('hidden'));
-                console.log('  - registrationModal.classList.contains("hidden"):', registrationModal?.classList.contains('hidden'));
-                console.log('  - gameOverModal.classList.contains("hidden"):', gameOverModal?.classList.contains('hidden'));
-                console.log('  - anyModalVisible:', anyModalVisible);
-                console.log('  - gameEnded:', gameEnded);
-                console.log('  - localPlayer:', !!localPlayer);
-                
-                // Allow pause if: no modals visible, game not ended, and either localPlayer exists OR nameModal is hidden (game started)
-                const canPause = !anyModalVisible && !gameEnded && (localPlayer || nameModal?.style.display === 'none');
-                
-                console.log('🎮 canPause calculation:', canPause, '=', '!anyModalVisible:', !anyModalVisible, '&& !gameEnded:', !gameEnded, '&& (localPlayer || nameModal?.style.display === "none"):', (localPlayer || nameModal?.style.display === 'none'));
-                
-                if (canPause) {
-                    console.log('🎮 All conditions met, pausing game...');
-                    pauseGame();
-                } else {
-                    console.log('🎮 Cannot pause - conditions not met. anyModalVisible:', anyModalVisible, 'gameEnded:', gameEnded, 'localPlayer:', !!localPlayer, 'nameModal hidden:', nameModal?.style.display === 'none');
-                }
-                
+                console.log('🎮 ESC key pressed - reloading page...');
+                window.location.reload();
                 return; // Prevent further processing
             }
-            
-            // Prevent default for game keys only when not typing
-            if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
-                e.preventDefault();
-            }
+        }
+        
+        // Prevent default for game keys only when not typing
+        if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+            e.preventDefault();
         }
     });
     
@@ -2689,7 +2631,7 @@ function setupUIHandlers() {
         
         // Reset game state for new game
         gameEnded = false;
-        gamePaused = false;
+        // Game pause state removed
         localPlayer = null; // Will be recreated by server with saved size
         window.localPlayer = null;
         
@@ -3086,13 +3028,6 @@ async function handleGuestPlay() {
 }
 
 function updateMovement() {
-    // Don't process movement if game is paused
-    if (gamePaused) {
-        movement.x = 0;
-        movement.y = 0;
-        return;
-    }
-    
     // Check if user is typing in an input field
     const activeElement = document.activeElement;
     const isTyping = activeElement && (
@@ -4022,7 +3957,7 @@ function performLogout() {
     
     // 12. Reset player rank display and pause state
     updatePlayerRankDisplay();
-    gamePaused = false;
+    // Game pause state removed
     const pauseModal = document.getElementById('pauseModal');
     if (pauseModal) {
         pauseModal.classList.add('hidden');
@@ -4283,16 +4218,11 @@ function gameLoop() {
         return;
     }
     
-    if (gamePaused) {
-        requestAnimationFrame(gameLoop);
-        return;
-    }
-    
     // Silent game loop - no logs
     updateMovement();
     
     // Send movement to server (throttled to 30fps max)
-    if (socket && !gamePaused) {
+    if (socket) {
         const now = Date.now();
         if (now - lastMovementSent > MOVEMENT_SEND_INTERVAL) {
             socket.emit('playerMove', movement);
@@ -4521,50 +4451,7 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// Pause game functions
-function pauseGame() {
-    console.log('🎮 pauseGame called, gameEnded:', gameEnded, 'gamePaused:', gamePaused);
-    
-    // Check if we can pause - either localPlayer exists OR nameModal is hidden (game started)
-    const nameModal = document.getElementById('nameModal');
-    const canPause = !gameEnded && !gamePaused && (localPlayer || nameModal?.style.display === 'none');
-    
-    if (!canPause) {
-        console.log('🎮 Cannot pause - conditions not met');
-        return;
-    }
-    
-    gamePaused = true;
-    const pauseModal = document.getElementById('pauseModal');
-    if (pauseModal) {
-        pauseModal.classList.remove('hidden');
-        console.log('🎮 Game paused - modal shown');
-    } else {
-        console.warn('⚠️ Pause modal not found!');
-    }
-}
-
-function resumeGame() {
-    console.log('🎮 resumeGame called, gamePaused:', gamePaused);
-    if (!gamePaused) return;
-    
-    gamePaused = false;
-    const pauseModal = document.getElementById('pauseModal');
-    if (pauseModal) {
-        pauseModal.classList.add('hidden');
-        console.log('🎮 Game resumed - modal hidden');
-    } else {
-        console.warn('⚠️ Pause modal not found!');
-    }
-}
-
-function togglePause() {
-    if (gamePaused) {
-        resumeGame();
-    } else {
-        pauseGame();
-    }
-}
+// Pause functionality removed - ESC now reloads page
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', async () => {
@@ -4584,32 +4471,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }, 4000);
     
-    // Setup pause functionality
-    setupPauseControls();
-    
     console.log('🎮 DOMContentLoaded initialization completed');
 });
 
-// Setup pause controls
-function setupPauseControls() {
-    console.log('🎮 setupPauseControls called - setting up pause modal click handler');
-    
-    // Click to resume when paused
-    const pauseModal = document.getElementById('pauseModal');
-    if (pauseModal) {
-        pauseModal.addEventListener('click', () => {
-            if (gamePaused) {
-                console.log('🎮 Pause modal clicked, resuming game...');
-                resumeGame();
-            }
-        });
-        console.log('🎮 Pause modal click handler added');
-    } else {
-        console.warn('⚠️ Pause modal not found during setup!');
-    }
-    
-    console.log('🎮 Pause controls initialized - Click pause modal to resume');
-}
+// Pause controls removed - ESC now reloads page
 
 // Save game session when user leaves the page
 window.addEventListener('beforeunload', async (event) => {

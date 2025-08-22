@@ -773,7 +773,7 @@ function updateBots() {
     }
 
     // Apply speed multiplier if Player Eater is active
-    const botSpeedMultiplier = bot.playerEater ? Math.min(100, bot.speed || 1.5) : 1;
+    const botSpeedMultiplier = bot.playerEater ? 1.0 : 1;
     
     // Update position with speed multiplier
     bot.x += bot.vx * botSpeedMultiplier;
@@ -853,18 +853,16 @@ function updateBots() {
           // Set bot to Level 5 stats (minimum size for effectiveness)
           bot.size = Math.max(50, bot.size); // At least Level 5 size, but can be bigger if bot already has more score
           
-          // Calculate speed with Player Eater boost - limit to maximum 100
-          const baseSpeed = 1.5; // Level 5 base speed
-          const botPlayerEaterSpeedBoost = Math.min(100, baseSpeed + (bot.score / 1000)); // Speed increases with score but max 100
-          bot.speed = botPlayerEaterSpeedBoost;
+          // Set fixed speed for Player Eater boost - exactly 1.0 (100)
+          bot.speed = 1.0;
           
-          console.log(`👹 Bot ${bot.name} Player Eater speed: ${botPlayerEaterSpeedBoost} (limited to max 100)`);
+          console.log(`👹 Bot ${bot.name} Player Eater speed: 1.0 (fixed at 100)`);
           
           // Send notification to all players
            io.emit('chatMessage', {
             playerId: 'system',
             playerName: 'System',
-            message: `👹 Bot ${bot.name} collected Player Eater! Can now eat other players for 1 minute! (Level 5 size & speed boost, max 100)`,
+            message: `👹 Bot ${bot.name} collected Player Eater! Can now eat other players for 1 minute! (Level 5 size & fixed speed 100)`,
              timestamp: Date.now()
            });
            
@@ -983,6 +981,22 @@ function updateBots() {
         bot.playerEaterOriginalSpeed = undefined;
       }
       console.log(`👹 Player Eater expired for bot ${bot.name} - restored original size and speed`);
+      
+      // Respawn Player Eater booster on the map after 1 minute delay
+      setTimeout(() => {
+        const newBooster = {
+          id: `booster_${gameState.nextBoosterId++}`,
+          ...getRandomPosition(),
+          type: 'playerEater',
+          name: 'Player Eater',
+          color: 'rainbow',
+          effect: 'Eat other players + Level 5 stats',
+          isBooster: true,
+          rainbowHue: 0
+        };
+        gameState.boosters.set(newBooster.id, newBooster);
+        console.log(`👹 Player Eater booster respawned on map after bot ${bot.name} expired (1 minute delay)`);
+      }, 60000); // 1 minute delay before respawn
     }
     
     // Check and expire Coin Booster for bots
@@ -1006,7 +1020,7 @@ function updatePlayers(deltaTime) {
     player.vy += (player.targetVy - player.vy) * lerpFactor;
     
     // Apply speed multiplier if Player Eater is active
-    const speedMultiplier = player.playerEater ? Math.min(100, player.speed || 1.5) : 1;
+    const speedMultiplier = player.playerEater ? 1.0 : 1;
     
     // Update position based on velocity, deltaTime, and speed multiplier
     player.x += player.vx * deltaTime * speedMultiplier;
@@ -1121,18 +1135,16 @@ function updatePlayers(deltaTime) {
                         // Set player to Level 5 stats (minimum size for effectiveness)
                         player.size = Math.max(50, player.size); // At least Level 5 size, but can be bigger if player already has more score
                         
-                        // Calculate speed with Player Eater boost - limit to maximum 100
-                        const baseSpeed = 1.5; // Level 5 base speed
-                        const playerEaterSpeedBoost = Math.min(100, baseSpeed + (player.score / 1000)); // Speed increases with score but max 100
-                        player.speed = playerEaterSpeedBoost;
+                        // Set fixed speed for Player Eater boost - exactly 1.0 (100)
+                        player.speed = 1.0;
                         
-                        console.log(`👹 Player ${player.name} Player Eater speed: ${playerEaterSpeedBoost} (limited to max 100)`);
+                        console.log(`👹 Player ${player.name} Player Eater speed: 1.0 (fixed at 100)`);
                         
                         // Send notification to all players
                         io.emit('chatMessage', {
                             playerId: 'system',
                             playerName: 'System',
-                            message: `👹 ${player.name} collected Player Eater! Can now eat other players for 1 minute! (Level 5 size & speed boost, max 100)`,
+                            message: `👹 ${player.name} collected Player Eater! Can now eat other players for 1 minute! (Level 5 size & fixed speed 100)`,
                             timestamp: Date.now()
                         });
                     } else if (booster.type === 'coins') {
@@ -1211,6 +1223,22 @@ function updatePlayers(deltaTime) {
         player.playerEaterOriginalSpeed = undefined;
       }
       console.log(`👹 Player Eater expired for player ${player.name} - restored original size and speed`);
+      
+      // Respawn Player Eater booster on the map after 1 minute delay
+      setTimeout(() => {
+        const newBooster = {
+          id: `booster_${gameState.nextBoosterId++}`,
+          ...getRandomPosition(),
+          type: 'playerEater',
+          name: 'Player Eater',
+          color: 'rainbow',
+          effect: 'Eat other players + Level 5 stats',
+          isBooster: true,
+          rainbowHue: 0
+        };
+        gameState.boosters.set(newBooster.id, newBooster);
+        console.log(`👹 Player Eater booster respawned on map after player ${player.name} expired (1 minute delay)`);
+      }, 60000); // 1 minute delay before respawn
     }
     
     if (player.coinBoost && now > player.coinBoostEndTime) {
