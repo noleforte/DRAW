@@ -1134,10 +1134,13 @@ class GameDataService {
     }
 }
 
+// Create instance first
+const gameDataServiceInstance = new GameDataService();
+
 module.exports = {
     admin,
     db,
     auth,
-    GameDataService: new GameDataService(),
-    findPlayerByPasswordHash: GameDataService.findPlayerByPasswordHash.bind(GameDataService)
+    GameDataService: gameDataServiceInstance,
+    findPlayerByPasswordHash: gameDataServiceInstance.findPlayerByPasswordHash.bind(gameDataServiceInstance)
 }; 
