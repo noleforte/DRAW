@@ -3176,11 +3176,13 @@ function updateCamera() {
         // Check if Player Eater is active - limit max speed to 100
         if (localPlayer.playerEater) {
             maxSpeedElement.textContent = '100';
+            console.log('👹 Max speed limited to 100 (Player Eater active)');
         } else {
             const baseSpeed = 200;
             const sizeMultiplier = calculateSpeedMultiplier(localPlayer.score || 0);
             const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
             maxSpeedElement.textContent = maxSpeed.toString();
+            console.log(`🏃 Max speed calculated: ${baseSpeed} × ${sizeMultiplier.toFixed(2)} = ${maxSpeed} (Score: ${localPlayer.score || 0})`);
         }
     }
     
@@ -3225,14 +3227,14 @@ function updateCamera() {
 // Global function to calculate speed multiplier for max speed calculation (based on score)
 function calculateSpeedMultiplier(score) {
     // Score-based speed system (same as server):
-    // 0-100 coins: 100% speed (fast)
-    // 100-250 coins: 85% speed
-    // 250-500 coins: 70% speed  
-    // 500-1000 coins: 55% speed
-    // 1000+ coins: 40% speed (slow)
+    // Level 1 (0-100 coins): 100% speed (fast) = 200 max speed
+    // Level 2 (100-250 coins): 85% speed = 170 max speed
+    // Level 3 (250-500 coins): 70% speed = 140 max speed  
+    // Level 4 (500-1000 coins): 55% speed = 110 max speed
+    // Level 5 (1000+ coins): 40% speed = 80 max speed (slow)
     
     if (score <= 100) {
-        return 1.0; // 100% speed for 0-100 coins
+        return 1.0; // 100% speed for 0-100 coins = 200 max speed
     } else if (score <= 250) {
         // Linear interpolation from 100% to 85% for 100-250 coins
         const progress = (score - 100) / 150;
@@ -3240,13 +3242,13 @@ function calculateSpeedMultiplier(score) {
     } else if (score <= 500) {
         // Linear interpolation from 85% to 70% for 250-500 coins
         const progress = (score - 250) / 250;
-        return 0.70 + (progress * 0.15);
+        return 0.85 - (progress * 0.15);
     } else if (score <= 1000) {
         // Linear interpolation from 70% to 55% for 500-1000 coins
         const progress = (score - 500) / 500;
         return 0.70 - (progress * 0.15);
     } else {
-        // 40% speed for 1000+ coins
+        // 40% speed for 1000+ coins = 80 max speed
         return 0.40;
     }
 }
@@ -3307,11 +3309,13 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
         // Check if Player Eater is active - limit max speed to 100
         if (player.playerEater) {
             maxSpeedElement.textContent = '100';
+            console.log('👹 Max speed limited to 100 (Player Eater active)');
         } else {
             const baseSpeed = 200;
             const sizeMultiplier = calculateSpeedMultiplier(player.score || 0);
             const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
             maxSpeedElement.textContent = maxSpeed.toString();
+            console.log(`🏃 Max speed calculated: ${baseSpeed} × ${sizeMultiplier.toFixed(2)} = ${maxSpeed} (Score: ${player.score || 0})`);
         }
     } else {
         console.warn('⚠️ maxSpeedValue element not found');
@@ -4992,6 +4996,21 @@ function forceUpdateGameStatsDisplay(player) {
     updateCurrentGameScoreDisplay(player.score || 0);
     console.log('💰 Force updated currentGameScore to:', player.score || 0);
     
+    // Force update max speed display
+    const maxSpeedElement = document.getElementById('maxSpeedValue');
+    if (maxSpeedElement) {
+        if (player.playerEater) {
+            maxSpeedElement.textContent = '100';
+            console.log('👹 Force updated max speed to 100 (Player Eater active)');
+        } else {
+            const baseSpeed = 200;
+            const sizeMultiplier = calculateSpeedMultiplier(player.score || 0);
+            const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
+            maxSpeedElement.textContent = maxSpeed.toString();
+            console.log(`🏃 Force updated max speed: ${baseSpeed} × ${sizeMultiplier.toFixed(2)} = ${maxSpeed} (Score: ${player.score || 0})`);
+        }
+    }
+    
     // Also update total coins from auth system if available
     if (window.authSystem && window.authSystem.currentUser) {
         const totalCoinsElement = document.getElementById('totalCoins');
@@ -5617,7 +5636,7 @@ function updateBoosterStatusDisplay() {
                 const sizeMultiplier = calculateSpeedMultiplier(localPlayer.score || 0);
                 const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
                 maxSpeedElement.textContent = maxSpeed.toString();
-                console.log(`👹 Max speed updated to ${maxSpeed} in booster display (Player Eater inactive)`);
+                console.log(`🏃 Max speed updated to ${maxSpeed} in booster display (Player Eater inactive) - Score: ${localPlayer.score || 0}, Multiplier: ${sizeMultiplier.toFixed(2)}`);
             }
         }
     }
