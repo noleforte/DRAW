@@ -172,9 +172,9 @@ class LeaderboardManager {
         
         if (!data || data.length === 0) {
             leaderboardList.innerHTML = `
-                <div class="text-center py-6">
-                    <div class="text-xl font-bold text-gray-600 mb-2">🏆 Leaderboard</div>
-                    <div class="text-gray-500">
+                <div class="text-center py-4">
+                    <div class="text-lg font-bold text-gray-600 mb-2">🏆 Leaderboard</div>
+                    <div class="text-gray-500 text-sm">
                         ${type === 'global' ? 'No players with email found yet.' : 'No match data available.'}
                     </div>
                 </div>
@@ -222,69 +222,104 @@ class LeaderboardManager {
         }
         // For match leaderboard - NO filtering, show all players as before
         
-        // Create leaderboard HTML
-        const leaderboardHTML = `
-            <div class="bg-white rounded-lg shadow-lg p-4">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold text-gray-800">
-                        🏆 ${type === 'global' ? 'Global Leaderboard' : 'Current Game'}
-                    </h2>
-                    <div class="text-xs text-gray-600">
-                        ${type === 'global' ? 
-                            `Showing ${data.length} players with email` : 
-                            `${data.length} players in current match`
-                        }
-                    </div>
-                </div>
-                
-                ${type === 'global' ? 
-                    '<div class="text-xs text-gray-500 mb-3 bg-blue-50 p-2 rounded">📧 Only players with verified email addresses are shown in the global leaderboard.</div>' : 
-                    ''
-                }
-                
-                <div class="space-y-2">
+        // Create leaderboard HTML based on type
+        let leaderboardHTML;
+        
+        if (type === 'match') {
+            // Compact Current Game layout
+            console.log('🔄 Rendering Current Game with data:', data);
+            if (data.length > 0) {
+                console.log('🔄 First player data sample:', data[0]);
+                console.log('🔄 Available fields:', Object.keys(data[0]));
+                console.log('🔄 All players data:', data.map((p, i) => `Player ${i+1}: name="${p.name}", score=${p.score}, id=${p.id}`));
+            }
+            
+            leaderboardHTML = `
+                <div class="space-y-1">
                     ${data.map((player, index) => {
                         const rank = index + 1;
-                        const nickname = player.nickname || player.playerName || player.playerId;
-                        const score = type === 'match' ? (player.score || 0) : (player.totalScore || 0);
-                        const games = player.gamesPlayed || 0;
-                        const wins = player.wins || 0;
-                        const email = player.email || '';
+                        
+                        // Try multiple possible name fields with better fallback
+                        let name = player.name;
+                        if (!name || name === 'undefined') {
+                            name = player.nickname || player.playerName || player.playerId || `Player_${player.id}` || 'Unknown';
+                        }
+                        
+                        const score = player.score || player.totalScore || 0;
+                        const isBot = player.isBot || false;
+                        
+                        console.log(`🔄 Player ${index + 1}: name="${name}", score=${score}, isBot=${isBot}, id=${player.id}`);
                         
                         // Rank emojis
-                        let rankEmoji = '🥉';
+                        let rankEmoji = `${rank}.`;
                         if (rank === 1) rankEmoji = '🥇';
                         else if (rank === 2) rankEmoji = '🥈';
-                        else if (rank <= 10) rankEmoji = '🏅';
-                        else if (rank <= 50) rankEmoji = '🎖️';
+                        else if (rank === 3) rankEmoji = '🥉';
                         
                         return `
-                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                                <div class="flex items-center space-x-3">
-                                    <div class="text-lg">${rankEmoji}</div>
-                                    <div>
-                                        <div class="font-bold text-base text-gray-800">${rank}. ${nickname}</div>
-                                        <div class="text-xs text-gray-600">
-                                            ${type === 'global' ? 
-                                                `Games: ${games} | Wins: ${wins} | Email: ${email}` :
-                                                `Score: ${score}`
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="text-right">
-                                    <div class="text-xl font-bold text-blue-600">${score}</div>
-                                    ${type === 'global' ? 
-                                        `<div class="text-xs text-gray-500">Total Score</div>` : 
-                                        `<div class="text-xs text-gray-500">Match Score</div>`
-                                    }
-                                </div>
+                            <div class="flex justify-between items-center text-sm p-1.5 border-b border-gray-700 last:border-b-0">
+                                <span class="flex-1 truncate">
+                                    ${rankEmoji} ${name}${isBot ? ' 🤖' : ''}
+                                </span>
+                                <span class="text-yellow-400 font-bold">${score}</span>
                             </div>
                         `;
                     }).join('')}
                 </div>
-            </div>
-        `;
+            `;
+        } else {
+            // Global leaderboard layout (as before)
+            leaderboardHTML = `
+                <div class="bg-white rounded-lg shadow-lg p-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-gray-800">
+                            🏆 Global Leaderboard
+                        </h2>
+                        <div class="text-xs text-gray-600">
+                            Showing ${data.length} players with email
+                        </div>
+                    </div>
+                    
+                    <div class="text-xs text-gray-500 mb-3 bg-blue-50 p-2 rounded">📧 Only players with verified email addresses are shown in the global leaderboard.</div>
+                    
+                    <div class="space-y-2">
+                        ${data.map((player, index) => {
+                            const rank = index + 1;
+                            const nickname = player.nickname || player.playerName || player.playerId;
+                            const score = player.totalScore || 0;
+                            const games = player.gamesPlayed || 0;
+                            const wins = player.wins || 0;
+                            const email = player.email || '';
+                            
+                            // Rank emojis
+                            let rankEmoji = '🥉';
+                            if (rank === 1) rankEmoji = '🥇';
+                            else if (rank === 2) rankEmoji = '🥈';
+                            else if (rank <= 10) rankEmoji = '🏅';
+                            else if (rank <= 50) rankEmoji = '🎖️';
+                            
+                            return `
+                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="text-lg">${rankEmoji}</div>
+                                        <div>
+                                            <div class="font-bold text-base text-gray-800">${rank}. ${nickname}</div>
+                                            <div class="text-xs text-gray-600">
+                                                Games: ${games} | Wins: ${wins} | Email: ${email}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-xl font-bold text-blue-600">${score}</div>
+                                        <div class="text-xs text-gray-500">Total Score</div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
         
         leaderboardList.innerHTML = leaderboardHTML;
         console.log(`✅ ${type} leaderboard rendered successfully`);

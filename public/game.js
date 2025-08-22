@@ -4084,31 +4084,50 @@ function sendMobileChatMessage() {
 
 function updateLeaderboard() {
     const allEntities = [...gameState.players, ...gameState.bots];
+    
+    // Only update if we have entities
+    if (allEntities.length === 0) {
+        console.log('🔄 updateLeaderboard: No entities available yet');
+        return;
+    }
+    
     allEntities.sort((a, b) => b.score - a.score);
+    
+    console.log('🔄 updateLeaderboard called');
+    console.log('🔄 gameState.players:', gameState.players);
+    console.log('🔄 gameState.bots:', gameState.bots);
+    console.log('🔄 allEntities:', allEntities);
+    if (allEntities.length > 0) {
+        console.log('🔄 First entity sample:', allEntities[0]);
+        console.log('🔄 First entity fields:', Object.keys(allEntities[0]));
+        console.log('🔄 All entities names:', allEntities.map(e => e.name));
+    }
     
     // Update match leaderboard in leaderboard manager
     if (window.leaderboardManager) {
+        console.log('🔄 Using leaderboard manager');
         window.leaderboardManager.setMatchLeaderboard(allEntities.slice(0, 15));
     } else {
+        console.log('🔄 Leaderboard manager not available, using fallback');
         // Fallback to old system if leaderboard manager not available
-    const leaderboardList = document.getElementById('leaderboardList');
+        const leaderboardList = document.getElementById('leaderboardList');
         if (leaderboardList) {
-    leaderboardList.innerHTML = '';
-    
+            leaderboardList.innerHTML = '';
+            
             allEntities.slice(0, 15).forEach((entity, index) => {
-        const entryDiv = document.createElement('div');
-        entryDiv.className = `flex justify-between items-center text-sm ${entity.id === gameState.playerId ? 'bg-blue-800 bg-opacity-50 rounded px-2 py-1' : ''}`;
-        
-        const rankEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-        const botIndicator = entity.isBot ? ' 🤖' : '';
-        
-        entryDiv.innerHTML = `
-            <span class="flex-1 truncate">${rankEmoji} ${entity.name}${botIndicator}</span>
-            <span class="text-yellow-400 font-bold">${entity.score}</span>
-        `;
-        
-        leaderboardList.appendChild(entryDiv);
-    });
+                const entryDiv = document.createElement('div');
+                entryDiv.className = `flex justify-between items-center text-sm ${entity.id === gameState.playerId ? 'bg-blue-800 bg-opacity-50 rounded px-2 py-1' : ''}`;
+                
+                const rankEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+                const botIndicator = entity.isBot ? ' 🤖' : '';
+                
+                entryDiv.innerHTML = `
+                    <span class="flex-1 truncate">${rankEmoji} ${entity.name}${botIndicator}</span>
+                    <span class="text-yellow-400 font-bold">${entity.score}</span>
+                `;
+                
+                leaderboardList.appendChild(entryDiv);
+            });
         }
     }
     
