@@ -5591,7 +5591,7 @@ function updateBoosterStatusDisplay() {
                         <div class="font-bold text-sm">Coin Multiplier</div>
                     </div>
                 </div>
-                <div class="text-right">
+                <div class="text-right ml-4">
                     <div class="font-mono text-sm font-bold">${timeText}</div>
                 </div>
             `;
@@ -5622,7 +5622,7 @@ function updateBoosterStatusDisplay() {
                         <div class="font-bold text-sm">Player Eater</div>
                     </div>
                 </div>
-                <div class="text-right">
+                <div class="text-right ml-4">
                     <div class="font-mono text-sm font-bold">${timeText}</div>
                 </div>
             `;
