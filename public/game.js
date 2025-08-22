@@ -5601,6 +5601,17 @@ function updateBoosterStatusDisplay() {
     
     // Show the container with animation
     boosterContainer.classList.add('show');
+    console.log('🎯 Added "show" class to booster container');
+    
+    // Debug: check if element has correct positioning
+    if (boosterContainer.id === 'activeBoostersCenter') {
+        console.log('📍 activeBoostersCenter position:', {
+            bottom: boosterContainer.style.bottom,
+            left: boosterContainer.style.left,
+            transform: boosterContainer.style.transform,
+            opacity: boosterContainer.style.opacity
+        });
+    }
     
     // Add header
     const header = document.createElement('div');

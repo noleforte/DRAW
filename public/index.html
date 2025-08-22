@@ -460,6 +460,13 @@
             }
             #activeBoostersCenter{
                 bottom: 25% !important;
+                transform: translate(-50%, 100%) !important;
+                opacity: 0 !important;
+            }
+            
+            #activeBoostersCenter.show{
+                transform: translate(-50%, 0) !important;
+                opacity: 1 !important;
             }
             /* Smaller buttons for medium screens */
             .panel-button {
@@ -839,7 +846,12 @@
         
         /* Active Boosters animation */
         #activeBoostersCenter {
-            transition: all 0.3s ease-in-out;
+            transition: all 0.3s ease-in-out !important;
+            position: absolute !important;
+            bottom: 8rem !important;
+            left: 50% !important;
+            transform: translate(-50%, 100%) !important;
+            opacity: 0 !important;
         }
         
         #activeBoostersCenter.show {
