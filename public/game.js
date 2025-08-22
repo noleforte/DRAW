@@ -5617,8 +5617,7 @@ function updateBoosterStatusDisplay() {
     boosterContainer.innerHTML = '';
     
     // Check if any boosters are active
-    const hasActiveBoosters = activeBoosters.speed.active || 
-                             activeBoosters.coins.active || 
+    const hasActiveBoosters = activeBoosters.coins.active || 
                              activeBoosters.playerEater.active;
     
     if (!hasActiveBoosters) {
@@ -5629,45 +5628,11 @@ function updateBoosterStatusDisplay() {
     
     // Add header
     const header = document.createElement('div');
-    header.className = 'bg-gray-800 text-white px-3 py-2 rounded-lg shadow-lg text-center font-bold';
+    header.className = 'bg-gray-800 text-white px-2 py-1 rounded text-center font-bold text-sm';
     header.textContent = '🚀 Active Boosters';
     boosterContainer.appendChild(header);
     
-    // Show active boosters
-    if (activeBoosters.speed.active) {
-        const timeLeft = Math.ceil((activeBoosters.speed.endTime - Date.now()) / 1000);
-        
-        // Check if booster has expired
-        if (timeLeft <= 0) {
-            console.log('🚀 Speed boost expired, deactivating');
-            activeBoosters.speed.active = false;
-            activeBoosters.speed.multiplier = 1;
-            activeBoosters.speed.endTime = 0;
-        } else {
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            
-            const speedBooster = document.createElement('div');
-            speedBooster.className = 'bg-green-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center justify-between min-w-[200px]';
-            speedBooster.innerHTML = `
-                <div class="flex items-center space-x-2">
-                    <span class="text-xl">🚀</span>
-                    <div>
-                        <div class="font-bold">Speed Boost</div>
-                        <div class="text-xs opacity-90">x2 Movement Speed</div>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <div class="font-mono text-lg font-bold">${timeText}</div>
-                    <div class="text-xs opacity-90">remaining</div>
-                </div>
-            `;
-            boosterContainer.appendChild(speedBooster);
-            console.log(`🚀 Displaying speed boost with ${timeText} remaining`);
-        }
-    }
-    
+    // Show active boosters (only coins and player eater)
     if (activeBoosters.coins.active) {
         const timeLeft = Math.ceil((activeBoosters.coins.endTime - Date.now()) / 1000);
         
@@ -5683,18 +5648,18 @@ function updateBoosterStatusDisplay() {
             const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
             
             const coinBooster = document.createElement('div');
-            coinBooster.className = 'bg-yellow-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center justify-between min-w-[200px]';
+            coinBooster.className = 'bg-yellow-500 text-white px-2 py-1 rounded shadow-lg flex items-center justify-between min-w-[160px]';
             coinBooster.innerHTML = `
-                <div class="flex items-center space-x-2">
-                    <span class="text-xl">💰</span>
+                <div class="flex items-center space-x-1">
+                    <span class="text-sm">💰</span>
                     <div>
-                        <div class="font-bold">Coin Multiplier</div>
-                        <div class="text-xs opacity-90">x2 Coins for 2 minutes</div>
+                        <div class="font-bold text-sm">Coin Multiplier</div>
+                        <div class="text-xs opacity-90">x2 Coins</div>
                     </div>
                 </div>
                 <div class="text-right">
-                    <div class="font-mono text-lg font-bold">${timeText}</div>
-                    <div class="text-xs opacity-90">remaining</div>
+                    <div class="font-mono text-sm font-bold">${timeText}</div>
+                    <div class="text-xs opacity-90">left</div>
                 </div>
             `;
             boosterContainer.appendChild(coinBooster);
@@ -5716,18 +5681,17 @@ function updateBoosterStatusDisplay() {
             const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
             
             const playerEaterBooster = document.createElement('div');
-            playerEaterBooster.className = 'bg-purple-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center justify-between min-w-[200px]';
+            playerEaterBooster.className = 'bg-purple-500 text-white px-2 py-1 rounded shadow-lg flex items-center justify-between min-w-[160px]';
             playerEaterBooster.innerHTML = `
-                <div class="flex items-center space-x-2">
-                    <span class="text-xl">👹</span>
+                <div class="flex items-center space-x-1">
                     <div>
-                        <div class="font-bold">Player Eater</div>
-                        <div class="text-xs opacity-90">Can eat other players</div>
+                        <div class="font-bold text-sm">Player Eater</div>
+                        <div class="text-xs opacity-90">Can eat players</div>
                     </div>
                 </div>
                 <div class="text-right">
-                    <div class="font-mono text-lg font-bold">${timeText}</div>
-                    <div class="text-xs opacity-90">remaining</div>
+                    <div class="font-mono text-sm font-bold">${timeText}</div>
+                    <div class="text-xs opacity-90">left</div>
                 </div>
             `;
             boosterContainer.appendChild(playerEaterBooster);
@@ -5736,14 +5700,13 @@ function updateBoosterStatusDisplay() {
     }
     
     // Check if we still have active boosters after expiration checks
-    const stillHasActiveBoosters = activeBoosters.speed.active || 
-                                  activeBoosters.coins.active || 
+    const stillHasActiveBoosters = activeBoosters.coins.active || 
                                   activeBoosters.playerEater.active;
     
     if (!stillHasActiveBoosters) {
         console.log('ℹ️ All boosters expired, clearing display');
         boosterContainer.innerHTML = '';
     } else {
-        console.log(`✅ Displaying ${[activeBoosters.speed.active, activeBoosters.coins.active, activeBoosters.playerEater.active].filter(Boolean).length} active boosters`);
+        console.log(`✅ Displaying ${[activeBoosters.coins.active, activeBoosters.playerEater.active].filter(Boolean).length} active boosters`);
     }
 }
