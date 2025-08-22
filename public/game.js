@@ -2676,9 +2676,11 @@ function setupUIHandlers() {
                         console.log('🔍 DEBUG: No document found, attempting to create initial entry');
                         await window.firebaseDb.collection('players').doc(playerId).set({
                             playerName: playerName,
-                            totalScore: 0,
+                            nickname: playerName,
+                            email: window.nicknameAuth?.currentUser?.email || 'no-email@placeholder.com', // Add email field
+                            totalScore: 20, // Minimum starting score for new players
                             gamesPlayed: 0,
-                            bestScore: 0,
+                            bestScore: 20, // Minimum starting best score
                             firstPlayed: window.firebase.firestore.FieldValue.serverTimestamp(),
                             lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
                         });
