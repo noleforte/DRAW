@@ -1151,36 +1151,76 @@ function setupSocketListeners() {
         
         // Update booster status from server data
         if (localPlayer) {
+            const now = Date.now();
+            
+            // Check speed boost
             if (localPlayer.speedBoost && localPlayer.speedBoostEndTime) {
-                activeBoosters.speed.active = true;
-                activeBoosters.speed.multiplier = 2;
-                activeBoosters.speed.endTime = localPlayer.speedBoostEndTime;
-                console.log(`🚀 Speed boost active until ${new Date(localPlayer.speedBoostEndTime).toLocaleTimeString()}`);
+                // Check if boost has expired
+                if (now > localPlayer.speedBoostEndTime) {
+                    console.log('🚀 Speed boost expired from server data');
+                    activeBoosters.speed.active = false;
+                    activeBoosters.speed.multiplier = 1;
+                    activeBoosters.speed.endTime = 0;
+                    // Update localPlayer state
+                    localPlayer.speedBoost = false;
+                    localPlayer.speedBoostEndTime = 0;
+                } else {
+                    activeBoosters.speed.active = true;
+                    activeBoosters.speed.multiplier = 2;
+                    activeBoosters.speed.endTime = localPlayer.speedBoostEndTime;
+                    console.log(`🚀 Speed boost active until ${new Date(localPlayer.speedBoostEndTime).toLocaleTimeString()}`);
+                }
             } else {
                 activeBoosters.speed.active = false;
                 activeBoosters.speed.multiplier = 1;
                 activeBoosters.speed.endTime = 0;
             }
             
+            // Check coin boost
             if (localPlayer.coinBoost && localPlayer.coinBoostEndTime) {
-                activeBoosters.coins.active = true;
-                activeBoosters.coins.multiplier = 2;
-                activeBoosters.coins.endTime = localPlayer.coinBoostEndTime;
-                console.log(`💰 Coin boost active until ${new Date(localPlayer.coinBoostEndTime).toLocaleTimeString()}`);
+                // Check if boost has expired
+                if (now > localPlayer.coinBoostEndTime) {
+                    console.log('💰 Coin boost expired from server data');
+                    activeBoosters.coins.active = false;
+                    activeBoosters.coins.multiplier = 1;
+                    activeBoosters.coins.endTime = 0;
+                    // Update localPlayer state
+                    localPlayer.coinBoost = false;
+                    localPlayer.coinBoostEndTime = 0;
+                } else {
+                    activeBoosters.coins.active = true;
+                    activeBoosters.coins.multiplier = 2;
+                    activeBoosters.coins.endTime = localPlayer.coinBoostEndTime;
+                    console.log(`💰 Coin boost active until ${new Date(localPlayer.coinBoostEndTime).toLocaleTimeString()}`);
+                }
             } else {
                 activeBoosters.coins.active = false;
                 activeBoosters.coins.multiplier = 1;
                 activeBoosters.coins.endTime = 0;
             }
             
+            // Check player eater boost
             if (localPlayer.playerEater && localPlayer.playerEaterEndTime) {
-                activeBoosters.playerEater.active = true;
-                activeBoosters.playerEater.endTime = localPlayer.playerEaterEndTime;
-                console.log(`👹 Player Eater active until ${new Date(localPlayer.playerEaterEndTime).toLocaleTimeString()}`);
+                // Check if boost has expired
+                if (now > localPlayer.playerEaterEndTime) {
+                    console.log('👹 Player Eater expired from server data');
+                    activeBoosters.playerEater.active = false;
+                    activeBoosters.playerEater.endTime = 0;
+                    // Update localPlayer state
+                    localPlayer.playerEater = false;
+                    localPlayer.playerEaterEndTime = 0;
+                } else {
+                    activeBoosters.playerEater.active = true;
+                    activeBoosters.playerEater.endTime = localPlayer.playerEaterEndTime;
+                    console.log(`👹 Player Eater active until ${new Date(localPlayer.playerEaterEndTime).toLocaleTimeString()}`);
+                }
             } else {
                 activeBoosters.playerEater.active = false;
                 activeBoosters.playerEater.endTime = 0;
             }
+            
+            // Force update booster display after state changes
+            updateBoosterStatusDisplay();
         }
         
         if (!localPlayer) {
@@ -4387,33 +4427,69 @@ function gameLoop() {
     
     // Check and update active boosters
     const now = Date.now();
+    let boostersUpdated = false;
+    
+    // Check speed boost
     if (activeBoosters.speed.active && now > activeBoosters.speed.endTime) {
         activeBoosters.speed.active = false;
         activeBoosters.speed.multiplier = 1;
-        console.log('🚀 Speed boost expired');
+        activeBoosters.speed.endTime = 0;
+        console.log('🚀 Speed boost expired at:', new Date(now).toLocaleTimeString());
+        boostersUpdated = true;
+        
+        // Update localPlayer state if available
+        if (localPlayer) {
+            localPlayer.speedBoost = false;
+            localPlayer.speedBoostEndTime = 0;
+        }
     }
     
+    // Check coin boost
     if (activeBoosters.coins.active && now > activeBoosters.coins.endTime) {
         activeBoosters.coins.active = false;
         activeBoosters.coins.multiplier = 1;
-        console.log('💰 Coin multiplier expired');
+        activeBoosters.coins.endTime = 0;
+        console.log('💰 Coin multiplier expired at:', new Date(now).toLocaleTimeString());
+        boostersUpdated = true;
+        
+        // Update localPlayer state if available
+        if (localPlayer) {
+            localPlayer.coinBoost = false;
+            localPlayer.coinBoostEndTime = 0;
+        }
     }
     
-    // Update booster display every frame for smooth countdown
-    updateBoosterStatusDisplay();
-    
-    // Update player stats display in real-time (every few frames)
-    if (localPlayer && Math.random() < 0.1) { // 10% chance each frame
-        const vx = localPlayer.vx || 0;
-        const vy = localPlayer.vy || 0;
-        const currentSpeed = Math.sqrt(vx * vx + vy * vy);
-        updatePlayerStatsDisplay(currentSpeed, localPlayer);
+    // Check player eater boost
+    if (activeBoosters.playerEater.active && now > activeBoosters.playerEater.endTime) {
+        activeBoosters.playerEater.active = false;
+        activeBoosters.playerEater.endTime = 0;
+        console.log('👹 Player Eater expired at:', new Date(now).toLocaleTimeString());
+        boostersUpdated = true;
         
-        // Log speed changes for debugging
-        if (Math.abs(currentSpeed - (localPlayer.lastLoggedSpeed || 0)) > 0.1) {
-            console.log('🏃 Speed changed:', (localPlayer.lastLoggedSpeed || 0).toFixed(1), '→', currentSpeed.toFixed(1));
-            localPlayer.lastLoggedSpeed = currentSpeed;
+        // Update localPlayer state if available
+        if (localPlayer) {
+            localPlayer.playerEater = false;
+            localPlayer.playerEaterEndTime = 0;
         }
+    }
+    
+    // Update booster display if any boosters changed
+    if (boostersUpdated) {
+        console.log('🔄 Boosters updated, refreshing display');
+        updateBoosterStatusDisplay();
+        
+        // Also update player stats display to reflect booster changes
+        if (localPlayer) {
+            const vx = localPlayer.vx || 0;
+            const vy = localPlayer.vy || 0;
+            const currentSpeed = Math.sqrt(vx * vx + vy * vy);
+            updatePlayerStatsDisplay(currentSpeed, localPlayer);
+        }
+    }
+    
+    // Update booster display every few frames for smooth countdown (but not every frame)
+    if (Math.random() < 0.1) { // 10% chance each frame
+        updateBoosterStatusDisplay();
     }
     
     // Update speech bubbles
@@ -5503,6 +5579,7 @@ function updateBoosterStatusDisplay() {
     console.log('🔄 updateBoosterStatusDisplay called');
     console.log('🚀 Speed booster state:', activeBoosters.speed);
     console.log('💰 Coin booster state:', activeBoosters.coins);
+    console.log('👹 Player Eater state:', activeBoosters.playerEater);
     
     // Create or update booster status elements
     let boosterContainer = document.getElementById('boosterStatusContainer');
@@ -5518,41 +5595,67 @@ function updateBoosterStatusDisplay() {
     // Clear existing booster displays
     boosterContainer.innerHTML = '';
     
+    // Check if any boosters are active
+    const hasActiveBoosters = activeBoosters.speed.active || 
+                             activeBoosters.coins.active || 
+                             activeBoosters.playerEater.active;
+    
+    if (!hasActiveBoosters) {
+        console.log('ℹ️ No active boosters to display');
+        return; // Don't show container if no boosters
+    }
+    
     // Add header
     const header = document.createElement('div');
     header.className = 'bg-gray-800 text-white px-3 py-2 rounded-lg shadow-lg text-center font-bold';
     header.textContent = '🚀 Active Boosters';
-    header.style.display = 'none';
     boosterContainer.appendChild(header);
     
     // Show active boosters
     if (activeBoosters.speed.active) {
         const timeLeft = Math.ceil((activeBoosters.speed.endTime - Date.now()) / 1000);
-        const minutes = Math.floor(timeLeft / 60);
-        const seconds = timeLeft % 60;
-        const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
         
-        const speedBooster = document.createElement('div');
-        speedBooster.className = 'bg-green-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center justify-between min-w-[200px]';
-        speedBooster.innerHTML = `
-            <div class="flex items-center space-x-2">
-                <span class="text-xl">🚀</span>
-                <div>
-                    <div class="font-bold">Speed Boost</div>
-                    <div class="text-xs opacity-90">x2 Movement Speed</div>
+        // Check if booster has expired
+        if (timeLeft <= 0) {
+            console.log('🚀 Speed boost expired, deactivating');
+            activeBoosters.speed.active = false;
+            activeBoosters.speed.multiplier = 1;
+            activeBoosters.speed.endTime = 0;
+        } else {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            const speedBooster = document.createElement('div');
+            speedBooster.className = 'bg-green-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center justify-between min-w-[200px]';
+            speedBooster.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">🚀</span>
+                    <div>
+                        <div class="font-bold">Speed Boost</div>
+                        <div class="text-xs opacity-90">x2 Movement Speed</div>
+                    </div>
                 </div>
-            </div>
-            <div class="text-right">
-                <div class="font-mono text-lg font-bold">${timeText}</div>
-                <div class="text-xs opacity-90">remaining</div>
-            </div>
-        `;
-        speedBooster.style.display = 'none';
-        boosterContainer.appendChild(speedBooster);
+                <div class="text-right">
+                    <div class="font-mono text-lg font-bold">${timeText}</div>
+                    <div class="text-xs opacity-90">remaining</div>
+                </div>
+            `;
+            boosterContainer.appendChild(speedBooster);
+            console.log(`🚀 Displaying speed boost with ${timeText} remaining`);
+        }
     }
     
-            if (activeBoosters.coins.active) {
-            const timeLeft = Math.ceil((activeBoosters.coins.endTime - Date.now()) / 1000);
+    if (activeBoosters.coins.active) {
+        const timeLeft = Math.ceil((activeBoosters.coins.endTime - Date.now()) / 1000);
+        
+        // Check if booster has expired
+        if (timeLeft <= 0) {
+            console.log('💰 Coin boost expired, deactivating');
+            activeBoosters.coins.active = false;
+            activeBoosters.coins.multiplier = 1;
+            activeBoosters.coins.endTime = 0;
+        } else {
             const minutes = Math.floor(timeLeft / 60);
             const seconds = timeLeft % 60;
             const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -5572,102 +5675,54 @@ function updateBoosterStatusDisplay() {
                     <div class="text-xs opacity-90">remaining</div>
                 </div>
             `;
-            coinBooster.style.display = 'none';
             boosterContainer.appendChild(coinBooster);
+            console.log(`💰 Displaying coin boost with ${timeText} remaining`);
         }
+    }
     
     if (activeBoosters.playerEater.active) {
         const timeLeft = Math.ceil((activeBoosters.playerEater.endTime - Date.now()) / 1000);
-        const minutes = Math.floor(timeLeft / 60);
-        const seconds = timeLeft % 60;
-        const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
         
-        const playerEaterBooster = document.createElement('div');
-        playerEaterBooster.className = 'bg-purple-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center justify-between min-w-[200px]';
-        playerEaterBooster.innerHTML = `
-            <div class="flex items-center space-x-2">
-                <span class="text-xl">👹</span>
-                <div>
-                    <div class="font-bold">Player Eater</div>
-                    <div class="text-xs opacity-90">Can eat other players</div>
+        // Check if booster has expired
+        if (timeLeft <= 0) {
+            console.log('👹 Player Eater expired, deactivating');
+            activeBoosters.playerEater.active = false;
+            activeBoosters.playerEater.endTime = 0;
+        } else {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            const playerEaterBooster = document.createElement('div');
+            playerEaterBooster.className = 'bg-purple-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center justify-between min-w-[200px]';
+            playerEaterBooster.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">👹</span>
+                    <div>
+                        <div class="font-bold">Player Eater</div>
+                        <div class="text-xs opacity-90">Can eat other players</div>
+                    </div>
                 </div>
-            </div>
-            <div class="text-right">
-                <div class="font-mono text-lg font-bold">${timeText}</div>
-                <div class="text-xs opacity-90">remaining</div>
-            </div>
-        `;
-        playerEaterBooster.style.display = 'none';
-        boosterContainer.appendChild(playerEaterBooster);
+                <div class="text-right">
+                    <div class="font-mono text-lg font-bold">${timeText}</div>
+                    <div class="text-xs opacity-90">remaining</div>
+                </div>
+            `;
+            boosterContainer.appendChild(playerEaterBooster);
+            console.log(`👹 Displaying player eater boost with ${timeText} remaining`);
+        }
     }
     
-    // Show message if no boosters active
-    if (!activeBoosters.speed.active && !activeBoosters.coins.active && !activeBoosters.playerEater.active) {
-        const noBoosters = document.createElement('div');
-        noBoosters.className = 'bg-gray-600 text-white px-3 py-2 rounded-lg shadow-lg text-center text-sm opacity-75';
-        noBoosters.textContent = 'No active boosters';
-        noBoosters.style.display = 'none';
-        boosterContainer.appendChild(noBoosters);
-    }
+    // Check if we still have active boosters after expiration checks
+    const stillHasActiveBoosters = activeBoosters.speed.active || 
+                                  activeBoosters.coins.active || 
+                                  activeBoosters.playerEater.active;
     
-    // Update center panel boosters list
-    const boostersListCenter = document.getElementById('boostersListCenter');
-    if (boostersListCenter) {
-        boostersListCenter.innerHTML = '';
-        
-        if (activeBoosters.speed.active) {
-            const timeLeft = Math.ceil((activeBoosters.speed.endTime - Date.now()) / 1000);
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            
-            const speedItem = document.createElement('div');
-            speedItem.className = 'flex justify-between items-center text-sm bg-green-600 bg-opacity-70 rounded px-3 py-1';
-            speedItem.innerHTML = `
-                <span class="text-white">🚀 Speed Boost</span>
-                <span>&nbsp;</span>
-                <span class="font-mono text-white font-bold">${timeText}</span>
-            `;
-            boostersListCenter.appendChild(speedItem);
-        }
-        
-        if (activeBoosters.coins.active) {
-            const timeLeft = Math.ceil((activeBoosters.coins.endTime - Date.now()) / 1000);
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            
-            const coinItem = document.createElement('div');
-            coinItem.className = 'flex justify-between items-center text-sm bg-yellow-600 bg-opacity-70 rounded px-3 py-1';
-            coinItem.innerHTML = `
-                <span class="text-white">💰 Coin Multiplier (2min)</span>
-                 <span>&nbsp;</span>
-                <span class="font-mono text-white font-bold">${timeText}</span>
-            `;
-            boostersListCenter.appendChild(coinItem);
-        }
-        
-        if (activeBoosters.playerEater.active) {
-            const timeLeft = Math.ceil((activeBoosters.playerEater.endTime - Date.now()) / 1000);
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            
-            const playerEaterItem = document.createElement('div');
-            playerEaterItem.className = 'flex justify-between items-center text-sm bg-purple-600 bg-opacity-70 rounded px-3 py-1';
-            playerEaterItem.innerHTML = `
-                <span class="text-white">👹 Player Eater</span>
-                <span>&nbsp;</span>
-                <span class="font-mono text-white font-bold">${timeText}</span>
-            `;
-            boostersListCenter.appendChild(playerEaterItem);
-        }
-        
-        if (!activeBoosters.speed.active && !activeBoosters.coins.active && !activeBoosters.playerEater.active) {
-            const noBoosters = document.createElement('div');
-            noBoosters.className = 'text-xs text-gray-400 text-center';
-            noBoosters.textContent = 'No active boosters';
-            boostersListCenter.appendChild(noBoosters);
-        }
+    if (!stillHasActiveBoosters) {
+        console.log('ℹ️ All boosters expired, hiding container');
+        boosterContainer.style.display = 'none';
+    } else {
+        boosterContainer.style.display = 'block';
+        console.log(`✅ Displaying ${[activeBoosters.speed.active, activeBoosters.coins.active, activeBoosters.playerEater.active].filter(Boolean).length} active boosters`);
     }
 }
