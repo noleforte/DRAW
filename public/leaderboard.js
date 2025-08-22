@@ -85,8 +85,8 @@ class LeaderboardManager {
             console.log('🔄 Fetching all players from Render server...');
             console.log('🔄 Current URL:', window.location.href);
             
-            // Use Render server URL for API calls
-            const apiUrl = 'https://royale-ball-server.onrender.com/api/players';
+            // Use correct Render server URL for API calls
+            const apiUrl = 'https://draw-e67b.onrender.com/api/players';
             console.log('🔄 API URL:', apiUrl);
             
             console.log('🔄 Making fetch request...');
@@ -260,7 +260,7 @@ class LeaderboardManager {
         if (!playerId || playerId.startsWith('guest_')) return null;
 
         try {
-            const apiUrl = `https://royale-ball-server.onrender.com/api/player/${playerId}`;
+            const apiUrl = `https://draw-e67b.onrender.com/api/player/${playerId}`;
             const response = await fetch(apiUrl);
             if (response.ok) {
                 return await response.json();
