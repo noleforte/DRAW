@@ -5648,18 +5648,16 @@ function updateBoosterStatusDisplay() {
             const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
             
             const coinBooster = document.createElement('div');
-            coinBooster.className = 'bg-yellow-500 text-white px-2 py-1 rounded shadow-lg flex items-center justify-between min-w-[160px]';
+            coinBooster.className = 'bg-yellow-500 text-white px-2 py-1 rounded shadow-lg flex items-center justify-between min-w-[140px]';
             coinBooster.innerHTML = `
                 <div class="flex items-center space-x-1">
                     <span class="text-sm">💰</span>
                     <div>
                         <div class="font-bold text-sm">Coin Multiplier</div>
-                        <div class="text-xs opacity-90">x2 Coins</div>
                     </div>
                 </div>
                 <div class="text-right">
                     <div class="font-mono text-sm font-bold">${timeText}</div>
-                    <div class="text-xs opacity-90">left</div>
                 </div>
             `;
             boosterContainer.appendChild(coinBooster);
@@ -5681,17 +5679,16 @@ function updateBoosterStatusDisplay() {
             const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
             
             const playerEaterBooster = document.createElement('div');
-            playerEaterBooster.className = 'bg-purple-500 text-white px-2 py-1 rounded shadow-lg flex items-center justify-between min-w-[160px]';
+            playerEaterBooster.className = 'bg-purple-500 text-white px-2 py-1 rounded shadow-lg flex items-center justify-between min-w-[140px]';
             playerEaterBooster.innerHTML = `
                 <div class="flex items-center space-x-1">
+                    <span class="text-sm">👹</span>
                     <div>
                         <div class="font-bold text-sm">Player Eater</div>
-                        <div class="text-xs opacity-90">Can eat players</div>
                     </div>
                 </div>
                 <div class="text-right">
                     <div class="font-mono text-sm font-bold">${timeText}</div>
-                    <div class="text-xs opacity-90">left</div>
                 </div>
             `;
             boosterContainer.appendChild(playerEaterBooster);

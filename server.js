@@ -773,7 +773,7 @@ function updateBots() {
     }
 
     // Apply speed multiplier if Player Eater is active
-    const botSpeedMultiplier = bot.playerEater ? (bot.speed || 1.5) : 1;
+    const botSpeedMultiplier = bot.playerEater ? Math.min(100, bot.speed || 1.5) : 1;
     
     // Update position with speed multiplier
     bot.x += bot.vx * botSpeedMultiplier;
@@ -852,13 +852,19 @@ function updateBots() {
           
           // Set bot to Level 5 stats (minimum size for effectiveness)
           bot.size = Math.max(50, bot.size); // At least Level 5 size, but can be bigger if bot already has more score
-          bot.speed = 1.5; // Level 5 speed (50% faster than normal)
+          
+          // Calculate speed with Player Eater boost - limit to maximum 100
+          const baseSpeed = 1.5; // Level 5 base speed
+          const botPlayerEaterSpeedBoost = Math.min(100, baseSpeed + (bot.score / 1000)); // Speed increases with score but max 100
+          bot.speed = botPlayerEaterSpeedBoost;
+          
+          console.log(`👹 Bot ${bot.name} Player Eater speed: ${botPlayerEaterSpeedBoost} (limited to max 100)`);
           
           // Send notification to all players
            io.emit('chatMessage', {
             playerId: 'system',
             playerName: 'System',
-            message: `👹 Bot ${bot.name} collected Player Eater! Can now eat other players for 1 minute! (Level 5 size & speed)`,
+            message: `👹 Bot ${bot.name} collected Player Eater! Can now eat other players for 1 minute! (Level 5 size & speed boost, max 100)`,
              timestamp: Date.now()
            });
            
@@ -1000,7 +1006,7 @@ function updatePlayers(deltaTime) {
     player.vy += (player.targetVy - player.vy) * lerpFactor;
     
     // Apply speed multiplier if Player Eater is active
-    const speedMultiplier = player.playerEater ? (player.speed || 1.5) : 1;
+    const speedMultiplier = player.playerEater ? Math.min(100, player.speed || 1.5) : 1;
     
     // Update position based on velocity, deltaTime, and speed multiplier
     player.x += player.vx * deltaTime * speedMultiplier;
@@ -1114,13 +1120,19 @@ function updatePlayers(deltaTime) {
                         
                         // Set player to Level 5 stats (minimum size for effectiveness)
                         player.size = Math.max(50, player.size); // At least Level 5 size, but can be bigger if player already has more score
-                        player.speed = 1.5; // Level 5 speed (50% faster than normal)
+                        
+                        // Calculate speed with Player Eater boost - limit to maximum 100
+                        const baseSpeed = 1.5; // Level 5 base speed
+                        const playerEaterSpeedBoost = Math.min(100, baseSpeed + (player.score / 1000)); // Speed increases with score but max 100
+                        player.speed = playerEaterSpeedBoost;
+                        
+                        console.log(`👹 Player ${player.name} Player Eater speed: ${playerEaterSpeedBoost} (limited to max 100)`);
                         
                         // Send notification to all players
                         io.emit('chatMessage', {
                             playerId: 'system',
                             playerName: 'System',
-                            message: `👹 ${player.name} collected Player Eater! Can now eat other players for 1 minute! (Level 5 size & speed)`,
+                            message: `👹 ${player.name} collected Player Eater! Can now eat other players for 1 minute! (Level 5 size & speed boost, max 100)`,
                             timestamp: Date.now()
                         });
                     } else if (booster.type === 'coins') {
