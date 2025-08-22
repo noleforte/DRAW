@@ -234,10 +234,11 @@ class GameDataService {
             if (playerDoc.exists) {
                 const data = playerDoc.data();
                 console.log(`🔍 Raw Firestore data for ${normalizedPlayerId}:`, data);
+                console.log(`🔍 totalScore values: root=${data.totalScore}, stats.totalScore=${data.stats?.totalScore}`);
                 
-                // Extract data with proper fallbacks
+                // Extract data with proper fallbacks - prioritize root totalScore over stats.totalScore
                 const extractedData = {
-                    totalScore: data.totalScore || data.stats?.totalScore || 0,
+                    totalScore: data.totalScore || 0, // Сначала корневой totalScore
                     lastSize: data.lastSize || null,
                     bestScore: data.bestScore || data.stats?.bestScore || 0,
                     gamesPlayed: data.gamesPlayed || data.stats?.gamesPlayed || 0,
@@ -251,6 +252,7 @@ class GameDataService {
                 
                 console.log(`✅ getPlayerStats extracted data for ${normalizedPlayerId}:`, extractedData);
                 console.log(`💰 totalScore value: ${extractedData.totalScore} (type: ${typeof extractedData.totalScore})`);
+                console.log(`🔍 Final totalScore selection: ${data.totalScore ? 'root' : 'stats.totalScore'}`);
                 return extractedData;
             } else {
                 console.log(`❌ getPlayerStats: No document found for playerId: ${normalizedPlayerId}`);
@@ -536,10 +538,13 @@ class GameDataService {
             if (playerDoc.exists) {
                 const currentStats = playerDoc.data();
                 console.log(`📊 Found existing player document for ${normalizedPlayerId}:`, currentStats);
+                console.log(`📊 Current totalScore values: root=${currentStats.totalScore}, stats.totalScore=${currentStats.stats?.totalScore}`);
                 
                 const newGamesPlayed = Math.max(currentStats.gamesPlayed || 0, statsData.gamesPlayed || 0);
                 const newBestScore = Math.max(currentStats.bestScore || 0, statsData.score);
                 const newTotalScore = Math.max(currentStats.totalScore || 0, statsData.totalScore);
+                
+                console.log(`📊 Updating totalScore: current=${currentStats.totalScore || 0}, new=${statsData.totalScore}, final=${newTotalScore}`);
                 
                 await playerRef.update({
                     totalScore: newTotalScore,
@@ -552,6 +557,7 @@ class GameDataService {
                 });
                 console.log(`✅ Updated full stats for player ${normalizedPlayerId}: totalScore=${newTotalScore} (was ${currentStats.totalScore || 0}), gamesPlayed=${newGamesPlayed} (was ${currentStats.gamesPlayed || 0}), bestScore=${newBestScore} (was ${currentStats.bestScore || 0})`);
             } else {
+                console.log(`🆕 Creating new player document with totalScore: ${statsData.totalScore}`);
                 await playerRef.set({
                     nickname: statsData.nickname || normalizedPlayerId,
                     playerName: statsData.nickname || normalizedPlayerId,
