@@ -1310,7 +1310,7 @@ function setupSocketListeners() {
     });
     
     socket.on('playerEaten', (data) => {
-        // Handle when our player gets eaten (now only for AFK kicks)
+        // Handle when our player gets eaten
         if (localPlayer && localPlayer.id === data.victimId) {
             // Handle AFK kick
             if (data.afkKick) {
@@ -1338,6 +1338,43 @@ function setupSocketListeners() {
                     }
                 } catch (error) {
                         console.warn('⚠️ Failed to refresh Total Coins after AFK kick:', error);
+                }
+            }, 1500); // Refresh after 1.5 seconds to allow server to save
+        } else {
+            // Handle regular player eating (not AFK kick)
+            console.log(`👹 You were eaten by ${data.eatenBy}! Lost ${data.coinsLost} coins, remaining: ${data.remainingScore}`);
+            
+            // Show eating message
+            addChatMessage({
+                playerName: 'System',
+                message: `👹 You were eaten by ${data.eatenBy}! 💰 Lost ${data.coinsLost} coins, remaining: ${data.remainingScore}`,
+                timestamp: Date.now()
+            });
+            
+            // Show eating notification
+            showServerMessage(`👹 You were eaten by ${data.eatenBy}! 💰 Lost ${data.coinsLost} coins, remaining: ${data.remainingScore}`, 'warning');
+            
+            // Update local player score
+            if (localPlayer) {
+                localPlayer.score = data.remainingScore;
+                console.log(`💰 Updated local player score to: ${localPlayer.score}`);
+                
+                // Update UI display
+                updatePlayerStatsDisplay();
+            }
+            
+            // Force refresh Total Coins from Firestore to show the updated balance
+            setTimeout(async () => {
+                try {
+                    await window.nicknameAuth.syncUserStatsFromFirestore();
+                    console.log('💰 Total Coins refreshed after being eaten');
+                    
+                    // Update Player Info panel if open
+                    if (window.panelManager) {
+                        await window.panelManager.updateUserInfoPanel();
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Failed to refresh Total Coins after being eaten:', error);
                 }
             }, 1500); // Refresh after 1.5 seconds to allow server to save
             

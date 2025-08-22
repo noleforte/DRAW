@@ -1015,6 +1015,19 @@ function updateBots() {
                   coinsLost: Math.floor(target.score * 0.1),
                   remainingScore: target.score
                 });
+                
+                // Save updated score to database for the victim
+                if (target.firebaseId || target.playerId) {
+                  const playerIdForFirebase = target.firebaseId || target.playerId;
+                  setTimeout(async () => {
+                    try {
+                      await GameDataService.savePlayerScore(playerIdForFirebase, target.score);
+                      console.log(`💰 Saved updated score for ${target.name} after being eaten by bot: ${target.score}`);
+                    } catch (error) {
+                      console.error(`❌ Failed to save updated score for ${target.name}:`, error);
+                    }
+                  }, 0);
+                }
               }
               
               // Set cooldown to prevent spam eating
@@ -1480,6 +1493,19 @@ function updatePlayers(deltaTime) {
                   coinsLost: Math.floor(target.score * 0.1),
                   remainingScore: target.score
                 });
+                
+                // Save updated score to database for the victim
+                if (target.firebaseId || target.playerId) {
+                  const playerIdForFirebase = target.firebaseId || target.playerId;
+                  setTimeout(async () => {
+                    try {
+                      await GameDataService.savePlayerScore(playerIdForFirebase, target.score);
+                      console.log(`💰 Saved updated score for ${target.name} after being eaten by player: ${target.score}`);
+                    } catch (error) {
+                      console.error(`❌ Failed to save updated score for ${target.name}:`, error);
+                    }
+                  }, 0);
+                }
               }
               
               // Set cooldown to prevent spam eating
