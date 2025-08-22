@@ -1064,6 +1064,25 @@ function setupSocketListeners() {
             }
         }
         
+        // Preserve Player Eater and other booster states from previous localPlayer
+        if (localPlayer && previousLocalPlayer) {
+            localPlayer.playerEater = localPlayer.playerEater || previousLocalPlayer.playerEater || false;
+            localPlayer.playerEaterEndTime = localPlayer.playerEaterEndTime || previousLocalPlayer.playerEaterEndTime || 0;
+            localPlayer.coinBoost = localPlayer.coinBoost || previousLocalPlayer.coinBoost || false;
+            localPlayer.coinBoostEndTime = localPlayer.coinBoostEndTime || previousLocalPlayer.coinBoostEndTime || 0;
+        }
+        
+        // Preserve Player Eater and other booster states for bots
+        if (gameState.bots && gameState.bots.length > 0) {
+            gameState.bots.forEach(bot => {
+                // Ensure bot has booster state properties
+                bot.playerEater = bot.playerEater || false;
+                bot.playerEaterEndTime = bot.playerEaterEndTime || 0;
+                bot.coinBoost = bot.coinBoost || false;
+                bot.coinBoostEndTime = bot.coinBoostEndTime || 0;
+            });
+        }
+        
         // Log player identification for debugging
         if (!localPlayer) {
             console.log('⚠️ Could not identify localPlayer in gameUpdate. Current socketId:', currentSocketId, 'GameState playerId:', gameState.playerId);
@@ -3153,14 +3172,26 @@ function updateCamera() {
     const speedLevelElement = document.getElementById('speedLevel');
     
     if (speedElement) {
-        speedElement.textContent = isNaN(speed) ? '0.0' : (Math.round(speed * 10) / 10).toString();
+        let displaySpeed = speed;
+        
+        // Check if Player Eater is active - limit displayed speed to 100
+        if (localPlayer && localPlayer.playerEater && displaySpeed > 100) {
+            displaySpeed = 100;
+        }
+        
+        speedElement.textContent = isNaN(displaySpeed) ? '0.0' : (Math.round(displaySpeed * 10) / 10).toString();
     }
     
     if (maxSpeedElement && localPlayer) {
-        const baseSpeed = 200;
-        const sizeMultiplier = calculateSpeedMultiplier(localPlayer.score || 0);
-        const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
-        maxSpeedElement.textContent = maxSpeed.toString();
+        // Check if Player Eater is active - limit max speed to 100
+        if (localPlayer.playerEater) {
+            maxSpeedElement.textContent = '100';
+        } else {
+            const baseSpeed = 200;
+            const sizeMultiplier = calculateSpeedMultiplier(localPlayer.score || 0);
+            const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
+            maxSpeedElement.textContent = maxSpeed.toString();
+        }
     }
     
     if (playerSizeElement && localPlayer) {
@@ -3267,7 +3298,14 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
     // Update current speed
     const speedElement = document.getElementById('speedValue');
     if (speedElement) {
-        const speedText = isNaN(currentSpeed) ? '0.0' : (Math.round(currentSpeed * 10) / 10).toString();
+        let displaySpeed = currentSpeed;
+        
+        // Check if Player Eater is active - limit displayed speed to 100
+        if (player.playerEater && displaySpeed > 100) {
+            displaySpeed = 100;
+        }
+        
+        const speedText = isNaN(displaySpeed) ? '0.0' : (Math.round(displaySpeed * 10) / 10).toString();
         speedElement.textContent = speedText;
     } else {
         console.warn('⚠️ speedValue element not found');
@@ -3276,10 +3314,15 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
     // Update max speed
     const maxSpeedElement = document.getElementById('maxSpeedValue');
     if (maxSpeedElement) {
-        const baseSpeed = 200;
-        const sizeMultiplier = calculateSpeedMultiplier(player.score || 0);
-        const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
-        maxSpeedElement.textContent = maxSpeed.toString();
+        // Check if Player Eater is active - limit max speed to 100
+        if (player.playerEater) {
+            maxSpeedElement.textContent = '100';
+        } else {
+            const baseSpeed = 200;
+            const sizeMultiplier = calculateSpeedMultiplier(player.score || 0);
+            const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
+            maxSpeedElement.textContent = maxSpeed.toString();
+        }
     } else {
         console.warn('⚠️ maxSpeedValue element not found');
     }
