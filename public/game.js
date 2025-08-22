@@ -3167,6 +3167,15 @@ function updateCamera() {
         // Check if Player Eater is active - limit displayed speed to 100
         if (localPlayer && localPlayer.playerEater && displaySpeed > 100) {
             displaySpeed = 100;
+        } else if (localPlayer) {
+            // Also limit current speed to calculated max speed when not using Player Eater
+            const baseSpeed = 200;
+            const sizeMultiplier = calculateSpeedMultiplier(localPlayer.score || 0);
+            const maxSpeed = baseSpeed * sizeMultiplier;
+            if (displaySpeed > maxSpeed) {
+                displaySpeed = maxSpeed;
+                console.log(`⚡ Current speed capped from ${speed.toFixed(1)} to ${maxSpeed.toFixed(1)} (max for level)`);
+            }
         }
         
         speedElement.textContent = isNaN(displaySpeed) ? '0.0' : (Math.round(displaySpeed * 10) / 10).toString();
@@ -3295,6 +3304,15 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
         // Check if Player Eater is active - limit displayed speed to 100
         if (player.playerEater && displaySpeed > 100) {
             displaySpeed = 100;
+        } else {
+            // Also limit current speed to calculated max speed when not using Player Eater
+            const baseSpeed = 200;
+            const sizeMultiplier = calculateSpeedMultiplier(player.score || 0);
+            const maxSpeed = baseSpeed * sizeMultiplier;
+            if (displaySpeed > maxSpeed) {
+                displaySpeed = maxSpeed;
+                console.log(`⚡ Current speed capped from ${currentSpeed.toFixed(1)} to ${maxSpeed.toFixed(1)} (max for level)`);
+            }
         }
         
         const speedText = isNaN(displaySpeed) ? '0.0' : (Math.round(displaySpeed * 10) / 10).toString();
