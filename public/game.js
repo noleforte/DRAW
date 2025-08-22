@@ -459,7 +459,7 @@ class HybridAuthSystem {
         try {
             const normalizedNickname = currentUser.nickname.toLowerCase().trim();
             let bestStats = {
-                totalScore: currentUser.stats?.totalScore || 0,
+                totalScore: currentUser.stats.totalScore || 0,
                 gamesPlayed: currentUser.stats?.gamesPlayed || 0,
                 bestScore: currentUser.stats?.bestScore || 0,
                 wins: currentUser.stats?.wins || 0
@@ -474,7 +474,7 @@ class HybridAuthSystem {
                     const playersData = playersDoc.data();
                     // Extract stats from players collection (check both root and nested stats)
                     const playersStats = {
-                        totalScore: Math.max(playersData.totalScore || 0, playersData.stats?.totalScore || 0),
+                        totalScore: playersData.totalScore || 0,
                         gamesPlayed: Math.max(playersData.gamesPlayed || 0, playersData.stats?.gamesPlayed || 0),
                         bestScore: Math.max(playersData.bestScore || 0, playersData.stats?.bestScore || 0),
                         wins: Math.max(playersData.wins || 0, playersData.stats?.wins || 0)
@@ -4028,6 +4028,17 @@ function gameLoop() {
                 }
             }
             
+            // Read from Firestore every second to get real-time updates
+            nicknameAuth.syncUserStatsFromFirestore().then(freshUser => {
+                if (freshUser && localPlayer) {
+                    // Update UI with fresh data from Firestore
+                    forceUpdateGameStatsDisplay(localPlayer);
+                    updatePlayerInfoPanelStats(localPlayer);
+                }
+            }).catch(error => {
+                console.warn('⚠️ Failed to sync from Firestore every second:', error);
+            });
+            
             lastStatsUpdate = now;
         }
         
@@ -4898,7 +4909,7 @@ class PanelManager {
                     }
                 }
                 if (totalCoinsElement) {
-                    const totalCoins = currentUser.stats?.totalScore || 0;
+                    const totalCoins = currentUser.stats.totalScore || 0;
                     totalCoinsElement.textContent = totalCoins;
                 }
                 if (totalMatchesElement) {

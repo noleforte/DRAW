@@ -113,7 +113,7 @@ class GameDataService {
                 
                 // Get existing player data
                 const existingData = existingPlayerDoc.data();
-                const existingScore = existingData.totalScore || existingData.stats?.totalScore || 0;
+                const existingScore = existingData.totalScore || 0;
                 const newScore = gameData.score;
                 
                 // Keep the higher score and merge other data
@@ -236,9 +236,9 @@ class GameDataService {
                 console.log(`🔍 Raw Firestore data for ${normalizedPlayerId}:`, data);
                 console.log(`🔍 totalScore values: root= stats.totalScore=${data.stats?.totalScore}`);
                 
-                // Extract data with proper fallbacks - prioritize root totalScore over stats.totalScore
+                // Extract data with proper fallbacks - use only root totalScore
                 const extractedData = {
-                    totalScore: data.stats?.totalScore || 0, // Сначала корневой totalScore
+                    totalScore: data.totalScore || 0, // Только корневой totalScore
                     lastSize: data.lastSize || null,
                     bestScore: data.bestScore || data.stats?.bestScore || 0,
                     gamesPlayed: data.gamesPlayed || data.stats?.gamesPlayed || 0,
@@ -538,7 +538,7 @@ class GameDataService {
             if (playerDoc.exists) {
                 const currentStats = playerDoc.data();
                 console.log(`📊 Found existing player document for ${normalizedPlayerId}:`, currentStats);
-                console.log(`📊 Current totalScore values: root=${currentStats.totalScore}, stats.totalScore=${currentStats.stats?.totalScore}`);
+                console.log(`📊 Current totalScore value: root=${currentStats.totalScore}`);
                 
                 const newGamesPlayed = Math.max(currentStats.gamesPlayed || 0, statsData.gamesPlayed || 0);
                 const newBestScore = Math.max(currentStats.bestScore || 0, statsData.score);
@@ -677,7 +677,7 @@ class GameDataService {
                 nicknameGroups.get(nickname).push({
                     docId: doc.id,
                     data: data,
-                    totalScore: data.totalScore || data.stats?.totalScore || 0,
+                    totalScore: data.totalScore || 0,
                     gamesPlayed: data.gamesPlayed || data.stats?.gamesPlayed || 0,
                     email: email
                 });
@@ -786,7 +786,7 @@ class GameDataService {
                     walletGroups.get(wallet).push({
                         docId: doc.id,
                         data: data,
-                        totalScore: data.totalScore || data.stats?.totalScore || 0,
+                        totalScore: data.totalScore || 0,
                         gamesPlayed: data.gamesPlayed || data.stats?.gamesPlayed || 0,
                         email: email
                     });
@@ -969,7 +969,7 @@ class GameDataService {
                 
                 // Extract and normalize data from different field structures
                 const nickname = data.nickname || data.playerName || doc.id;
-                const totalScore = data.totalScore || data.stats?.totalScore || 0;
+                const totalScore = data.totalScore || 0;
                 const bestScore = data.bestScore || data.stats?.bestScore || 0;
                 const gamesPlayed = data.gamesPlayed || data.stats?.gamesPlayed || 0;
                 const wins = data.wins || data.stats?.wins || 0;
