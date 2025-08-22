@@ -351,9 +351,7 @@
             #controlsPanel{
                 display: none !important;
             }
-                         #speedIndicator{
-                 max-width: 36% !important;
-             }
+
              #mobileJoystick{
                  display: block !important;
                  bottom: 70px !important;
@@ -1197,6 +1195,16 @@
                                         <span class="text-xs text-gray-300">Size:</span>
                                         <span class="font-bold text-blue-400 text-sm" id="currentGameSize">20</span>
                                     </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs text-gray-300">Speed:</span>
+                                        <span class="font-bold text-purple-400 text-sm">
+                                            <span id="speedValue">0</span> / <span id="maxSpeedValue">200</span>
+                                        </span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs text-gray-300">Level:</span>
+                                        <span class="font-bold text-orange-400 text-xs" id="speedLevel">(Level 1)</span>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -1369,13 +1377,7 @@
             <p>💬 Chat with other players</p>
         </div>
         
-        <!-- Speed Indicator -->
-        <div id="speedIndicator" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 rounded-lg px-4 py-2 text-sm z-10">
-                                🏃 Speed: <span id="speedValue">0</span> / <span id="maxSpeedValue">200</span> <span id="speedLevel">(Level 1)</span>
-                          <div class="text-xs text-gray-300 mt-1">
-                  Size: <span id="playerSizeValue">20</span> | Score: <span id="currentGameScore">0</span> (more coins = slower)
-              </div>
-        </div>
+
         
         <!-- Match Timer -->
         <div id="matchTimer" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-600 bg-opacity-80 rounded-lg px-6 py-3 text-center z-10">

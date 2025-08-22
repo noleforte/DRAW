@@ -1448,7 +1448,7 @@ function setupSocketListeners() {
                     // Reset speed and size display
                     const speedElement = document.getElementById('speedValue');
                     const maxSpeedElement = document.getElementById('maxSpeedValue');
-                    const playerSizeElement = document.getElementById('playerSizeValue');
+                    const playerSizeElement = document.getElementById('currentGameSize');
                     
                     if (speedElement) {
                         speedElement.textContent = '0.0';
@@ -3158,7 +3158,7 @@ function updateCamera() {
     // Update speed display elements
     const speedElement = document.getElementById('speedValue');
     const maxSpeedElement = document.getElementById('maxSpeedValue');
-    const playerSizeElement = document.getElementById('playerSizeValue');
+    const playerSizeElement = document.getElementById('currentGameSize');
     const speedLevelElement = document.getElementById('speedLevel');
     
     if (speedElement) {
@@ -3289,11 +3289,11 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
     }
     
     // Update player size
-    const playerSizeElement = document.getElementById('playerSizeValue');
+    const playerSizeElement = document.getElementById('currentGameSize');
     if (playerSizeElement) {
         playerSizeElement.textContent = Math.round(player.size || 20);
     } else {
-        console.warn('⚠️ playerSizeValue element not found');
+        console.warn('⚠️ currentGameSize element not found');
     }
     
     // Update current speed
