@@ -807,7 +807,7 @@ function setupSocketListeners() {
     socket.on('connect', () => {
         // Store socket.id for proper player identification
         currentSocketId = socket.id;
-
+        console.log('🔗 Socket connected with ID:', currentSocketId);
         
         // Validate socket connection
         if (!currentSocketId) {
@@ -950,7 +950,7 @@ function setupSocketListeners() {
                 // Update server with initial score
                 if (socket && socket.connected) {
                     socket.emit('updatePlayerScore', {
-                        playerId: localPlayer.socketId || localPlayer.id, // используем socketId как основной идентификатор
+                        playerId: localPlayer.id,
                         score: localPlayer.score
                     });
                     console.log('📤 Sent initial score to server:', localPlayer.score);
@@ -963,7 +963,7 @@ function setupSocketListeners() {
                 // Update server with initial score
                 if (socket && socket.connected) {
                     socket.emit('updatePlayerScore', {
-                        playerId: localPlayer.socketId || localPlayer.id, // используем socketId как основной идентификатор
+                        playerId: localPlayer.id,
                         score: localPlayer.score
                     });
                     console.log('📤 Sent initial score to server (using bestScore):', localPlayer.score);
@@ -986,7 +986,7 @@ function setupSocketListeners() {
                 // Update server with initial size
                 if (socket && socket.connected) {
                     socket.emit('updatePlayerSize', {
-                        playerId: localPlayer.socketId || localPlayer.id, // используем socketId как основной идентификатор
+                        playerId: localPlayer.id,
                         size: localPlayer.size
                     });
                     console.log('📤 Sent initial size to server:', localPlayer.size);
@@ -1198,11 +1198,13 @@ function setupSocketListeners() {
                 if (maxSpeedElement) {
                     if (localPlayer.playerEater) {
                         maxSpeedElement.textContent = '100';
+                        console.log('👹 Max speed updated to 100 (Player Eater active)');
                     } else {
                         const baseSpeed = 200;
                         const sizeMultiplier = calculateSpeedMultiplier(localPlayer.score || 0);
                         const maxSpeed = Math.round(baseSpeed * sizeMultiplier);
                         maxSpeedElement.textContent = maxSpeed.toString();
+                        console.log(`👹 Max speed updated to ${maxSpeed} (Player Eater inactive)`);
                     }
                 }
             }
@@ -1272,12 +1274,8 @@ function setupSocketListeners() {
     });
     
     socket.on('playerEaten', (data) => {
-        // Handle when our player gets eaten - check by socketId (primary) or id/name (fallback)
-        if (localPlayer && (
-            localPlayer.socketId === data.victimId ||  // основной путь
-            localPlayer.id === data.victimId ||        // вдруг сервер шлёт "id"
-            localPlayer.name === data.victimName       // запасной вариант
-        )) {
+        // Handle when our player gets eaten
+        if (localPlayer && localPlayer.id === data.victimId) {
             // Handle AFK kick
             if (data.afkKick) {
                 console.log(`⏰ You were kicked for being AFK! Saved ${data.coinsLost} coins to your balance.`);
@@ -1422,14 +1420,10 @@ function setupSocketListeners() {
                     matchTimeLeft = null;
                     matchStartTime = null;
                     
-                    // Reset all panels manually since resetAllPanels method doesn't exist
-                    const panels = ['leaderboardPanel', 'chatPanelNew', 'controlsPanel', 'userinfoLeftPanel'];
-                    panels.forEach(panelId => {
-                        const panel = document.getElementById(panelId);
-                        if (panel) {
-                            panel.classList.add('hidden');
-                        }
-                    });
+                    // Reset panel manager if exists
+                    if (window.panelManager) {
+                        window.panelManager.resetAllPanels();
+                    }
                     
                     // Reset rank display
                     const currentGameRankElement = document.getElementById('currentGameRank');
@@ -1614,11 +1608,7 @@ function setupSocketListeners() {
                 console.log('  - finalResults:', finalResults);
                 
                 // Try to get score from finalResults if localPlayer.score seems wrong
-                const finalPlayerResult = finalResults.find(p => 
-                    p.id === localPlayer.id || 
-                    p.socketId === localPlayer.socketId || 
-                    p.name === localPlayer.name
-                );
+                const finalPlayerResult = finalResults.find(p => p.id === localPlayer.id);
                 if (finalPlayerResult && finalPlayerResult.score !== undefined) {
                     console.log('  - Found score in finalResults:', finalPlayerResult.score);
                     currentGameScore = finalPlayerResult.score;
@@ -1633,7 +1623,7 @@ function setupSocketListeners() {
                     gamesPlayed: (currentUser.stats.gamesPlayed || 0) + 1,
                     totalScore: currentGameScore, // Score = Total Score, so just update to current value
                     bestScore: Math.max((currentUser.stats.bestScore || 0), currentGameScore),
-                    wins: currentUser.stats.wins || 0 // оставляем wins без изменений
+                    wins: (currentUser.stats.wins || 0) + (finalResults.findIndex(p => p.id === localPlayer.id) === 0 ? 1 : 0)
                 };
                 
                 // Update user stats in localStorage
@@ -1688,7 +1678,7 @@ function setupSocketListeners() {
     socket.on('disconnect', () => {
         // Clear current socket ID when disconnected
         currentSocketId = null;
-
+        console.log('🔌 Socket disconnected, clearing currentSocketId');
         
         // Try to reconnect after short delay
         setTimeout(() => {
@@ -2213,7 +2203,7 @@ function setupInputHandlers() {
     
     // Keyboard input
     document.addEventListener('keydown', (e) => {
-
+        console.log('🎮 Key pressed:', e.code, 'key:', e.key, 'target:', e.target?.tagName);
         
         // Check if user is typing in an input field
         const activeElement = document.activeElement;
@@ -2583,11 +2573,11 @@ function setupUIHandlers() {
         }
         
         console.log('🆔 Player ID:', playerId);
-
+        console.log('🔗 Socket connected:', socket?.connected);
         
         // Check if socket is disconnected and reconnect if needed
         if (!socket || !socket.connected) {
-    
+            console.log('🔌 Socket disconnected, reconnecting...');
             
             // Recreate socket connection
             const isProduction = window.location.hostname !== 'localhost';
@@ -3185,7 +3175,7 @@ function updateCamera() {
             const maxSpeed = baseSpeed * sizeMultiplier;
             if (displaySpeed > maxSpeed) {
                 displaySpeed = maxSpeed;
-                
+                console.log(`⚡ Current speed capped from ${speed.toFixed(1)} to ${maxSpeed.toFixed(1)} (max for level)`);
             }
         }
         
@@ -3314,7 +3304,7 @@ function updatePlayerStatsDisplay(currentSpeed, player) {
             const maxSpeed = baseSpeed * sizeMultiplier;
             if (displaySpeed > maxSpeed) {
                 displaySpeed = maxSpeed;
-
+                console.log(`⚡ Current speed capped from ${currentSpeed.toFixed(1)} to ${maxSpeed.toFixed(1)} (max for level)`);
             }
         }
         

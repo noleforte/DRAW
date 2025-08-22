@@ -1046,8 +1046,7 @@ function updateBots() {
               // Send playerEaten event to victim if it's a player
               if (target.socketId) {
                 io.to(target.socketId).emit('playerEaten', {
-                  victimId: target.socketId, // используем socketId для консистентности
-                  victimName: target.name,   // добавляем имя как fallback
+                  victimId: target.id,
                   eatenBy: bot.name,
                   coinsLost: Math.floor(target.score * 0.1),
                   remainingScore: target.score
@@ -1066,17 +1065,25 @@ function updateBots() {
                     const playerIdForFirebase = target.firebaseId || target.playerId;
                     console.log(`💾 IMMEDIATELY saving totalScore for ${target.name} with ID: ${playerIdForFirebase}`);
                     
-                    // Don't save totalScore when player loses coins - totalScore should only increase
-                    // totalScore represents the highest score ever achieved, not current score
-                    console.log(`ℹ️ Not updating totalScore for ${target.name} - totalScore should only increase (was eaten, score decreased)`);
-                    
-                    // Still notify clients about the score change for real-time updates
-                    io.emit('playerStatsUpdated', {
-                      playerId: playerIdForFirebase,
-                      nickname: target.name,
-                      currentScore: target.score, // Use currentScore instead of totalScore
-                      type: 'scoreDecrease'
-                    });
+                    // Save immediately without setTimeout
+                    (async () => {
+                      try {
+                        // Save to totalScore field (not score)
+                        await GameDataService.updatePlayerFullStats(playerIdForFirebase, { totalScore: target.score });
+                        console.log(`💰 Successfully saved updated totalScore for ${target.name} after being eaten by bot: ${target.score}`);
+                        
+                        // Notify all clients about updated player stats for real-time leaderboard updates
+                        io.emit('playerStatsUpdated', {
+                          playerId: playerIdForFirebase,
+                          nickname: target.name,
+                          totalScore: target.score,
+                          type: 'scoreUpdate'
+                        });
+                        console.log(`📡 Notified all clients about ${target.name}'s score update`);
+                      } catch (error) {
+                        console.error(`❌ Failed to save updated totalScore for ${target.name}:`, error);
+                      }
+                    })();
                   } else {
                     console.log(`⚠️ Target ${target.name} has no Firebase ID - cannot save to database`);
                   }
@@ -1558,8 +1565,7 @@ function updatePlayers(deltaTime) {
               // Send playerEaten event to victim
               if (target.socketId) {
                 io.to(target.socketId).emit('playerEaten', {
-                  victimId: target.socketId, // используем socketId для консистентности
-                  victimName: target.name,   // добавляем имя как fallback
+                  victimId: target.id,
                   eatenBy: player.name,
                   coinsLost: Math.floor(target.score * 0.1),
                   remainingScore: target.score
