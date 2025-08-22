@@ -172,8 +172,8 @@ class LeaderboardManager {
         
         if (!data || data.length === 0) {
             leaderboardList.innerHTML = `
-                <div class="text-center py-8">
-                    <div class="text-2xl font-bold text-gray-600 mb-2">🏆 Leaderboard</div>
+                <div class="text-center py-6">
+                    <div class="text-xl font-bold text-gray-600 mb-2">🏆 Leaderboard</div>
                     <div class="text-gray-500">
                         ${type === 'global' ? 'No players with email found yet.' : 'No match data available.'}
                     </div>
@@ -182,7 +182,7 @@ class LeaderboardManager {
             return;
         }
         
-        // Apply client-side filtering for global leaderboard
+        // Apply client-side filtering ONLY for global leaderboard
         if (type === 'global') {
             // Remove duplicates by nickname (keep highest score)
             const uniquePlayers = new Map();
@@ -194,7 +194,7 @@ class LeaderboardManager {
                 }
             });
             
-            // Filter out temporary accounts and zero scores
+            // Filter out temporary accounts, zero scores, and players without email
             const filteredPlayers = Array.from(uniquePlayers.values()).filter(player => {
                 const nickname = player.nickname || player.playerName || player.playerId;
                 const hasValidNickname = !nickname.startsWith('Player_guest_') && 
@@ -220,15 +220,16 @@ class LeaderboardManager {
             data = filteredPlayers.sort((a, b) => b.totalScore - a.totalScore);
             console.log(`✅ Global leaderboard filtered: ${data.length} players (was ${uniquePlayers.size})`);
         }
+        // For match leaderboard - NO filtering, show all players as before
         
         // Create leaderboard HTML
         const leaderboardHTML = `
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800">
-                        🏆 ${type === 'global' ? 'Global Leaderboard' : 'Match Leaderboard'}
+            <div class="bg-white rounded-lg shadow-lg p-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">
+                        🏆 ${type === 'global' ? 'Global Leaderboard' : 'Current Game'}
                     </h2>
-                    <div class="text-sm text-gray-600">
+                    <div class="text-xs text-gray-600">
                         ${type === 'global' ? 
                             `Showing ${data.length} players with email` : 
                             `${data.length} players in current match`
@@ -237,15 +238,15 @@ class LeaderboardManager {
                 </div>
                 
                 ${type === 'global' ? 
-                    '<div class="text-xs text-gray-500 mb-4 bg-blue-50 p-3 rounded">📧 Only players with verified email addresses are shown in the global leaderboard.</div>' : 
+                    '<div class="text-xs text-gray-500 mb-3 bg-blue-50 p-2 rounded">📧 Only players with verified email addresses are shown in the global leaderboard.</div>' : 
                     ''
                 }
                 
-                <div class="space-y-3">
+                <div class="space-y-2">
                     ${data.map((player, index) => {
                         const rank = index + 1;
                         const nickname = player.nickname || player.playerName || player.playerId;
-                        const score = player.totalScore || 0;
+                        const score = type === 'match' ? (player.score || 0) : (player.totalScore || 0);
                         const games = player.gamesPlayed || 0;
                         const wins = player.wins || 0;
                         const email = player.email || '';
@@ -258,12 +259,12 @@ class LeaderboardManager {
                         else if (rank <= 50) rankEmoji = '🎖️';
                         
                         return `
-                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                                <div class="flex items-center space-x-4">
-                                    <div class="text-2xl">${rankEmoji}</div>
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                <div class="flex items-center space-x-3">
+                                    <div class="text-lg">${rankEmoji}</div>
                                     <div>
-                                        <div class="font-bold text-lg text-gray-800">${rank}. ${nickname}</div>
-                                        <div class="text-sm text-gray-600">
+                                        <div class="font-bold text-base text-gray-800">${rank}. ${nickname}</div>
+                                        <div class="text-xs text-gray-600">
                                             ${type === 'global' ? 
                                                 `Games: ${games} | Wins: ${wins} | Email: ${email}` :
                                                 `Score: ${score}`
@@ -272,7 +273,7 @@ class LeaderboardManager {
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <div class="text-2xl font-bold text-blue-600">${score}</div>
+                                    <div class="text-xl font-bold text-blue-600">${score}</div>
                                     ${type === 'global' ? 
                                         `<div class="text-xs text-gray-500">Total Score</div>` : 
                                         `<div class="text-xs text-gray-500">Match Score</div>`
