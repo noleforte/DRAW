@@ -14,7 +14,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
     <script src="firebase-config.js"></script>
-    <script src="auth.js"></script>
+    <script src="server-auth.js"></script>
+    <script src="game-utils.js"></script>
+    <script src="game-migration.js"></script>
     <script src="leaderboard.js"></script>
     
     <style>
@@ -1131,9 +1133,10 @@
                 <input 
                     type="text" 
                     id="regWalletInput" 
-                    placeholder="Wallet Address (optional)" 
+                    placeholder="Wallet Address *" 
                     class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6"
                     maxlength="50"
+                    required
                 >
                 <button 
                     id="createAccountBtn" 
@@ -1457,5 +1460,156 @@
     </div>
 
     <script src="game.js"></script>
+    
+    <script>
+        // Authentication modal event handlers
+        document.addEventListener('DOMContentLoaded', function() {
+            const authModal = document.getElementById('authModal');
+            const registrationModal = document.getElementById('registrationModal');
+            const showRegistrationBtn = document.getElementById('showRegistrationBtn');
+            const backToLoginBtn = document.getElementById('backToLoginBtn');
+            const closeAuthModalBtn = document.getElementById('closeAuthModalBtn');
+            const signInBtn = document.getElementById('signInBtn');
+            const createAccountBtn = document.getElementById('createAccountBtn');
+            
+            // Show registration modal
+            if (showRegistrationBtn) {
+                showRegistrationBtn.addEventListener('click', function() {
+                    authModal.classList.add('hidden');
+                    registrationModal.classList.remove('hidden');
+                });
+            }
+            
+            // Back to login
+            if (backToLoginBtn) {
+                backToLoginBtn.addEventListener('click', function() {
+                    registrationModal.classList.add('hidden');
+                    authModal.classList.remove('hidden');
+                });
+            }
+            
+            // Close modals
+            if (closeAuthModalBtn) {
+                closeAuthModalBtn.addEventListener('click', function() {
+                    authModal.classList.add('hidden');
+                });
+            }
+            
+            // Close modals when clicking outside
+            [authModal, registrationModal].forEach(modal => {
+                if (modal) {
+                    modal.addEventListener('click', function(e) {
+                        if (e.target === modal) {
+                            modal.classList.add('hidden');
+                        }
+                    });
+                }
+            });
+            
+            // Sign in
+            if (signInBtn) {
+                signInBtn.addEventListener('click', async function() {
+                    const nickname = document.getElementById('authNicknameInput')?.value;
+                    const password = document.getElementById('authPasswordInput')?.value;
+                    
+                    if (!nickname || !password) {
+                        window.serverAuth?.showError('Sign In Failed', 'Please enter both nickname and password');
+                        return;
+                    }
+                    
+                    try {
+                        signInBtn.disabled = true;
+                        signInBtn.textContent = 'Signing in...';
+                        
+                        await window.serverAuth.login(nickname, password);
+                        authModal.classList.add('hidden');
+                        
+                        // Clear form
+                        document.getElementById('authNicknameInput').value = '';
+                        document.getElementById('authPasswordInput').value = '';
+                        
+                    } catch (error) {
+                        window.serverAuth?.showError('Sign In Failed', error.message);
+                    } finally {
+                        signInBtn.disabled = false;
+                        signInBtn.textContent = 'Sign In';
+                    }
+                });
+            }
+            
+            // Create account
+            if (createAccountBtn) {
+                createAccountBtn.addEventListener('click', async function() {
+                    const email = document.getElementById('regEmailInput')?.value;
+                    const nickname = document.getElementById('regNicknameInput')?.value;
+                    const password = document.getElementById('regPasswordInput')?.value;
+                    const wallet = document.getElementById('regWalletInput')?.value;
+                    
+                    if (!email || !nickname || !password || !wallet) {
+                        window.serverAuth?.showError('Registration Failed', 'Please fill in all required fields including wallet address');
+                        return;
+                    }
+                    
+                    if (password.length < 6) {
+                        window.serverAuth?.showError('Registration Failed', 'Password must be at least 6 characters');
+                        return;
+                    }
+                    
+                    try {
+                        createAccountBtn.disabled = true;
+                        createAccountBtn.textContent = 'Creating Account...';
+                        
+                        await window.serverAuth.register(email, nickname, password, wallet);
+                        registrationModal.classList.add('hidden');
+                        
+                        // Clear form
+                        document.getElementById('regEmailInput').value = '';
+                        document.getElementById('regNicknameInput').value = '';
+                        document.getElementById('regPasswordInput').value = '';
+                        document.getElementById('regWalletInput').value = '';
+                        
+                    } catch (error) {
+                        window.serverAuth?.showError('Registration Failed', error.message);
+                    } finally {
+                        createAccountBtn.disabled = false;
+                        createAccountBtn.textContent = 'Create Account';
+                    }
+                });
+            }
+            
+            // Enter key handlers
+            const authInputs = [
+                document.getElementById('authNicknameInput'),
+                document.getElementById('authPasswordInput')
+            ];
+            
+            const regInputs = [
+                document.getElementById('regEmailInput'),
+                document.getElementById('regNicknameInput'),
+                document.getElementById('regPasswordInput'),
+                document.getElementById('regWalletInput')
+            ];
+            
+            authInputs.forEach(input => {
+                if (input) {
+                    input.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            signInBtn?.click();
+                        }
+                    });
+                }
+            });
+            
+            regInputs.forEach(input => {
+                if (input) {
+                    input.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            createAccountBtn?.click();
+                        }
+                    });
+                }
+            });
+        });
+    </script>
 </body>
 </html> 

@@ -1109,7 +1109,7 @@ class GameDataService {
         }
     }
 
-    // Find player by passwordHash for players without firebaseId
+    // Find player by passwordHash for players without user ID
     async findPlayerByPasswordHash(passwordHash) {
         try {
             console.log(`🔍 Searching for player with passwordHash: ${passwordHash}`);
@@ -1136,6 +1136,145 @@ class GameDataService {
         } catch (error) {
             console.error('❌ Error finding player by passwordHash:', error);
             return null;
+        }
+    }
+
+    // Authentication methods for server-side auth
+    async createUser(userId, userData) {
+        try {
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, mock creating user');
+                console.log(`📝 Mock create user: ${userId} - ${userData.nickname}`);
+                return true;
+            }
+            
+            await db.collection('users').doc(userId).set(userData);
+            console.log(`✅ User created: ${userId} - ${userData.nickname}`);
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to create user:', error);
+            throw error;
+        }
+    }
+
+    async getUserById(userId) {
+        try {
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, mock getting user by ID');
+                return null;
+            }
+            
+            const doc = await db.collection('users').doc(userId).get();
+            if (doc.exists) {
+                return doc.data();
+            }
+            return null;
+        } catch (error) {
+            console.error('❌ Failed to get user by ID:', error);
+            throw error;
+        }
+    }
+
+    async getUserByNickname(nickname) {
+        try {
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, mock getting user by nickname');
+                return null;
+            }
+            
+            const normalizedNickname = nickname.toLowerCase().trim();
+            const snapshot = await db.collection('users')
+                .where('nickname', '==', normalizedNickname)
+                .limit(1)
+                .get();
+            
+            if (!snapshot.empty) {
+                return snapshot.docs[0].data();
+            }
+            return null;
+        } catch (error) {
+            console.error('❌ Failed to get user by nickname:', error);
+            throw error;
+        }
+    }
+
+    async getUserByEmailOrNickname(email, nickname) {
+        try {
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, mock getting user by email/nickname');
+                return [];
+            }
+            
+            const normalizedEmail = email.toLowerCase().trim();
+            const normalizedNickname = nickname.toLowerCase().trim();
+            
+            // Search by email
+            const emailSnapshot = await db.collection('users')
+                .where('email', '==', normalizedEmail)
+                .get();
+            
+            // Search by nickname
+            const nicknameSnapshot = await db.collection('users')
+                .where('nickname', '==', normalizedNickname)
+                .get();
+            
+            const users = [];
+            
+            emailSnapshot.forEach(doc => {
+                users.push(doc.data());
+            });
+            
+            nicknameSnapshot.forEach(doc => {
+                // Avoid duplicates
+                if (!users.find(u => u.id === doc.data().id)) {
+                    users.push(doc.data());
+                }
+            });
+            
+            return users;
+        } catch (error) {
+            console.error('❌ Failed to get user by email/nickname:', error);
+            throw error;
+        }
+    }
+
+    async updateUser(userId, updates) {
+        try {
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, mock updating user');
+                console.log(`📝 Mock update user: ${userId}`, updates);
+                return true;
+            }
+            
+            await db.collection('users').doc(userId).update({
+                ...updates,
+                lastUpdated: Date.now()
+            });
+            
+            console.log(`✅ User updated: ${userId}`);
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to update user:', error);
+            throw error;
+        }
+    }
+
+    async updateUserLastLogin(userId) {
+        try {
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, mock updating user last login');
+                return true;
+            }
+            
+            await db.collection('users').doc(userId).update({
+                lastLogin: Date.now()
+            });
+            
+            console.log(`✅ User last login updated: ${userId}`);
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to update user last login:', error);
+            throw error;
         }
     }
 }

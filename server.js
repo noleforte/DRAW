@@ -4,6 +4,9 @@ const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const { GameDataService } = require('./firebase-admin');
+const bcrypt = require('bcrypt'); // For password hashing
+const crypto = require('crypto'); // For generating secure tokens
+const jwt = require('jsonwebtoken'); // For JWT tokens
 
 // Helper function to get time until end of GMT day
 function getTimeUntilEndOfGMTDay() {
@@ -22,10 +25,45 @@ const io = socketIo(server, {
   } 
 });
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://draw-e67b.onrender.com'] 
+    : ['http://localhost:3001', 'http://127.0.0.1:3001'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.raw({ type: 'application/json' })); // For sendBeacon support
 app.use(express.static(path.join(__dirname, 'public')));
+
+// JWT Secret (in production use environment variable)
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+
+// Authentication middleware
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  });
+}
+
+// Utility function to generate unique user ID
+function generateUserId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  } else {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+  }
+}
 
 // Health check endpoint for Render
 app.get('/health', (req, res) => {
@@ -259,8 +297,8 @@ function checkAFKPlayers() {
     console.log(`⏰ Kicking AFK player: ${player.name} (${player.score} coins, inactive for ${Math.floor((now - player.lastActivity) / 1000)}s)`);
     
     // Save player's coins before kicking (same as death)
-    if (player.score > 0 && (player.firebaseId || player.playerId)) {
-      const playerIdForSave = player.firebaseId || player.playerId;
+          if (player.score > 0 && (player.id || player.firebaseId || player.playerId)) {
+        const playerIdForSave = player.id || player.firebaseId || player.playerId;
       GameDataService.savePlayerCoin(playerIdForSave, player.score)
         .then(() => {
           console.log(`💰 Saved ${player.score} coins for AFK player: ${player.name}`);
@@ -271,8 +309,8 @@ function checkAFKPlayers() {
     }
     
     // Save game session (match) for AFK player
-    if ((player.firebaseId || player.playerId)) {
-      const playerIdForSave = player.firebaseId || player.playerId;
+    if ((player.id || player.firebaseId || player.playerId)) {
+      const playerIdForSave = player.id || player.firebaseId || player.playerId;
       GameDataService.saveGameSession(playerIdForSave, {
         playerName: player.name,
         score: player.score,
@@ -1052,8 +1090,8 @@ function updateBots() {
                 });
                 
                                   // Save current score as totalScore to database for the victim (real player) - IMMEDIATELY
-                  if (target.firebaseId || target.playerId) {
-                    const playerIdForFirebase = target.firebaseId || target.playerId;
+                                  if (target.id || target.firebaseId || target.playerId) {
+                  const playerIdForFirebase = target.id || target.firebaseId || target.playerId;
                     console.log(`💾 IMMEDIATELY saving current score as totalScore for ${target.name}: ${target.score} (was ${oldScore})`);
                     
                     // Save immediately without setTimeout
@@ -1080,7 +1118,7 @@ function updateBots() {
                       }
                     })();
                   } else if (target.passwordHash) {
-                    // Try to find player by passwordHash if no firebaseId
+                    // Try to find player by passwordHash if no user ID
                     console.log(`🔍 Trying to find player ${target.name} by passwordHash for database update`);
                     (async () => {
                       try {
@@ -1233,7 +1271,7 @@ function updatePlayers(deltaTime) {
         player.lastActivity = Date.now();
         
         // Queue player for Firebase saving (save total score, not individual coins)
-        const playerIdForFirebase = player.firebaseId || player.playerId || player.id;
+        const playerIdForFirebase = player.id || player.firebaseId || player.playerId;
         if (playerIdForFirebase) {
           coinsToSave.push({ playerId: playerIdForFirebase, totalScore: player.score, playerName: player.name });
         } else {
@@ -1257,8 +1295,8 @@ function updatePlayers(deltaTime) {
         }
         
         // Save player size and totalScore for next game
-        if (player.firebaseId || player.playerId) {
-          const playerIdForSize = player.firebaseId || player.playerId;
+              if (player.id || player.firebaseId || player.playerId) {
+        const playerIdForSize = player.id || player.firebaseId || player.playerId;
           (async () => {
             try {
               // Save both size and totalScore immediately
@@ -1551,8 +1589,8 @@ function updatePlayers(deltaTime) {
                 });
                 
                 // Save current score as totalScore to database for the victim (real player) - IMMEDIATELY
-                if (target.firebaseId || target.playerId) {
-                  const playerIdForFirebase = target.firebaseId || target.playerId;
+                if (target.id || target.firebaseId || target.playerId) {
+                  const playerIdForFirebase = target.id || target.firebaseId || target.playerId;
                   console.log(`💾 IMMEDIATELY saving current score as totalScore for ${target.name}: ${target.score} (was ${oldScore})`);
                   
                   // Save immediately without setTimeout
@@ -1579,7 +1617,7 @@ function updatePlayers(deltaTime) {
                     }
                   })();
                 } else if (target.passwordHash) {
-                  // Try to find player by passwordHash if no firebaseId
+                  // Try to find player by passwordHash if no user ID
                   console.log(`🔍 Trying to find player ${target.name} by passwordHash for database update`);
                   (async () => {
                     try {
@@ -1833,8 +1871,8 @@ async function endMatch() {
   // Save player statistics to Firebase
   for (const player of gameState.players.values()) {
     try {
-      // Use Firebase ID if available, otherwise use socket ID
-      const playerId = player.firebaseId || player.id;
+      // Use user ID if available, otherwise fallback to firebaseId or socket ID
+      const playerId = player.id || player.firebaseId || player.socketId;
       await GameDataService.savePlayerStats(playerId, {
         playerName: player.name,
         score: player.score,
@@ -1945,7 +1983,8 @@ io.on('connection', (socket) => {
         socketId: socket.id,
         lastSeen: Date.now(),
         lastActivity: Date.now(),
-        firebaseId: existingPlayer.id, // Ensure firebaseId is set for database operations
+        firebaseId: existingPlayer.id, // Keep firebaseId for backwards compatibility
+        id: existingPlayer.id, // Primary user ID
         passwordHash: playerData.passwordHash || existingPlayer.passwordHash, // Preserve passwordHash
         color: playerData.color || existingPlayer.color // Preserve or update color
       };
@@ -2025,7 +2064,8 @@ io.on('connection', (socket) => {
         socketId: socket.id,
         lastSeen: Date.now(),
         wallet: wallet,
-        firebaseId: playerId, // Add firebaseId for database operations
+        firebaseId: playerId, // Keep firebaseId for backwards compatibility
+        id: playerId, // Primary user ID
         passwordHash: playerData.passwordHash || null, // Add passwordHash for database operations
         color: playerData.color || `hsl(${Math.random() * 360}, 70%, 50%)`,
         isBot: false,
@@ -2291,11 +2331,11 @@ io.on('connection', (socket) => {
     
     // Save player state for potential reconnection (5 minutes)
     const player = gameState.players.get(socket.id);
-    if (player && player.firebaseId) {
+    if (player && (player.id || player.firebaseId)) {
       console.log(`💾 Saving state for disconnected player: ${player.name} (${player.score} coins, size: ${player.size})`);
       
       // Save game session when player disconnects (regardless of score)
-      GameDataService.saveGameSession(player.firebaseId, {
+              GameDataService.saveGameSession(player.id || player.firebaseId, {
         playerName: player.name,
         score: player.score,
         walletAddress: player.wallet || ''
@@ -2306,8 +2346,8 @@ io.on('connection', (socket) => {
       });
       
       // Save player size when player disconnects
-      if (player.firebaseId || player.playerId) {
-        const playerIdForSize = player.firebaseId || player.playerId;
+      if (player.id || player.firebaseId || player.playerId) {
+        const playerIdForSize = player.id || player.firebaseId || player.playerId;
         setTimeout(async () => {
           try {
             await GameDataService.savePlayerSize(playerIdForSize, player.size);
@@ -2318,10 +2358,10 @@ io.on('connection', (socket) => {
         }, 0);
       }
       
-      disconnectedPlayers.set(player.firebaseId, player);
+      disconnectedPlayers.set(player.id || player.firebaseId, player);
       setTimeout(() => {
-        if (disconnectedPlayers.has(player.firebaseId)) {
-          disconnectedPlayers.delete(player.firebaseId);
+        if (disconnectedPlayers.has(player.id || player.firebaseId)) {
+          disconnectedPlayers.delete(player.id || player.firebaseId);
           console.log(`🗑️ Cleaned up disconnected player data for: ${player.name}`);
         }
       }, 5 * 60 * 1000); // 5 minutes
@@ -2543,3 +2583,222 @@ app.post('/api/cleanup-duplicates-wallet', async (req, res) => {
     res.status(500).json({ error: 'Failed to cleanup wallet duplicates' });
   }
 }); 
+
+// Authentication API endpoints
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, nickname, password, wallet } = req.body;
+    
+    // Validation
+    if (!email || !nickname || !password || !wallet) {
+      return res.status(400).json({ error: 'Email, nickname, password, and wallet address are required' });
+    }
+    
+    if (nickname.length < 3) {
+      return res.status(400).json({ error: 'Nickname must be at least 3 characters' });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    
+    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedNickname = nickname.toLowerCase().trim();
+    
+    // Check if user already exists in Firestore
+    const existingUsers = await GameDataService.getUserByEmailOrNickname(normalizedEmail, normalizedNickname);
+    if (existingUsers.length > 0) {
+      return res.status(409).json({ error: 'Email or nickname already exists' });
+    }
+    
+    // Hash password
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+    
+    // Create user
+    const userId = generateUserId();
+    const newUser = {
+      id: userId,
+      email: normalizedEmail,
+      nickname: nickname.trim(),
+      passwordHash: passwordHash,
+      wallet: wallet.trim(),
+      createdAt: Date.now(),
+      lastLogin: Date.now(),
+      totalScore: 0,
+      stats: {
+        gamesPlayed: 0,
+        totalScore: 0,
+        bestScore: 0,
+        wins: 0
+      }
+    };
+    
+    // Save to Firestore
+    await GameDataService.createUser(userId, newUser);
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: userId, email: normalizedEmail, nickname: nickname.trim() },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    console.log(`✅ User registered: ${nickname} (${normalizedEmail})`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      user: {
+        id: userId,
+        email: normalizedEmail,
+        nickname: nickname.trim(),
+        wallet: wallet.trim(),
+        totalScore: 0,
+        stats: newUser.stats
+      },
+      token: token
+    });
+    
+  } catch (error) {
+    console.error('❌ Registration error:', error);
+    res.status(500).json({ error: 'Internal server error during registration' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { nickname, password } = req.body;
+    
+    if (!nickname || !password) {
+      return res.status(400).json({ error: 'Nickname and password are required' });
+    }
+    
+    const normalizedNickname = nickname.toLowerCase().trim();
+    
+    // Get user from Firestore
+    const user = await GameDataService.getUserByNickname(normalizedNickname);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid nickname or password' });
+    }
+    
+    // Verify password
+    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid nickname or password' });
+    }
+    
+    // Update last login
+    await GameDataService.updateUserLastLogin(user.id);
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, nickname: user.nickname },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    console.log(`✅ User logged in: ${user.nickname} (${user.email})`);
+    
+    res.json({
+      success: true,
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        email: user.email,
+        nickname: user.nickname,
+        wallet: user.wallet || '',
+        totalScore: user.totalScore || 0,
+        stats: user.stats || {
+          gamesPlayed: 0,
+          totalScore: 0,
+          bestScore: 0,
+          wins: 0
+        }
+      },
+      token: token
+    });
+    
+  } catch (error) {
+    console.error('❌ Login error:', error);
+    res.status(500).json({ error: 'Internal server error during login' });
+  }
+});
+
+app.post('/api/auth/logout', authenticateToken, (req, res) => {
+  // In a more sophisticated setup, you'd invalidate the token on the server side
+  // For now, the client will just remove the token
+  console.log(`✅ User logged out: ${req.user.nickname}`);
+  res.json({ success: true, message: 'Logout successful' });
+});
+
+// Get current user info
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await GameDataService.getUserById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({
+      id: user.id,
+      email: user.email,
+      nickname: user.nickname,
+      wallet: user.wallet || '',
+      totalScore: user.totalScore || 0,
+      stats: user.stats || {
+        gamesPlayed: 0,
+        totalScore: 0,
+        bestScore: 0,
+        wins: 0
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Get user info error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update user profile
+app.put('/api/auth/profile', authenticateToken, async (req, res) => {
+  try {
+    const { wallet } = req.body;
+    const userId = req.user.userId;
+    
+    const updates = {};
+    if (wallet !== undefined) {
+      updates.wallet = wallet.trim();
+    }
+    
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+    
+    await GameDataService.updateUser(userId, updates);
+    
+    const updatedUser = await GameDataService.getUserById(userId);
+    
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nickname: updatedUser.nickname,
+        wallet: updatedUser.wallet || '',
+        totalScore: updatedUser.totalScore || 0,
+        stats: updatedUser.stats || {
+          gamesPlayed: 0,
+          totalScore: 0,
+          bestScore: 0,
+          wins: 0
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Profile update error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
