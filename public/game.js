@@ -677,9 +677,29 @@ function setupSocketListeners() {
                 
                 // Update UI display
                 updatePlayerStatsDisplay();
+                
+                // IMMEDIATELY save the new score to database
+                if (window.gameUtils) {
+                    try {
+                        const currentStats = window.gameUtils.getUserStats();
+                        const updatedStats = {
+                            ...currentStats,
+                            totalScore: data.remainingScore
+                        };
+                        
+                        // Force immediate update to database
+                        window.gameUtils.updateUserStats(updatedStats).then(() => {
+                            console.log(`💾 Successfully saved reduced score to database: ${data.remainingScore}`);
+                        }).catch(error => {
+                            console.error('❌ Failed to save reduced score to database:', error);
+                        });
+                    } catch (error) {
+                        console.error('❌ Error preparing reduced score update:', error);
+                    }
+                }
             }
             
-            // Force refresh Total Coins from Firestore to show the updated balance
+            // Force refresh Total Coins from server to show the updated balance
             setTimeout(async () => {
                 try {
                     await window.nicknameAuth.syncUserStatsFromFirestore();
