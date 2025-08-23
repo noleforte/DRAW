@@ -23,6 +23,13 @@ class ServerAuthSystem {
     // Validate stored token
     async validateToken() {
         try {
+            // Check if server is accessible first
+            const corsCheck = await this.checkCORSStatus();
+            if (!corsCheck) {
+                console.warn('⚠️ CORS check failed, server may not be ready yet');
+                return false;
+            }
+
             const response = await fetch(`${this.serverUrl}/api/auth/me`, {
                 method: 'GET',
                 headers: {
@@ -49,9 +56,31 @@ class ServerAuthSystem {
         }
     }
 
+    // Check CORS status
+    async checkCORSStatus() {
+        try {
+            const response = await fetch(`${this.serverUrl}/health`, {
+                method: 'GET',
+                mode: 'cors'
+            });
+            return response.ok;
+        } catch (error) {
+            console.warn('⚠️ CORS check failed:', error.message);
+            // Show user-friendly message
+            this.showError('Server Status', 'Authentication server is currently unavailable. Please try again later.');
+            return false;
+        }
+    }
+
     // Register new user
     async register(email, nickname, password, wallet) {
         try {
+            // Check CORS status first
+            const corsCheck = await this.checkCORSStatus();
+            if (!corsCheck) {
+                throw new Error('Server is not accessible. Please try again later or contact support.');
+            }
+
             const response = await fetch(`${this.serverUrl}/api/auth/register`, {
                 method: 'POST',
                 headers: {
