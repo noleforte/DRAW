@@ -415,6 +415,76 @@ function getRandomPosition() {
   return { x, y };
 }
 
+// Get random position with minimum distance from existing boosters
+function getRandomPositionWithMinDistance(minDistance = 400, maxAttempts = 50) {
+  const margin = 50;
+  const minX = -gameState.worldSize/2 + margin;
+  const minY = -gameState.worldSize/2 + margin;
+  const maxX = gameState.worldSize/2 - margin;
+  const maxY = gameState.worldSize/2 - margin;
+  
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Generate random position
+    const x = minX + (maxX - minX) * (0.1 + 0.8 * Math.random());
+    const y = minY + (maxY - minY) * (0.1 + 0.8 * Math.random());
+    
+    // Check distance from all existing boosters
+    let isTooClose = false;
+    for (const booster of gameState.boosters.values()) {
+      const distance = Math.sqrt((x - booster.x) ** 2 + (y - booster.y) ** 2);
+      if (distance < minDistance) {
+        isTooClose = true;
+        break;
+      }
+    }
+    
+    // If position is far enough from all boosters, return it
+    if (!isTooClose) {
+      console.log(`✅ Found position with minimum distance ${minDistance}px after ${attempt + 1} attempts`);
+      return { x, y };
+    }
+  }
+  
+  // If all attempts failed, return a random position (fallback)
+  console.log(`⚠️ Could not find position with minimum distance ${minDistance}px after ${maxAttempts} attempts, using fallback`);
+  return getRandomPosition();
+}
+
+// Get random position with minimum distance from existing boosters
+function getRandomPositionWithMinDistance(minDistance = 400, maxAttempts = 50) {
+  const margin = 50;
+  const minX = -gameState.worldSize/2 + margin;
+  const minY = -gameState.worldSize/2 + margin;
+  const maxX = gameState.worldSize/2 - margin;
+  const maxY = gameState.worldSize/2 - margin;
+  
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Generate random position
+    const x = minX + (maxX - minX) * (0.1 + 0.8 * Math.random());
+    const y = minY + (maxY - minY) * (0.1 + 0.8 * Math.random());
+    
+    // Check distance from all existing boosters
+    let isTooClose = false;
+    for (const booster of gameState.boosters.values()) {
+      const distance = Math.sqrt((x - booster.x) ** 2 + (y - booster.y) ** 2);
+      if (distance < minDistance) {
+        isTooClose = true;
+        break;
+      }
+    }
+    
+    // If position is far enough from all boosters, return it
+    if (!isTooClose) {
+      console.log(`✅ Found position with minimum distance ${minDistance}px after ${attempt + 1} attempts`);
+      return { x, y };
+    }
+  }
+  
+  // If all attempts failed, return a random position (fallback)
+  console.log(`⚠️ Could not find position with minimum distance ${minDistance}px after ${maxAttempts} attempts, using fallback`);
+  return getRandomPosition();
+}
+
 // Generate coins with better distribution
 function generateCoins(count = 300) {
   const margin = 50;
@@ -435,16 +505,38 @@ function generateCoins(count = 300) {
     const gridX = i % gridSize;
     const gridY = Math.floor(i / gridSize);
     
-    // Add some randomness within each grid cell (but not too much)
-    const randomOffsetX = (Math.random() - 0.5) * cellWidth * 0.6;
-    const randomOffsetY = (Math.random() - 0.5) * cellHeight * 0.6;
-    
-    const coin = {
-      id: gameState.nextCoinId++,
-      x: minX + gridX * cellWidth + randomOffsetX,
-      y: minY + gridY * cellHeight + randomOffsetY,
-      value: 1
-    };
+            // Add some randomness within each grid cell (but not too much)
+        const randomOffsetX = (Math.random() - 0.5) * cellWidth * 0.6;
+        const randomOffsetY = (Math.random() - 0.5) * cellHeight * 0.6;
+        
+        const coin = {
+          id: gameState.nextCoinId++,
+          x: minX + gridX * cellWidth + randomOffsetX,
+          y: minY + gridY * cellHeight + randomOffsetY,
+          value: 1
+        };
+        
+        // Ensure minimum distance from other coins
+        let attempts = 0;
+        const maxAttempts = 5;
+        while (attempts < maxAttempts) {
+          let tooClose = false;
+          gameState.coins.forEach(existingCoin => {
+            const distance = Math.sqrt((existingCoin.x - coin.x) ** 2 + (existingCoin.y - coin.y) ** 2);
+            if (distance < 30) { // Minimum distance between coins
+              tooClose = true;
+            }
+          });
+          
+          if (!tooClose) break;
+          
+          // Try new position within the same grid cell
+          const newRandomOffsetX = (Math.random() - 0.5) * cellWidth * 0.4;
+          const newRandomOffsetY = (Math.random() - 0.5) * cellHeight * 0.4;
+          coin.x = minX + gridX * cellWidth + newRandomOffsetX;
+          coin.y = minY + gridY * cellHeight + newRandomOffsetY;
+          attempts++;
+        }
     
     // Ensure coin is within bounds
     coin.x = Math.max(minX, Math.min(maxX, coin.x));
@@ -484,12 +576,12 @@ function redistributeCoinsIfNeeded() {
     const coinsToRedistribute = Math.floor(coins.length * 0.2);
     const shuffledCoins = coins.sort(() => Math.random() - 0.5);
     
-    for (let i = 0; i < coinsToRedistribute; i++) {
-      const coin = shuffledCoins[i];
-      const newPos = getRandomPosition();
-      coin.x = newPos.x;
-      coin.y = newPos.y;
-    }
+            for (let i = 0; i < coinsToRedistribute; i++) {
+          const coin = shuffledCoins[i];
+          const newPos = getRandomPositionWithMinDistance(50); // Minimum 50px distance from other coins
+          coin.x = newPos.x;
+          coin.y = newPos.y;
+        }
   }
 }
 
@@ -498,7 +590,7 @@ function generateBoosters(count = 2) { // Player Eater + Coin Boosters
   // Generate Player Eater booster (only 1 on the map)
   const playerEaterBooster = {
     id: `booster_${gameState.nextBoosterId++}`,
-    ...getRandomPosition(),
+    ...getRandomPositionWithMinDistance(400), // Minimum 400px distance from other boosters
     type: 'playerEater',
     name: 'Player Eater',
     color: 'rainbow', // Special rainbow color
@@ -508,11 +600,11 @@ function generateBoosters(count = 2) { // Player Eater + Coin Boosters
   };
   gameState.boosters.set(playerEaterBooster.id, playerEaterBooster);
   
-  // Generate exactly 5 Coin Boosters
+  // Generate exactly 5 Coin Boosters with minimum distance between them
   for (let i = 0; i < 5; i++) {
     const coinBooster = {
       id: `booster_${gameState.nextBoosterId++}`,
-      ...getRandomPosition(),
+      ...getRandomPositionWithMinDistance(400), // Minimum 400px distance from other boosters
       type: 'coins',
       name: 'Coin Multiplier',
       color: '#FFD700', // Gold color
@@ -528,7 +620,7 @@ function generateBoosters(count = 2) { // Player Eater + Coin Boosters
     }, 120000); // 2 minutes = 120000ms
   }
   
-  console.log(`🎯 Generated boosters: 1 Player Eater + 5 Coin Boosters`);
+  console.log(`🎯 Generated boosters: 1 Player Eater + 5 Coin Boosters with minimum 400px spacing`);
 }
 
 // Create AI bot
@@ -536,7 +628,7 @@ function createBot(id) {
   const bot = {
     id: `bot_${id}`,
     name: botNames[Math.floor(Math.random() * botNames.length)],
-    ...getRandomPosition(), // This already uses proper spawn logic
+    ...getRandomPositionWithMinDistance(200), // Minimum 200px distance from other entities for bots
     vx: 0,
     vy: 0,
     score: 0,
@@ -558,10 +650,10 @@ function respawnCoinBooster(boosterId) {
   // Remove old booster
   gameState.boosters.delete(boosterId);
   
-  // Create new coin booster in random location
+  // Create new coin booster in random location with minimum distance from other boosters
   const newCoinBooster = {
     id: `booster_${gameState.nextBoosterId++}`,
-    ...getRandomPosition(),
+    ...getRandomPositionWithMinDistance(400), // Minimum 400px distance from other boosters
     type: 'coins',
     name: 'Coin Multiplier',
     color: '#FFD700',
@@ -892,7 +984,7 @@ function updateBots() {
         // Respawn coin with better positioning
         const newCoin = {
           id: gameState.nextCoinId++,
-          ...getRandomPosition(),
+          ...getRandomPositionWithMinDistance(50), // Minimum 50px distance from other coins
           value: 1
         };
         
@@ -1002,7 +1094,7 @@ function updateBots() {
           setTimeout(() => {
             const newCoinBooster = {
               id: `booster_${gameState.nextBoosterId++}`,
-              ...getRandomPosition(),
+              ...getRandomPositionWithMinDistance(400), // Minimum 400px distance from other boosters
               type: 'coins',
               name: 'Coin Multiplier',
               color: '#FFD700',
@@ -1204,7 +1296,7 @@ function updateBots() {
       // Respawn Player Eater booster on the map immediately after effect expires
       const newBooster = {
         id: `booster_${gameState.nextBoosterId++}`,
-        ...getRandomPosition(),
+        ...getRandomPositionWithMinDistance(400), // Minimum 400px distance from other boosters
         type: 'playerEater',
         name: 'Player Eater',
         color: 'rainbow',
@@ -1226,7 +1318,7 @@ function updateBots() {
       setTimeout(() => {
         const newCoinBooster = {
           id: `booster_${gameState.nextBoosterId++}`,
-          ...getRandomPosition(),
+          ...getRandomPositionWithMinDistance(400), // Minimum 400px distance from other boosters
           type: 'coins',
           name: 'Coin Multiplier',
           color: '#FFD700',
@@ -1339,7 +1431,7 @@ function updatePlayers(deltaTime) {
               // Respawn coin with better positioning
       const newCoin = {
         id: gameState.nextCoinId++,
-        ...getRandomPosition(),
+        ...getRandomPositionWithMinDistance(50), // Minimum 50px distance from other coins
         value: 1
       };
         
@@ -1460,7 +1552,7 @@ function updatePlayers(deltaTime) {
       // Respawn Player Eater booster on the map immediately after effect expires
       const newBooster = {
         id: `booster_${gameState.nextBoosterId++}`,
-        ...getRandomPosition(),
+        ...getRandomPositionWithMinDistance(400), // Minimum 400px distance from other boosters
         type: 'playerEater',
         name: 'Player Eater',
         color: 'rainbow',
@@ -2079,7 +2171,7 @@ io.on('connection', (socket) => {
       const player = {
         id: playerId,
         name: name,
-        ...getRandomPosition(), // Use the same spawn logic as coins to ensure proper positioning
+        ...getRandomPositionWithMinDistance(200), // Minimum 200px distance from other entities for new players
         vx: 0,
         vy: 0,
         targetVx: 0,
