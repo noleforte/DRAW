@@ -1747,26 +1747,14 @@ function setupUIHandlers() {
         
                 // DEBUG: Test Firestore connection and ensure player document exists
         setTimeout(async () => {
-            if (window.firebaseDb && playerId) {
+            // Use new server auth system for stats sync
+            if (window.gameUtils) {
                 try {
-                    console.log('🔍 DEBUG: Testing Firestore connection for player:', playerId);
-                    const testDoc = await window.firebaseDb.collection('players').doc(playerId).get();
-                    console.log('🔍 DEBUG: Firestore doc exists:', testDoc.exists);
+                    console.log('🔍 DEBUG: Syncing stats with new server auth system');
                     
-                    if (testDoc.exists) {
-                        const docData = testDoc.data();
-                        console.log('🔍 DEBUG: Firestore doc data:', JSON.stringify(docData, null, 2));
-                        
-                        // Force update local stats with Firestore data
-                        await window.nicknameAuth.syncUserStatsFromFirestore();
-                        console.log('🔄 DEBUG: Forced stats sync after game start');
-                    } else {
-                        console.log('🔍 DEBUG: No document found, using new server auth system');
-                        
-                        // Use new server auth system instead of old Firestore
-                        await window.nicknameAuth.syncUserStatsFromFirestore();
-                        console.log('🔍 DEBUG: Synced stats with new system');
-                    }
+                    // Force update local stats with server data
+                    await window.nicknameAuth.syncUserStatsFromFirestore();
+                    console.log('🔄 DEBUG: Forced stats sync after game start');
                     
                     // Force update Player Info panel
                     if (window.panelManager) {
@@ -1778,10 +1766,10 @@ function setupUIHandlers() {
                     }
                     
                 } catch (error) {
-                    console.error('🔍 DEBUG: Firestore test failed:', error);
+                    console.error('🔍 DEBUG: Server auth sync failed:', error);
                 }
             } else {
-                console.log('🔍 DEBUG: Cannot test Firestore - firebaseDb:', !!window.firebaseDb, 'playerId:', playerId);
+                console.log('🔍 DEBUG: Cannot sync stats - gameUtils not available');
             }
         }, 3000); // Test after 3 seconds
         
