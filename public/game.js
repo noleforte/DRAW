@@ -155,20 +155,32 @@ class HybridAuthSystem {
             console.log('✅ No conflicts found in Firestore');
         }
 
-        // Create new user
+        // Create new user with a unique ID (using crypto.randomUUID if available, otherwise fallback)
+        // Вероятность совпадения с существующими крайне мала (практически исключена), 
+        // особенно при использовании crypto.randomUUID(). 
+        // Для абсолютной уникальности можно дополнительно проверять наличие такого id в базе, 
+        // но на практике этого не требуется.
+        const generateUniqueId = () => {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                return crypto.randomUUID();
+            } else {
+                // Fallback: timestamp + random string
+                return (
+                    Date.now().toString(36) +
+                    Math.random().toString(36).substr(2, 9)
+                );
+            }
+        };
+
         const newUser = {
+            id: generateUniqueId(),
             email: normalizedEmail,
             nickname: nickname.trim(),
             passwordHash: this.hashPassword(password),
             wallet: wallet.trim(),
             createdAt: Date.now(),
             lastLogin: Date.now(),
-            stats: {
-                gamesPlayed: 0,
-                totalScore: 0,
-                bestScore: 0,
-                wins: 0
-            }
+            totalScore: 0
         };
 
         // Save to localStorage immediately (fast)
@@ -234,16 +246,6 @@ class HybridAuthSystem {
             throw new Error('Incorrect password');
         }
 
-        // Ensure user has proper stats structure
-        if (!user.stats) {
-            user.stats = {
-                totalScore: 0,
-                gamesPlayed: 0,
-                bestScore: 0,
-                wins: 0
-            };
-            console.log('🔧 Initialized missing stats for user:', user.nickname);
-        }
 
         // Update last login
         user.lastLogin = Date.now();
@@ -266,21 +268,64 @@ class HybridAuthSystem {
         return user;
     }
 
-    // Save user to Firestore
+    // Save user to Firestore using user ID instead of nickname
     async saveUserToFirestore(nickname, userData) {
         if (!window.firebaseDb) throw new Error('Firestore not available');
         
-        await window.firebaseDb.collection('players').doc(nickname).set({
+        // Use user ID as document ID for better uniqueness and consistency
+        const userId = userData.id;
+        if (!userId) {
+            throw new Error('User ID is required for Firestore operations');
+        }
+        
+        await window.firebaseDb.collection('players').doc(userId).set({
             ...userData,
             lastSync: Date.now()
         });
+        
+        console.log(`💾 User saved to Firestore with ID: ${userId}`);
     }
 
-    // Load user from Firestore
+    // Load user from Firestore using user ID
     async loadUserFromFirestore(nickname) {
         if (!window.firebaseDb) throw new Error('Firestore not available');
         
-        const doc = await window.firebaseDb.collection('players').doc(nickname).get();
+        // First try to find user by nickname in local cache to get ID
+        const localUser = this.localUsers[nickname];
+        if (localUser && localUser.id) {
+            // Use ID to load from Firestore
+            const doc = await window.firebaseDb.collection('players').doc(localUser.id).get();
+            if (doc.exists) {
+                return doc.data();
+            }
+        }
+        
+        // Fallback: search by nickname (for backward compatibility)
+        try {
+            const snapshot = await window.firebaseDb.collection('players')
+                .where('nickname', '==', nickname)
+                .limit(1)
+                .get();
+            
+            if (!snapshot.empty) {
+                const userData = snapshot.docs[0].data();
+                // Update local cache with the found user
+                this.localUsers[nickname] = userData;
+                this.saveLocalUsers();
+                return userData;
+            }
+        } catch (error) {
+            console.warn('⚠️ Fallback nickname search failed:', error.message);
+        }
+        
+        return null;
+    }
+
+    // Load user from Firestore by ID (new method)
+    async loadUserFromFirestoreById(userId) {
+        if (!window.firebaseDb) throw new Error('Firestore not available');
+        
+        const doc = await window.firebaseDb.collection('players').doc(userId).get();
         if (doc.exists) {
             return doc.data();
         }
@@ -301,12 +346,23 @@ class HybridAuthSystem {
 
             snapshot.forEach(doc => {
                 const firestoreUser = doc.data();
-                const nickname = doc.id;
-                const localUser = this.localUsers[nickname];
+                const userId = doc.id; // Use Firestore document ID
+                
+                // Find user by ID in local cache
+                const localUser = Object.values(this.localUsers).find(user => user.id === userId);
+                const localNickname = localUser ? Object.keys(this.localUsers).find(key => this.localUsers[key] === localUser) : null;
 
                 // If user doesn't exist locally or Firestore version is newer
                 if (!localUser || firestoreUser.lastSync > (localUser.lastSync || 0)) {
-                    this.localUsers[nickname] = firestoreUser;
+                    if (localNickname) {
+                        this.localUsers[localNickname] = firestoreUser;
+                    } else {
+                        // Create new local entry using nickname from Firestore
+                        const nickname = firestoreUser.nickname?.toLowerCase().trim();
+                        if (nickname) {
+                            this.localUsers[nickname] = firestoreUser;
+                        }
+                    }
                     syncedCount++;
                 }
             });
@@ -314,11 +370,14 @@ class HybridAuthSystem {
             // Upload any local users that aren't in Firestore or are newer
             for (const [nickname, localUser] of Object.entries(this.localUsers)) {
                 try {
-                    const firestoreDoc = await window.firebaseDb.collection('players').doc(nickname).get();
-                    
-                    if (!firestoreDoc.exists || localUser.lastLogin > (firestoreDoc.data().lastLogin || 0)) {
-                        await this.saveUserToFirestore(nickname, localUser);
-                        syncedCount++;
+                    if (localUser.id) {
+                        // Use ID for Firestore operations
+                        const firestoreDoc = await window.firebaseDb.collection('players').doc(localUser.id).get();
+                        
+                        if (!firestoreDoc.exists || localUser.lastLogin > (firestoreDoc.data().lastLogin || 0)) {
+                            await this.saveUserToFirestore(nickname, localUser);
+                            syncedCount++;
+                        }
                     }
                 } catch (error) {
                     console.warn(`⚠️ Failed to sync user ${nickname}:`, error.message);
@@ -345,11 +404,14 @@ class HybridAuthSystem {
             return true;
         }
 
-        // Check Firestore if online
+        // Check Firestore if online - search by nickname field
         if (this.isOnline && window.firebaseDb) {
             try {
-                const doc = await window.firebaseDb.collection('players').doc(normalizedNickname).get();
-                return doc.exists;
+                const snapshot = await window.firebaseDb.collection('players')
+                    .where('nickname', '==', nickname.trim())
+                    .limit(1)
+                    .get();
+                return !snapshot.empty;
             } catch (error) {
                 console.warn('⚠️ Firestore nickname check failed:', error.message);
             }
@@ -389,7 +451,26 @@ class HybridAuthSystem {
             const user = JSON.parse(currentUser);
             const normalizedNickname = user.nickname?.toLowerCase().trim();
             
-            // Always try to get fresh data from Firestore first
+            // Always try to get fresh data from Firestore first using ID
+            if (user.id && this.isOnline && window.firebaseDb) {
+                try {
+                    const freshUserData = await this.loadUserFromFirestoreById(user.id);
+                    if (freshUserData) {
+                        // Update both localStorage cache and localUsers
+                        if (normalizedNickname) {
+                            this.localUsers[normalizedNickname] = freshUserData;
+                        }
+                        this.saveLocalUsers();
+                        localStorage.setItem('currentUser', JSON.stringify(freshUserData));
+                        console.log('🔥 Loaded fresh user data from Firestore by ID:', freshUserData.id);
+                        return freshUserData;
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Failed to load from Firestore by ID, trying nickname:', error.message);
+                }
+            }
+            
+            // Fallback: try to load by nickname
             if (normalizedNickname && this.isOnline && window.firebaseDb) {
                 try {
                     const freshUserData = await this.loadUserFromFirestore(normalizedNickname);
@@ -398,11 +479,11 @@ class HybridAuthSystem {
                         this.localUsers[normalizedNickname] = freshUserData;
                         this.saveLocalUsers();
                         localStorage.setItem('currentUser', JSON.stringify(freshUserData));
-                        console.log('🔥 Loaded fresh user data from Firestore:', freshUserData.stats);
+                        console.log('🔥 Loaded fresh user data from Firestore by nickname:', freshUserData.nickname);
                         return freshUserData;
                     }
                 } catch (error) {
-                    console.warn('⚠️ Failed to load from Firestore, using cached data:', error.message);
+                    console.warn('⚠️ Failed to load from Firestore by nickname:', error.message);
                 }
             }
             
@@ -457,55 +538,51 @@ class HybridAuthSystem {
         }
 
         try {
-            const normalizedNickname = currentUser.nickname.toLowerCase().trim();
-            let bestStats = {
-                totalScore: currentUser.stats.totalScore || 0,
-                gamesPlayed: currentUser.stats?.gamesPlayed || 0,
-                bestScore: currentUser.stats?.bestScore || 0,
-                wins: currentUser.stats?.wins || 0
-            };
-            
-            // Try to get data from players collection (game data)
-            try {
-
-                const playersDoc = await window.firebaseDb.collection('players').doc(normalizedNickname).get();
-                
-                if (playersDoc.exists) {
-                    const playersData = playersDoc.data();
-                    // Extract stats from players collection (check both root and nested stats)
-                    const playersStats = {
-                        totalScore: playersData.totalScore || 0,
-                        gamesPlayed: Math.max(playersData.gamesPlayed || 0, playersData.stats?.gamesPlayed || 0),
-                        bestScore: Math.max(playersData.bestScore || 0, playersData.stats?.bestScore || 0),
-                        wins: Math.max(playersData.wins || 0, playersData.stats?.wins || 0)
-                    };
+            // Try to sync by ID first (most reliable)
+            if (currentUser.id) {
+                const freshUserData = await this.loadUserFromFirestoreById(currentUser.id);
+                if (freshUserData) {
+                    // Update current user with fresh data
+                    Object.assign(currentUser, freshUserData);
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
                     
-                    // Use maximum values between players and current stats
-                    bestStats.totalScore = Math.max(bestStats.totalScore, playersStats.totalScore);
-                    bestStats.gamesPlayed = Math.max(bestStats.gamesPlayed, playersStats.gamesPlayed);
-                    bestStats.bestScore = Math.max(bestStats.bestScore, playersStats.bestScore);
-                    bestStats.wins = Math.max(bestStats.wins, playersStats.wins);
-                } else {
-                    console.log('⚠️ No players collection document found for user:', normalizedNickname);
+                    // Update localUsers cache
+                    const normalizedNickname = currentUser.nickname?.toLowerCase().trim();
+                    if (normalizedNickname) {
+                        this.localUsers[normalizedNickname] = currentUser;
+                        this.saveLocalUsers();
+                    }
+                    
+                    console.log('🔥 Stats synced from Firestore by ID:', currentUser.id);
+                    return currentUser;
                 }
-            } catch (error) {
-                console.warn('⚠️ Failed to fetch from players collection:', error);
             }
             
-            // Note: Users collection access is restricted, so we'll work with players collection only
-                
-            // Update localStorage user stats with best combined data
-            currentUser.stats = bestStats;
-                
-                // Save updated user back to localStorage
-                this.setCurrentUser(currentUser);
-                
-                return currentUser;
+            // Fallback: try to sync by nickname
+            const normalizedNickname = currentUser.nickname?.toLowerCase().trim();
+            if (normalizedNickname) {
+                const freshUserData = await this.loadUserFromFirestore(normalizedNickname);
+                if (freshUserData) {
+                    // Update current user with fresh data
+                    Object.assign(currentUser, freshUserData);
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    
+                    // Update localUsers cache
+                    this.localUsers[normalizedNickname] = currentUser;
+                    this.saveLocalUsers();
+                    
+                    console.log('🔥 Stats synced from Firestore by nickname:', normalizedNickname);
+                    return currentUser;
+                }
+            }
+            
+            console.log('⚠️ No fresh data found in Firestore');
+            return currentUser;
+            
         } catch (error) {
-            console.error('❌ Failed to sync stats from Firestore:', error);
+            console.error('❌ Failed to sync user stats from Firestore:', error);
+            return currentUser;
         }
-        
-        return currentUser;
     }
 
     // Set current logged in user
@@ -533,36 +610,55 @@ class HybridAuthSystem {
     async updateUserStats(nickname, stats) {
         const normalizedNickname = nickname.toLowerCase().trim();
         
+        // Get user data
+        const user = this.localUsers[normalizedNickname];
+        if (!user) {
+            console.warn('⚠️ User not found for stats update:', nickname);
+            return;
+        }
+        
         // Create updated user data
         const updatedUser = {
-            ...this.localUsers[normalizedNickname],
+            ...user,
             stats: stats,
             lastLogin: Date.now()
         };
         
-        // Save to Firestore first (primary storage)
-        if (this.isOnline && window.firebaseDb) {
+        // Save to Firestore first (primary storage) using ID
+        if (this.isOnline && window.firebaseDb && user.id) {
+            try {
+                await this.updateUserStats(user.id, stats);
+                console.log('🔥 Stats saved to Firestore by ID for:', nickname, 'ID:', user.id);
+            } catch (error) {
+                console.error('❌ Failed to save stats to Firestore by ID:', error.message);
+                // Fallback: try to save using old method
+                try {
+                    await this.saveUserToFirestore(normalizedNickname, updatedUser);
+                    console.log('🔥 Stats saved to Firestore (fallback) for:', nickname);
+                } catch (fallbackError) {
+                    console.error('❌ Fallback save also failed:', fallbackError.message);
+                }
+            }
+        } else if (this.isOnline && window.firebaseDb) {
+            // Fallback for users without ID
             try {
                 await this.saveUserToFirestore(normalizedNickname, updatedUser);
-                console.log('🔥 Stats saved to Firestore (primary) for:', nickname);
+                console.log('🔥 Stats saved to Firestore (fallback) for:', nickname);
             } catch (error) {
                 console.error('❌ Failed to save stats to Firestore:', error.message);
-                // Continue to save locally even if Firestore fails
             }
         }
         
         // Update local cache
-        if (this.localUsers[normalizedNickname]) {
-            this.localUsers[normalizedNickname] = updatedUser;
-            this.saveLocalUsers();
-            console.log('💾 Stats cached locally for:', nickname);
+        this.localUsers[normalizedNickname] = updatedUser;
+        this.saveLocalUsers();
+        console.log('💾 Stats cached locally for:', nickname);
 
-            // Update current user if it's the same user
-            const currentUser = this.getCurrentUserSync();
-            if (currentUser && currentUser.nickname === nickname) {
-                this.setCurrentUser(updatedUser);
-                console.log('🔄 Current user updated with new stats');
-            }
+        // Update current user if it's the same user
+        const currentUser = this.getCurrentUserSync();
+        if (currentUser && currentUser.nickname === nickname) {
+            this.setCurrentUser(updatedUser);
+            console.log('🔄 Current user updated with new stats');
         }
     }
 
@@ -599,19 +695,93 @@ class HybridAuthSystem {
     async refreshCurrentUserFromFirestore() {
         const currentUser = this.getCurrentUserSync();
         if (currentUser) {
+            // Try to refresh by ID first (most reliable)
+            if (currentUser.id && this.isOnline && window.firebaseDb) {
+                try {
+                    const freshUserData = await this.loadUserFromFirestoreById(currentUser.id);
+                    if (freshUserData) {
+                        // Update current user with fresh data
+                        Object.assign(currentUser, freshUserData);
+                        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                        
+                        // Update localUsers cache
+                        const normalizedNickname = currentUser.nickname?.toLowerCase().trim();
+                        if (normalizedNickname) {
+                            this.localUsers[normalizedNickname] = currentUser;
+                            this.saveLocalUsers();
+                        }
+                        
+                        console.log('🔥 Current user refreshed from Firestore by ID:', currentUser.id, 'stats:', currentUser.stats);
+                        return currentUser;
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Failed to refresh from Firestore by ID:', error);
+                }
+            }
+            
+            // Fallback: try to refresh by nickname
             const normalizedNickname = currentUser.nickname?.toLowerCase().trim();
             if (normalizedNickname) {
                 try {
                     const freshUserData = await this.getCurrentUser(); // This will fetch from Firestore
-                    console.log('🔥 Current user refreshed from Firestore:', freshUserData?.nickname, 'stats:', freshUserData?.stats);
+                    console.log('🔥 Current user refreshed from Firestore by nickname:', freshUserData?.nickname, 'stats:', freshUserData?.stats);
                     return freshUserData;
                 } catch (error) {
-                    console.warn('⚠️ Failed to refresh from Firestore:', error);
+                    console.warn('⚠️ Failed to refresh from Firestore by nickname:', error);
                     return this.refreshCurrentUser(); // Fallback to local refresh
                 }
             }
         }
         return null;
+    }
+
+    // Update user in Firestore by ID
+    async updateUserInFirestore(userId, updates) {
+        if (!window.firebaseDb) throw new Error('Firestore not available');
+        if (!userId) throw new Error('User ID is required for updates');
+        
+        try {
+            await window.firebaseDb.collection('players').doc(userId).update({
+                ...updates,
+                lastSync: Date.now()
+            });
+            
+            console.log(`✅ User updated in Firestore with ID: ${userId}`);
+            return true;
+        } catch (error) {
+            console.error(`❌ Failed to update user ${userId} in Firestore:`, error);
+            throw error;
+        }
+    }
+
+    // Update user stats in Firestore
+    async updateUserStats(userId, stats) {
+        if (!window.firebaseDb) throw new Error('Firestore not available');
+        if (!userId) throw new Error('User ID is required for stats update');
+        
+        try {
+            await window.firebaseDb.collection('players').doc(userId).update({
+                stats: stats,
+                lastSync: Date.now()
+            });
+            
+            console.log(`📊 Stats updated for user ${userId}:`, stats);
+            return true;
+        } catch (error) {
+            console.error(`❌ Failed to update stats for user ${userId}:`, error);
+            throw error;
+        }
+    }
+
+    // Get user by ID from local cache
+    getUserById(userId) {
+        return Object.values(this.localUsers).find(user => user.id === userId);
+    }
+
+    // Get user by nickname from local cache
+    getUserByNickname(nickname) {
+        const normalizedNickname = nickname.toLowerCase().trim();
+        return this.localUsers[normalizedNickname];
     }
 }
 
