@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Правила для коллекции пользователей (новая система аутентификации)
-    match /users/{userId} {
+    match /users/{id} {
       // Разрешить чтение только аутентифицированным пользователям
       allow read: if request.auth != null;
       // Разрешить запись только аутентифицированным пользователям
