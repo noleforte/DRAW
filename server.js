@@ -3,7 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
-const { GameDataService } = require('./firebase-admin');
+const { GameDataService, updateUser } = require('./firebase-admin');
 const bcrypt = require('bcrypt'); // For password hashing
 const crypto = require('crypto'); // For generating secure tokens
 const jwt = require('jsonwebtoken'); // For JWT tokens
@@ -1114,11 +1114,11 @@ function updateBots() {
                     // Save immediately without setTimeout
                     (async () => {
                       try {
-                        // Use existing savePlayerStats function which properly handles totalScore
-                        await GameDataService.savePlayerStats(playerIdForFirebase, {
-                          score: target.score,
-                          playerName: target.name,
-                          email: target.email || 'unknown@example.com' // Required field
+                        // Use the new updateUser function to update totalScore
+                        await updateUser(playerIdForFirebase, {
+                          'stats.totalScore': target.score,
+                          'stats.lastPlayed': Date.now(),
+                          'lastPlayed': Date.now()
                         });
                         console.log(`💰 Successfully saved current score as totalScore for ${target.name}: ${target.score} (previous score: ${oldScore})`);
                         
@@ -1144,10 +1144,10 @@ function updateBots() {
                         
                         if (playerData) {
                           console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore to current score: ${target.score}`);
-                          await GameDataService.savePlayerStats(playerData.id, {
-                            score: target.score,
-                            playerName: target.name,
-                            email: playerData.email || 'unknown@example.com' // Required field
+                          await updateUser(playerData.id, {
+                            'stats.totalScore': target.score,
+                            'stats.lastPlayed': Date.now(),
+                            'lastPlayed': Date.now()
                           });
                           
                           // Notify all clients about updated player stats
@@ -1613,11 +1613,11 @@ function updatePlayers(deltaTime) {
                   // Save immediately without setTimeout
                   (async () => {
                     try {
-                      // Use existing savePlayerStats function which properly handles totalScore
-                      await GameDataService.savePlayerStats(playerIdForFirebase, {
-                        score: target.score,
-                        playerName: target.name,
-                        email: target.email || 'unknown@example.com' // Required field
+                      // Use the new updateUser function to update totalScore
+                      await updateUser(playerIdForFirebase, {
+                        'stats.totalScore': target.score,
+                        'stats.lastPlayed': Date.now(),
+                        'lastPlayed': Date.now()
                       });
                       console.log(`💰 Successfully saved current score as totalScore for ${target.name}: ${target.score} (previous score: ${oldScore})`);
                       
@@ -1641,25 +1641,25 @@ function updatePlayers(deltaTime) {
                       const { findPlayerByPasswordHash } = require('./firebase-admin');
                       const playerData = await findPlayerByPasswordHash(target.passwordHash);
                       
-                      if (playerData) {
-                        console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore to current score: ${target.score}`);
-                        await GameDataService.savePlayerStats(playerData.id, {
-                          score: target.score,
-                          playerName: target.name,
-                          email: playerData.email || 'unknown@example.com' // Required field
-                        });
-                        
-                        // Notify all clients about updated player stats
-                        io.emit('playerStatsUpdated', {
-                          playerId: playerData.id,
-                          nickname: target.name,
-                          totalScore: target.score,
-                          type: 'scoreUpdate'
-                        });
-                        console.log(`📡 Notified all clients about ${target.name}'s totalScore update via passwordHash: ${target.score}`);
-                      } else {
-                        console.log(`⚠️ Could not find player ${target.name} by passwordHash - cannot save to database`);
-                      }
+                                              if (playerData) {
+                          console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore to current score: ${target.score}`);
+                          await updateUser(playerData.id, {
+                            'stats.totalScore': target.score,
+                            'stats.lastPlayed': Date.now(),
+                            'lastPlayed': Date.now()
+                          });
+                          
+                          // Notify all clients about updated player stats
+                          io.emit('playerStatsUpdated', {
+                            playerId: playerData.id,
+                            nickname: target.name,
+                            totalScore: target.score,
+                            type: 'scoreUpdate'
+                          });
+                          console.log(`📡 Notified all clients about ${target.name}'s totalScore update via passwordHash: ${target.score}`);
+                        } else {
+                          console.log(`⚠️ Could not find player ${target.name} by passwordHash - cannot save to database`);
+                        }
                     } catch (error) {
                       console.error(`❌ Error finding player by passwordHash for ${target.name}:`, error);
                     }
@@ -1890,11 +1890,13 @@ async function endMatch() {
     try {
       // Use user ID if available, otherwise fallback to firebaseId or socket ID
       const playerId = player.id || player.firebaseId || player.socketId;
-      await GameDataService.savePlayerStats(playerId, {
-        playerName: player.name,
-        score: player.score,
-        walletAddress: player.wallet || ''
-      });
+      if (playerId) {
+        await updateUser(playerId, {
+          'stats.totalScore': player.score,
+          'stats.lastPlayed': Date.now(),
+          'lastPlayed': Date.now()
+        });
+      }
     } catch (error) {
       console.error('Error saving player stats:', error);
     }
@@ -2706,7 +2708,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
     
     // Update last login
-    await GameDataService.updateUserLastLogin(user.id);
+    await updateUserLastLogin(user.id);
     
     // Generate JWT token 
     const token = jwt.sign(
@@ -2823,7 +2825,7 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
     console.log(`🔧 Updating user ${userId} with:`, updates);
     
     // Update user
-    await GameDataService.updateUser(userId, updates);
+    await updateUser(userId, updates);
     
     // Get updated user data
     const updatedUser = await GameDataService.getUserById(userId);

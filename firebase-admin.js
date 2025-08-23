@@ -603,5 +603,6 @@ module.exports = {
     db,
     auth,
     GameDataService: gameDataServiceInstance,
-    findPlayerByPasswordHash: gameDataServiceInstance.findPlayerByPasswordHash.bind(gameDataServiceInstance)
+    findPlayerByPasswordHash: gameDataServiceInstance.findPlayerByPasswordHash.bind(gameDataServiceInstance),
+    updateUser: gameDataServiceInstance.updateUser.bind(gameDataServiceInstance)
 }; 
