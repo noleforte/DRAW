@@ -439,8 +439,8 @@ function redistributeCoinsIfNeeded() {
 }
 
 // Generate boosters
-function generateBoosters(count = 2) { // Player Eater + Coin Booster
-  // Generate Player Eater booster
+function generateBoosters(count = 2) { // Player Eater + Coin Boosters
+  // Generate Player Eater booster (only 1 on the map)
   const playerEaterBooster = {
     id: `booster_${gameState.nextBoosterId++}`,
     ...getRandomPosition(),
@@ -453,7 +453,7 @@ function generateBoosters(count = 2) { // Player Eater + Coin Booster
   };
   gameState.boosters.set(playerEaterBooster.id, playerEaterBooster);
   
-  // Generate 5 Coin Boosters with spawn timers
+  // Generate exactly 5 Coin Boosters
   for (let i = 0; i < 5; i++) {
     const coinBooster = {
       id: `booster_${gameState.nextBoosterId++}`,
@@ -467,11 +467,13 @@ function generateBoosters(count = 2) { // Player Eater + Coin Booster
     };
     gameState.boosters.set(coinBooster.id, coinBooster);
     
-    // Set respawn timer for this coin booster (2 minutes)
+    // Set auto-respawn timer for this coin booster (2 minutes from spawn)
     setTimeout(() => {
       respawnCoinBooster(coinBooster.id);
     }, 120000); // 2 minutes = 120000ms
   }
+  
+  console.log(`🎯 Generated boosters: 1 Player Eater + 5 Coin Boosters`);
 }
 
 // Create AI bot
@@ -513,10 +515,10 @@ function respawnCoinBooster(boosterId) {
     spawnTime: Date.now() // Reset spawn time
   };
   
-  // Set new respawn timer
+  // Set new respawn timer - regenerate after 2 minutes from spawn
   setTimeout(() => {
     respawnCoinBooster(newCoinBooster.id);
-  }, 120000); // 2 minutes
+  }, 120000); // 2 minutes = 120000ms
   
   gameState.boosters.set(newCoinBooster.id, newCoinBooster);
   
@@ -1139,21 +1141,19 @@ function updateBots() {
       }
       console.log(`👹 Player Eater expired for bot ${bot.name} - restored original size and speed`);
       
-      // Respawn Player Eater booster on the map after 1 minute delay
-      setTimeout(() => {
-        const newBooster = {
-          id: `booster_${gameState.nextBoosterId++}`,
-          ...getRandomPosition(),
-          type: 'playerEater',
-          name: 'Player Eater',
-          color: 'rainbow',
-          effect: 'Eat other players + Level 5 stats',
-          isBooster: true,
-          rainbowHue: 0
-        };
-        gameState.boosters.set(newBooster.id, newBooster);
-        console.log(`👹 Player Eater booster respawned on map after bot ${bot.name} expired (1 minute delay)`);
-      }, 60000); // 1 minute delay before respawn
+      // Respawn Player Eater booster on the map immediately after effect expires
+      const newBooster = {
+        id: `booster_${gameState.nextBoosterId++}`,
+        ...getRandomPosition(),
+        type: 'playerEater',
+        name: 'Player Eater',
+        color: 'rainbow',
+        effect: 'Eat other players + Level 5 stats',
+        isBooster: true,
+        rainbowHue: 0
+      };
+      gameState.boosters.set(newBooster.id, newBooster);
+      console.log(`👹 Player Eater booster respawned immediately after player ${bot.name} effect expired`);
     }
     
     // Check and expire Coin Booster for bots
@@ -1330,15 +1330,14 @@ function updatePlayers(deltaTime) {
                         // Set player to Level 5 stats (minimum size for effectiveness)
                         player.size = Math.max(50, player.size); // At least Level 5 size, but can be bigger if player already has more score
                         
-                        // Set fixed speed for Player Eater boost - exactly 1.0 (100)
-                        player.speed = 1.0;
-                        
+                        // Set fixed speed for Player Eater boost - exactly 100
+                        player.speed = 100;
                         
                         // Send notification to all players
                         io.emit('chatMessage', {
                             playerId: 'system',
                             playerName: 'System',
-                            message: `👹 ${player.name} collected Player Eater! Can now eat other players for 1 minute! (Level 5 size & fixed speed 100)`,
+                            message: `👹 ${player.name} collected Player Eater! Can now eat other players for 1 minute! (Level 5 size & speed 100)`,
                             timestamp: Date.now()
                         });
                     } else if (booster.type === 'coins') {
@@ -1379,43 +1378,11 @@ function updatePlayers(deltaTime) {
       
       // Respawn booster based on type
       if (boosterType === 'playerEater') {
-        // Player Eater respawns when effect expires (1 minute)
-        setTimeout(() => {
-          const newBooster = {
-            id: `booster_${gameState.nextBoosterId++}`,
-            ...getRandomPosition(),
-            type: 'playerEater',
-            name: 'Player Eater',
-            color: 'rainbow',
-            effect: 'Eat other players',
-            isBooster: true,
-            rainbowHue: 0
-          };
-          gameState.boosters.set(newBooster.id, newBooster);
-        }, 60000); // Respawn after 1 minute (when effect expires)
-      } else if (boosterType === 'coins') {
-        // Coin Booster respawns after 2 minutes
-        setTimeout(() => {
-          const newCoinBooster = {
-            id: `booster_${gameState.nextBoosterId++}`,
-            ...getRandomPosition(),
-            type: 'coins',
-            name: 'Coin Multiplier',
-            color: '#FFD700',
-            effect: 'x2 Coins for 2 minutes',
-            isBooster: true,
-            spawnTime: Date.now() // Reset spawn time
-          };
-          
-          // Set new respawn timer for this booster
-          setTimeout(() => {
-            respawnCoinBooster(newCoinBooster.id);
-          }, 120000); // 2 minutes
-          
-          gameState.boosters.set(newCoinBooster.id, newCoinBooster);
-          console.log(`🔄 Coin booster respawned after player collected it: ${Math.round(newCoinBooster.x)}, ${Math.round(newCoinBooster.y)}`);
-        }, 120000); // 2 minutes delay before respawn
+        // Player Eater respawns immediately when effect expires (no delay)
+        // The respawn is handled in the booster expiration check
       }
+      // Note: Coin boosters are NOT respawned here - they regenerate automatically
+      // through the timer set when they spawn (every 2 minutes)
     });
     
     // Check and expire boosters
@@ -1433,20 +1400,19 @@ function updatePlayers(deltaTime) {
         player.playerEaterOriginalSpeed = undefined;
       }
       
-      // Respawn Player Eater booster on the map after 1 minute delay
-      setTimeout(() => {
-        const newBooster = {
-          id: `booster_${gameState.nextBoosterId++}`,
-          ...getRandomPosition(),
-          type: 'playerEater',
-          name: 'Player Eater',
-          color: 'rainbow',
-          effect: 'Eat other players + Level 5 stats',
-          isBooster: true,
-          rainbowHue: 0
-        };
-        gameState.boosters.set(newBooster.id, newBooster);
-      }, 60000); // 1 minute delay before respawn
+      // Respawn Player Eater booster on the map immediately after effect expires
+      const newBooster = {
+        id: `booster_${gameState.nextBoosterId++}`,
+        ...getRandomPosition(),
+        type: 'playerEater',
+        name: 'Player Eater',
+        color: 'rainbow',
+        effect: 'Eat other players + Level 5 stats',
+        isBooster: true,
+        rainbowHue: 0
+      };
+      gameState.boosters.set(newBooster.id, newBooster);
+      console.log(`👹 Player Eater booster respawned immediately after player ${player.name} effect expired`);
     }
     
     if (player.coinBoost && now > player.coinBoostEndTime) {
@@ -1454,27 +1420,8 @@ function updatePlayers(deltaTime) {
       player.coinBoostEndTime = 0;
       console.log(`💰 Coin Multiplier expired for player ${player.name}`);
       
-      // Respawn Coin Booster on the map after 2 minutes delay
-      setTimeout(() => {
-        const newCoinBooster = {
-          id: `booster_${gameState.nextBoosterId++}`,
-          ...getRandomPosition(),
-          type: 'coins',
-          name: 'Coin Multiplier',
-          color: '#FFD700',
-          effect: 'x2 Coins for 2 minutes',
-          isBooster: true,
-          spawnTime: Date.now() // Reset spawn time
-        };
-        
-        // Set new respawn timer for this booster
-        setTimeout(() => {
-          respawnCoinBooster(newCoinBooster.id);
-        }, 120000); // 2 minutes
-        
-        gameState.boosters.set(newCoinBooster.id, newCoinBooster);
-        console.log(`🔄 Coin booster respawned on map after player ${player.name} expired (2 minutes delay)`);
-      }, 120000); // 2 minutes delay before respawn
+      // Note: Coin boosters regenerate automatically through timers set when they spawn
+      // No need to manually respawn them here
     }
     
     // Save player total scores to Firebase in batch (non-blocking)
