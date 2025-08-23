@@ -64,7 +64,7 @@ class GameDataService {
     }
 
     // DEPRECATED: Get player stats (old system)
-    // This method is deprecated and will be removed in favor of the new users collection
+    // This method is deprecated and will be removed in favor  of the new users collection
     async getPlayerStats(playerId) {
         console.warn('⚠️ getPlayerStats is deprecated. Use the new users collection instead.');
         return null; // Return null to indicate this method is deprecated
@@ -193,7 +193,7 @@ class GameDataService {
                 return mockLeaderboard.slice(0, limit);
             }
             
-            const snapshot = await db.collection('players')
+            const snapshot = await db.collection('users')
                 .orderBy('bestScore', 'desc')
                 .limit(limit)
                 .get();
@@ -225,7 +225,7 @@ class GameDataService {
             const normalizedPlayerId = playerId.toLowerCase();
             console.log(`🔧 updatePlayerProfile: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
             
-            const playerRef = db.collection('players').doc(normalizedPlayerId);
+            const playerRef = db.collection('users').doc(normalizedPlayerId);
             const playerDoc = await playerRef.get();
             
             if (playerDoc.exists) {
@@ -249,7 +249,7 @@ class GameDataService {
             const normalizedPlayerId = playerId.toLowerCase();
             console.log(`🔧 savePlayerCoin: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
             
-            const playerRef = db.collection('players').doc(normalizedPlayerId);
+            const playerRef = db.collection('users').doc(normalizedPlayerId);
             const playerDoc = await playerRef.get();
             
             if (playerDoc.exists) {
@@ -289,7 +289,7 @@ class GameDataService {
             const normalizedPlayerId = playerId.toLowerCase();
             console.log(`🔧 updateBestScore: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
             
-            const playerRef = db.collection('players').doc(normalizedPlayerId);
+            const playerRef = db.collection('users').doc(normalizedPlayerId);
             const playerDoc = await playerRef.get();
             
             if (playerDoc.exists) {
@@ -324,7 +324,7 @@ class GameDataService {
             const normalizedPlayerId = playerId.toLowerCase();
             console.log(`🔧 Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
             
-            const playerRef = db.collection('players').doc(normalizedPlayerId);
+            const playerRef = db.collection('users').doc(normalizedPlayerId);
             const playerDoc = await playerRef.get();
             
             if (playerDoc.exists) {
@@ -384,7 +384,7 @@ class GameDataService {
             const normalizedPlayerId = playerId.toLowerCase();
             console.log(`🔧 saveGameSession: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
             
-            const playerRef = db.collection('players').doc(normalizedPlayerId);
+            const playerRef = db.collection('users').doc(normalizedPlayerId);
             const playerDoc = await playerRef.get();
             
             if (playerDoc.exists) {
