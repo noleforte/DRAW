@@ -174,11 +174,11 @@ async function sendCoinsToServer(coinsGained) {
         
         await window.gameUtils.updateUserStats(updatedStats);
         console.log(`✅ Updated total score to ${totalScore} on server for ${currentUser.nickname}`);
+            
+            // Update player rank display after coin save
+            setTimeout(() => updatePlayerRankDisplay(), 100);
         
-        // Update player rank display after coin save
-        setTimeout(() => updatePlayerRankDisplay(), 100);
-        
-    } catch (error) {
+            } catch (error) {
         console.error('❌ Failed to save coins to server:', error);
     }
 }

@@ -28,17 +28,30 @@ const io = socketIo(server, {
   } 
 });
 
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://draw-e67b.onrender.com', 'https://caballcoin-eight.vercel.app'] 
-    : ['http://localhost:3001', 'http://127.0.0.1:3001'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// CORS configuration
+const allowedOrigins = ['https://caballcoin-eight.vercel.app', 'http://localhost:3000', 'http://localhost:3001'];
 
-// Handle preflight requests globally
-app.options('*', cors());
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Set CORS headers for allowed origins
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
+  // Essential CORS headers
+  res.header('Vary', 'Origin');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  
+  next();
+});
 app.use(express.json());
 app.use(express.raw({ type: 'application/json' })); // For sendBeacon support
 app.use(express.static(path.join(__dirname, 'public')));
@@ -75,20 +88,7 @@ function generateUserId() {
 
 // Health check endpoint for Render
 app.get('/health', (req, res) => {
-  // Set CORS headers for health check
-  res.header('Access-Control-Allow-Origin', 'https://caballcoin-eight.vercel.app');
-  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-// Handle OPTIONS for health endpoint
-app.options('/health', (req, res) => {
-  res.header('Access-Control-Allow-Origin', 'https://caballcoin-eight.vercel.app');
-  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.status(200).end();
 });
 
 // Game state - must be defined before API endpoints
@@ -2607,15 +2607,6 @@ app.post('/api/cleanup-duplicates-wallet', async (req, res) => {
 
 // Authentication API endpoints
 app.post('/api/auth/register', async (req, res) => {
-  // Set CORS headers for this specific endpoint
-  res.header('Access-Control-Allow-Origin', 'https://caballcoin-eight.vercel.app');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  // Handle preflight request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
   try {
     const { email, nickname, password, wallet } = req.body;
     
@@ -2697,15 +2688,6 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 app.post('/api/auth/login', async (req, res) => {
-  // Set CORS headers for this specific endpoint
-  res.header('Access-Control-Allow-Origin', 'https://caballcoin-eight.vercel.app');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  // Handle preflight request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
   try {
     const { nickname, password } = req.body;
     
@@ -2765,15 +2747,6 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.post('/api/auth/logout', authenticateToken, (req, res) => {
-  // Set CORS headers for this specific endpoint
-  res.header('Access-Control-Allow-Origin', 'https://caballcoin-eight.vercel.app');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  // Handle preflight request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
   // In a more sophisticated setup, you'd invalidate the token on the server side
   // For now, the client will just remove the token
   console.log(`✅ User logged out: ${req.user.nickname}`);
@@ -2782,15 +2755,6 @@ app.post('/api/auth/logout', authenticateToken, (req, res) => {
 
 // Get current user info
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
-  // Set CORS headers for this specific endpoint
-  res.header('Access-Control-Allow-Origin', 'https://caballcoin-eight.vercel.app');
-  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  // Handle preflight request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
   try {
     const user = await GameDataService.getUserById(req.user.userId);
     if (!user) {
@@ -2819,15 +2783,6 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 
 // Update user profile
 app.put('/api/auth/profile', authenticateToken, async (req, res) => {
-  // Set CORS headers for this specific endpoint
-  res.header('Access-Control-Allow-Origin', 'https://caballcoin-eight.vercel.app');
-  res.header('Access-Control-Allow-Methods', 'PUT, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  // Handle preflight request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
   try {
     const { wallet } = req.body;
     const userId = req.user.userId;
