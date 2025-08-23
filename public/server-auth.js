@@ -3,7 +3,10 @@ class ServerAuthSystem {
     constructor() {
         this.currentUser = null;
         this.token = localStorage.getItem('authToken');
-        this.serverUrl = window.location.origin;
+        // Use Render server URL for production, localhost for development
+        this.serverUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3001' 
+            : 'https://draw-e67b.onrender.com';
         this.init();
     }
 

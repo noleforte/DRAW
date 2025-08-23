@@ -50,7 +50,10 @@ async function updateUserStats(stats) {
     
     try {
         // Update stats via API call to server
-        const response = await fetch('/api/auth/profile', {
+        const serverUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3001' 
+            : 'https://draw-e67b.onrender.com';
+        const response = await fetch(`${serverUrl}/api/auth/profile`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${window.serverAuth.token}`,
