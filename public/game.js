@@ -73,11 +73,16 @@ function init() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
     
-    // Show player info panel with animation
+    // Check for saved user and auto-login if available
+    checkForSavedUserAndAutoLogin();
+    
+    // Show player info panel with animation (only if no auto-login)
     setTimeout(() => {
-        const nameModal = document.getElementById('nameModal');
-        if (nameModal) {
-            nameModal.classList.add('show');
+        if (!window.autoLoginAttempted) {
+            const nameModal = document.getElementById('nameModal');
+            if (nameModal) {
+                nameModal.classList.add('show');
+            }
         }
     }, 100);
     
@@ -136,6 +141,159 @@ function init() {
     }, 3000); // Wait 3 seconds for Firebase to initialize
     
     console.log('🎮 init() function completed successfully');
+}
+
+// Check for saved user and attempt auto-login
+async function checkForSavedUserAndAutoLogin() {
+    try {
+        console.log('🔍 Checking for saved user data...');
+        
+        // Check if we have a saved user in localStorage
+        const savedUser = localStorage.getItem('currentUser');
+        if (!savedUser) {
+            console.log('❌ No saved user found, will show login modal');
+            return;
+        }
+        
+        const userData = JSON.parse(savedUser);
+        if (!userData || !userData.nickname || !userData.password) {
+            console.log('❌ Invalid saved user data, will show login modal');
+            localStorage.removeItem('currentUser'); // Clean up invalid data
+            return;
+        }
+        
+        console.log('✅ Found saved user:', userData.nickname);
+        
+        // Attempt auto-login
+        try {
+            console.log('🔐 Attempting auto-login for:', userData.nickname);
+            
+            // Try to authenticate with saved credentials
+            let user = await nicknameAuth.login(userData.nickname, userData.password);
+            
+            if (user) {
+                console.log('✅ Auto-login successful for:', user.nickname);
+                
+                // Update player info panel with authenticated user
+                updatePlayerInfoPanelWithStats(user);
+                updateMainPlayerInfoPanel(user);
+                
+                // Force refresh current user cache
+                nicknameAuth.refreshCurrentUser();
+                
+                // Show welcome back message instead of login modal
+                showWelcomeBackModal(user);
+                
+                // Mark that we attempted auto-login
+                window.autoLoginAttempted = true;
+                
+                return;
+            }
+        } catch (error) {
+            console.warn('⚠️ Auto-login failed:', error);
+            // Remove invalid saved data
+            localStorage.removeItem('currentUser');
+        }
+        
+        console.log('❌ Auto-login failed, will show login modal');
+        
+    } catch (error) {
+        console.error('❌ Error during auto-login check:', error);
+    }
+}
+
+// Show welcome back modal instead of login form
+function showWelcomeBackModal(user) {
+    const nameModal = document.getElementById('nameModal');
+    const nameModalContent = document.getElementById('nameModalContent');
+    
+    if (!nameModal || !nameModalContent) return;
+    
+    // Hide login form elements
+    const signInText = nameModalContent.querySelector('p');
+    const mainSignInForm = document.getElementById('mainSignInForm');
+    const signUpSection = nameModalContent.querySelector('.text-center');
+    
+    if (signInText) signInText.style.display = 'none';
+    if (mainSignInForm) mainSignInForm.style.display = 'none';
+    if (signUpSection) signUpSection.style.display = 'none';
+    
+    // Update title and show welcome message
+    const title = nameModalContent.querySelector('h2');
+    if (title) {
+        title.textContent = `Welcome back, ${user.nickname}!`;
+        title.className = 'text-2xl font-bold mb-3 text-center text-green-400';
+    }
+    
+    // Add welcome message
+    const welcomeMsg = document.createElement('p');
+    welcomeMsg.className = 'text-gray-300 mb-4 text-center';
+    welcomeMsg.textContent = 'You are automatically signed in. Ready to play?';
+    nameModalContent.insertBefore(welcomeMsg, nameModalContent.firstChild.nextSibling);
+    
+    // Show the modal
+    nameModal.style.display = 'flex';
+    
+    // Add logout button
+    const logoutBtn = document.createElement('button');
+    logoutBtn.className = 'w-full max-w-sm mx-auto bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg font-bold transition-colors text-sm flex items-center justify-center shadow-md mt-3';
+    logoutBtn.innerHTML = '<span class="mr-2">🚪</span><span>Logout</span>';
+    logoutBtn.onclick = () => {
+        performLogout();
+    };
+    nameModalContent.appendChild(logoutBtn);
+    
+    // Add "Sign in as different user" button
+    const differentUserBtn = document.createElement('button');
+    differentUserBtn.className = 'w-full max-w-sm mx-auto bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded-lg font-bold transition-colors text-sm flex items-center justify-center shadow-md mt-2';
+    differentUserBtn.innerHTML = '<span class="mr-2">👤</span><span>Sign in as different user</span>';
+    differentUserBtn.onclick = () => {
+        showOriginalLoginModal();
+    };
+    nameModalContent.appendChild(differentUserBtn);
+    
+    // Auto-hide modal after 5 seconds (increased time for logout button)
+    setTimeout(() => {
+        if (nameModal.style.display === 'flex') {
+            nameModal.style.display = 'none';
+        }
+    }, 5000);
+}
+
+// Function to restore original login modal
+function showOriginalLoginModal() {
+    const nameModal = document.getElementById('nameModal');
+    const nameModalContent = document.getElementById('nameModalContent');
+    
+    if (!nameModal || !nameModalContent) return;
+    
+    // Clear any dynamically added content
+    const dynamicElements = nameModalContent.querySelectorAll('p:not(:first-child), button:not(#startGameBtn)');
+    dynamicElements.forEach(el => el.remove());
+    
+    // Restore original elements
+    const signInText = nameModalContent.querySelector('p');
+    const mainSignInForm = document.getElementById('mainSignInForm');
+    const signUpSection = nameModalContent.querySelector('.text-center');
+    
+    if (signInText) {
+        signInText.style.display = 'block';
+        signInText.textContent = 'Sign in to start playing';
+    }
+    if (mainSignInForm) mainSignInForm.style.display = 'block';
+    if (signUpSection) signUpSection.style.display = 'block';
+    
+    // Restore original title
+    const title = nameModalContent.querySelector('h2');
+    if (title) {
+        title.textContent = 'Welcome to Royale Ball!';
+        title.className = 'text-2xl font-bold mb-3 text-center';
+    }
+    
+    // Clear auto-login flag
+    window.autoLoginAttempted = false;
+    
+    console.log('🔄 Restored original login modal');
 }
 
 function loadBackgroundImage() {
@@ -1610,6 +1768,19 @@ function setupUIHandlers() {
             let user = await nicknameAuth.login(nickname, password); // Изменил const на let
             console.log('✅ Login successful for user:', user.nickname);
             
+            // Save user credentials for auto-login on next visit
+            try {
+                const userCredentials = {
+                    nickname: user.nickname,
+                    password: password, // Save password for auto-login
+                    lastLogin: Date.now()
+                };
+                localStorage.setItem('currentUser', JSON.stringify(userCredentials));
+                console.log('💾 User credentials saved for auto-login');
+            } catch (error) {
+                console.warn('⚠️ Failed to save user credentials:', error);
+            }
+            
             // Update player info panel with authenticated user
             updatePlayerInfoPanelWithStats(user);
             
@@ -3042,6 +3213,14 @@ function performLogout() {
     }
     if (window.nicknameAuth) {
         window.nicknameAuth.logout();
+    }
+    
+    // 1.5. Clear saved user credentials for auto-login
+    try {
+        localStorage.removeItem('currentUser');
+        console.log('🗑️ Cleared saved user credentials');
+    } catch (error) {
+        console.warn('⚠️ Failed to clear saved credentials:', error);
     }
     
     // 2. Disconnect from game server if connected
