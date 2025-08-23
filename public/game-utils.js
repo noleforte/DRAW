@@ -66,23 +66,16 @@ async function refreshUserData() {
     }
 }
 
-// Batch operations for better performance
-let statsUpdateQueue = [];
-let statsUpdateTimeout = null;
-const STATS_UPDATE_DELAY = 1000; // 1 second delay for batching
-
-// Троттлинг обновления статистики
+// Мгновенное обновление статистики (без троттлинга)
 const saveStats = (() => {
-  let last = 0;
   let inflight = false;
   let queued = null;
   
   return async function(stats) {
     queued = stats;
-    const now = Date.now();
     
-    // Не чаще 1 раза в 500ms (мгновенно)
-    if (inflight || now - last < 500) {
+    // Только проверка на дублирование запросов
+    if (inflight) {
       return;
     }
     
@@ -119,8 +112,7 @@ const saveStats = (() => {
         }
       }
       
-      last = Date.now();
-      console.log('✅ Stats saved successfully');
+      console.log('✅ Stats saved instantly');
     } catch (error) {
       console.error('❌ Failed to save stats:', error);
     } finally {
@@ -147,14 +139,11 @@ async function sendCoinsToServer(coinsGained) {
         };
         updatedStats.bestScore = Math.max(currentStats.bestScore || 0, newTotalScore); // Update bestScore after totalScore
 
-        statsUpdateQueue.push({ stats: updatedStats, timestamp: Date.now() });
-        if (!statsUpdateTimeout) {
-            statsUpdateTimeout = setTimeout(() => { processBatchStatsUpdate(); }, STATS_UPDATE_DELAY);
-        }
+        saveStats(updatedStats); // Use instant save
         if (window.serverAuth && window.serverAuth.currentUser) {
             window.serverAuth.currentUser.stats = updatedStats;
         }
-        console.log(`💰 User ${user.nickname} gained ${coinsGained} coins. Total: ${newTotalScore} (queued for batch update)`);
+        console.log(`💰 User ${user.nickname} gained ${coinsGained} coins. Total: ${newTotalScore} (instant update)`);
     } catch (error) {
         console.error('❌ Failed to queue coins update:', error);
     }
