@@ -319,10 +319,28 @@ async function startGameFromAutoLogin() {
     try {
         console.log('🎮 Starting game from auto-login...');
         
-        // Get current authenticated user
+        // Get saved user credentials from localStorage
+        const savedUserData = localStorage.getItem('currentUser');
+        if (!savedUserData) {
+            console.error('❌ No saved user data found for auto-login game start');
+            alert('Error: No saved user data found. Please sign in again.');
+            return;
+        }
+        
+        const userCredentials = JSON.parse(savedUserData);
+        if (!userCredentials.nickname || !userCredentials.password) {
+            console.error('❌ Invalid saved user data structure');
+            localStorage.removeItem('currentUser'); // Clean up invalid data
+            alert('Error: Invalid saved user data. Please sign in again.');
+            return;
+        }
+        
+        console.log('🔍 Found saved credentials for:', userCredentials.nickname);
+        
+        // Get current authenticated user from auth system
         const currentUser = nicknameAuth.getCurrentUserSync();
         if (!currentUser) {
-            console.error('❌ No authenticated user found for auto-login game start');
+            console.error('❌ No authenticated user found in auth system');
             alert('Error: No authenticated user found. Please sign in again.');
             return;
         }
@@ -335,8 +353,8 @@ async function startGameFromAutoLogin() {
             nameModal.style.display = 'none';
         }
         
-        // Start the game directly
-        await startGameDirectly(currentUser);
+        // Start the game directly using saved credentials
+        await startGameDirectly(currentUser, userCredentials);
         
     } catch (error) {
         console.error('❌ Error starting game from auto-login:', error);
@@ -345,9 +363,26 @@ async function startGameFromAutoLogin() {
 }
 
 // Function to start game directly with user data
-async function startGameDirectly(user) {
+async function startGameDirectly(user, userCredentials = null) {
     try {
         console.log('🎮 Starting game directly for user:', user.nickname);
+        
+        // If we have saved credentials, use them to ensure proper authentication
+        if (userCredentials && userCredentials.nickname && userCredentials.password) {
+            console.log('🔐 Using saved credentials for authentication verification');
+            
+            // Verify authentication with saved credentials
+            try {
+                const verifiedUser = await nicknameAuth.login(userCredentials.nickname, userCredentials.password);
+                if (verifiedUser) {
+                    console.log('✅ Authentication verification successful with saved credentials');
+                    user = verifiedUser; // Use verified user data
+                }
+            } catch (authError) {
+                console.warn('⚠️ Authentication verification failed with saved credentials:', authError);
+                // Continue with current user if verification fails
+            }
+        }
         
         // Update player info panel with authenticated user
         updatePlayerInfoPanelWithStats(user);
@@ -355,6 +390,12 @@ async function startGameDirectly(user) {
         
         // Force refresh current user cache
         nicknameAuth.refreshCurrentUser();
+        
+        // Connect to game server if not already connected
+        if (socket && !socket.connected) {
+            console.log('🔌 Connecting to game server...');
+            socket.connect();
+        }
         
         // Start the actual game
         startActualGame();
@@ -368,6 +409,16 @@ async function startGameDirectly(user) {
 // Function to start the actual game mechanics
 function startActualGame() {
     console.log('🎮 Starting actual game mechanics...');
+    
+    // Verify user is still authenticated
+    const currentUser = nicknameAuth.getCurrentUserSync();
+    if (!currentUser) {
+        console.error('❌ User authentication lost during game start');
+        alert('Error: User authentication lost. Please sign in again.');
+        return;
+    }
+    
+    console.log('✅ User authentication verified:', currentUser.nickname);
     
     // Hide modal and show game canvas
     const nameModal = document.getElementById('nameModal');
