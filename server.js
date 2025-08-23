@@ -416,7 +416,7 @@ function getRandomPosition() {
 }
 
 // Get random position with minimum distance from existing boosters
-function getRandomPositionWithMinDistance(minDistance = 400, maxAttempts = 50) {
+function getRandomPositionWithMinDistance(minDistance = 800, maxAttempts = 100) {
   const margin = 50;
   const minX = -gameState.worldSize/2 + margin;
   const minY = -gameState.worldSize/2 + margin;
@@ -424,9 +424,9 @@ function getRandomPositionWithMinDistance(minDistance = 400, maxAttempts = 50) {
   const maxY = gameState.worldSize/2 - margin;
   
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    // Generate random position
-    const x = minX + (maxX - minX) * (0.1 + 0.8 * Math.random());
-    const y = minY + (maxY - minY) * (0.1 + 0.8 * Math.random());
+    // Generate random position with full area utilization for better distribution
+    const x = minX + (maxX - minX) * Math.random();
+    const y = minY + (maxY - minY) * Math.random();
     
     // Check distance from all existing boosters
     let isTooClose = false;
@@ -438,38 +438,26 @@ function getRandomPositionWithMinDistance(minDistance = 400, maxAttempts = 50) {
       }
     }
     
-    // If position is far enough from all boosters, return it
+    // Also check distance from players and bots to avoid spawning on top of them
     if (!isTooClose) {
-      console.log(`✅ Found position with minimum distance ${minDistance}px after ${attempt + 1} attempts`);
-      return { x, y };
-    }
-  }
-  
-  // If all attempts failed, return a random position (fallback)
-  console.log(`⚠️ Could not find position with minimum distance ${minDistance}px after ${maxAttempts} attempts, using fallback`);
-  return getRandomPosition();
-}
-
-// Get random position with minimum distance from existing boosters
-function getRandomPositionWithMinDistance(minDistance = 400, maxAttempts = 50) {
-  const margin = 50;
-  const minX = -gameState.worldSize/2 + margin;
-  const minY = -gameState.worldSize/2 + margin;
-  const maxX = gameState.worldSize/2 - margin;
-  const maxY = gameState.worldSize/2 - margin;
-  
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    // Generate random position
-    const x = minX + (maxX - minX) * (0.1 + 0.8 * Math.random());
-    const y = minY + (maxY - minY) * (0.1 + 0.8 * Math.random());
-    
-    // Check distance from all existing boosters
-    let isTooClose = false;
-    for (const booster of gameState.boosters.values()) {
-      const distance = Math.sqrt((x - booster.x) ** 2 + (y - booster.y) ** 2);
-      if (distance < minDistance) {
-        isTooClose = true;
-        break;
+      const minPlayerDistance = 200; // Minimum distance from players/bots
+      
+      for (const player of gameState.players.values()) {
+        const distance = Math.sqrt((x - player.x) ** 2 + (y - player.y) ** 2);
+        if (distance < minPlayerDistance) {
+          isTooClose = true;
+          break;
+        }
+      }
+      
+      if (!isTooClose) {
+        for (const bot of gameState.bots.values()) {
+          const distance = Math.sqrt((x - bot.x) ** 2 + (y - bot.y) ** 2);
+          if (distance < minPlayerDistance) {
+            isTooClose = true;
+            break;
+          }
+        }
       }
     }
     
@@ -590,11 +578,11 @@ function generateBoosters(count = 2) { // Player Eater + Coin Boosters
   // Generate Player Eater booster (only 1 on the map)
   const playerEaterBooster = {
     id: `booster_${gameState.nextBoosterId++}`,
-    ...getRandomPositionWithMinDistance(400), // Minimum 400px distance from other boosters
+    ...getRandomPositionWithMinDistance(800), // Minimum 800px distance from other boosters
     type: 'playerEater',
     name: 'Player Eater',
     color: 'rainbow', // Special rainbow color
-    effect: 'Eat other players + Level 5 stats',
+    effect: 'Player Eater',
     isBooster: true,
     rainbowHue: 0 // For rainbow animation
   };
@@ -604,11 +592,11 @@ function generateBoosters(count = 2) { // Player Eater + Coin Boosters
   for (let i = 0; i < 5; i++) {
     const coinBooster = {
       id: `booster_${gameState.nextBoosterId++}`,
-      ...getRandomPositionWithMinDistance(400), // Minimum 400px distance from other boosters
+      ...getRandomPositionWithMinDistance(800), // Minimum 800px distance from other boosters
       type: 'coins',
       name: 'Coin Multiplier',
       color: '#FFD700', // Gold color
-      effect: 'x2 Coins for 2 minutes',
+      effect: 'Coin Multiplier',
       isBooster: true,
       spawnTime: Date.now() // Track when booster spawned
     };
@@ -620,7 +608,7 @@ function generateBoosters(count = 2) { // Player Eater + Coin Boosters
     }, 120000); // 2 minutes = 120000ms
   }
   
-  console.log(`🎯 Generated boosters: 1 Player Eater + 5 Coin Boosters with minimum 400px spacing`);
+  console.log(`🎯 Generated boosters: 1 Player Eater + 5 Coin Boosters with minimum 800px spacing`);
 }
 
 // Create AI bot
@@ -653,11 +641,11 @@ function respawnCoinBooster(boosterId) {
   // Create new coin booster in random location with minimum distance from other boosters
   const newCoinBooster = {
     id: `booster_${gameState.nextBoosterId++}`,
-    ...getRandomPositionWithMinDistance(400), // Minimum 400px distance from other boosters
+    ...getRandomPositionWithMinDistance(800), // Minimum 800px distance from other boosters
     type: 'coins',
     name: 'Coin Multiplier',
     color: '#FFD700',
-    effect: 'x2 Coins for 2 minutes',
+    effect: 'Coin Multiplier',
     isBooster: true,
     spawnTime: Date.now() // Reset spawn time
   };
@@ -1094,11 +1082,11 @@ function updateBots() {
           setTimeout(() => {
             const newCoinBooster = {
               id: `booster_${gameState.nextBoosterId++}`,
-              ...getRandomPositionWithMinDistance(400), // Minimum 400px distance from other boosters
+              ...getRandomPositionWithMinDistance(800), // Minimum 800px distance from other boosters
               type: 'coins',
               name: 'Coin Multiplier',
               color: '#FFD700',
-              effect: 'x2 Coins for 2 minutes',
+              effect: 'Coin Multiplier',
               isBooster: true,
               spawnTime: Date.now() // Reset spawn time
             };
@@ -1296,11 +1284,11 @@ function updateBots() {
       // Respawn Player Eater booster on the map immediately after effect expires
       const newBooster = {
         id: `booster_${gameState.nextBoosterId++}`,
-        ...getRandomPositionWithMinDistance(400), // Minimum 400px distance from other boosters
+        ...getRandomPositionWithMinDistance(800), // Minimum 800px distance from other boosters
         type: 'playerEater',
         name: 'Player Eater',
         color: 'rainbow',
-        effect: 'Eat other players + Level 5 stats',
+        effect: 'Player Eater',
         isBooster: true,
         rainbowHue: 0
       };
@@ -1318,11 +1306,11 @@ function updateBots() {
       setTimeout(() => {
         const newCoinBooster = {
           id: `booster_${gameState.nextBoosterId++}`,
-          ...getRandomPositionWithMinDistance(400), // Minimum 400px distance from other boosters
+          ...getRandomPositionWithMinDistance(800), // Minimum 800px distance from other boosters
           type: 'coins',
           name: 'Coin Multiplier',
           color: '#FFD700',
-          effect: 'x2 Coins for 2 minutes',
+          effect: 'Coin Multiplier',
           isBooster: true,
           spawnTime: Date.now() // Reset spawn time
         };
@@ -1552,11 +1540,11 @@ function updatePlayers(deltaTime) {
       // Respawn Player Eater booster on the map immediately after effect expires
       const newBooster = {
         id: `booster_${gameState.nextBoosterId++}`,
-        ...getRandomPositionWithMinDistance(400), // Minimum 400px distance from other boosters
+        ...getRandomPositionWithMinDistance(800), // Minimum 800px distance from other boosters
         type: 'playerEater',
         name: 'Player Eater',
         color: 'rainbow',
-        effect: 'Eat other players + Level 5 stats',
+        effect: 'Player Eater',
         isBooster: true,
         rainbowHue: 0
       };
