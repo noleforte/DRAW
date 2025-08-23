@@ -290,7 +290,7 @@ function showOriginalLoginModal() {
     // Restore original title
     const title = nameModalContent.querySelector('h2');
     if (title) {
-        title.textContent = 'Welcome to Royale Ball!';
+        title.textContent = 'Welcome to Caball!';
         title.className = 'text-2xl font-bold mb-3 text-center';
     }
     
