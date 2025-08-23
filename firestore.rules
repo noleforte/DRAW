@@ -17,14 +17,6 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     
-    // Правила для коллекции игроков (устаревшая система - только чтение)
-    match /players/{playerId} {
-      // Разрешить чтение всем (для лидерборда)
-      allow read: if true;
-      // Запретить запись (устаревшая система)
-      allow write: if false;
-    }
-    
     // Запретить доступ ко всем остальным коллекциям
     match /{document=**} {
       allow read, write: if false;
