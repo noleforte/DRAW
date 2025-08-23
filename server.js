@@ -621,7 +621,7 @@ function createBot(id) {
     vy: 0,
     score: 0,
     size: 20,
-    color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+    color: Math.floor(Math.random() * 360),
     target: null,
     lastMessageTime: 0,
     isBot: true,
@@ -2091,7 +2091,7 @@ io.on('connection', (socket) => {
         firebaseId: existingPlayer.id, // Keep firebaseId for backwards compatibility
         id: existingPlayer.id, // Primary user ID
         passwordHash: playerData.passwordHash || existingPlayer.passwordHash, // Preserve passwordHash
-        color: playerData.color || existingPlayer.color // Preserve or update color
+        color: playerData.color !== undefined ? playerData.color : existingPlayer.color // Preserve or update color
       };
       
       // Add to gameState.players with new socket.id
@@ -2172,7 +2172,7 @@ io.on('connection', (socket) => {
         firebaseId: playerId, // Keep firebaseId for backwards compatibility
         id: playerId, // Primary user ID
         passwordHash: playerData.passwordHash || null, // Add passwordHash for database operations
-        color: playerData.color || `hsl(${Math.random() * 360}, 70%, 50%)`,
+        color: playerData.color || Math.floor(Math.random() * 360),
         isBot: false,
         lastActivity: Date.now(),
         lastPosition: { x: 0, y: 0 }
