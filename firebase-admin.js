@@ -221,19 +221,21 @@ class GameDataService {
                 return true; // Return success for mock mode
             }
             
-            // Normalize playerId to lowercase to avoid duplicate documents
-            const normalizedPlayerId = playerId.toLowerCase();
-            console.log(`🔧 updatePlayerProfile: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
+            console.log(`🔧 updatePlayerProfile: Looking for player with nickname: "${playerId}"`);
             
-            const playerRef = db.collection('users').doc(normalizedPlayerId);
-            const playerDoc = await playerRef.get();
+            // Find user by nickname in the users collection
+            const usersSnapshot = await db.collection('users')
+                .where('nickname', '==', playerId)
+                .limit(1)
+                .get();
             
-            if (playerDoc.exists) {
-                await playerRef.update(updates);
-                console.log(`✅ Player profile updated for ${normalizedPlayerId}`);
+            if (!usersSnapshot.empty) {
+                const userDoc = usersSnapshot.docs[0];
+                await userDoc.ref.update(updates);
+                console.log(`✅ Player profile updated for user ${userDoc.id} (${playerId})`);
                 return true;
             } else {
-                console.log(`❌ Player not found for update: ${normalizedPlayerId}`);
+                console.log(`❌ Player not found for update: ${playerId}`);
                 return false;
             }
         } catch (error) {
@@ -245,30 +247,33 @@ class GameDataService {
     // Save player's current total score (Score = Total Score)
     async savePlayerCoin(playerId, currentTotalScore) {
         try {
-            // Normalize playerId to lowercase to avoid duplicate documents
-            const normalizedPlayerId = playerId.toLowerCase();
-            console.log(`🔧 savePlayerCoin: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
+            console.log(`🔧 savePlayerCoin: Looking for player with nickname: "${playerId}"`);
             
-            const playerRef = db.collection('users').doc(normalizedPlayerId);
-            const playerDoc = await playerRef.get();
+            // Find user by nickname in the users collection
+            const usersSnapshot = await db.collection('users')
+                .where('nickname', '==', playerId)
+                .limit(1)
+                .get();
             
-            if (playerDoc.exists) {
-                // Update existing player's total score
-                await playerRef.update({
-                    totalScore: currentTotalScore, // Score = Total Score, update to current value
+            if (!usersSnapshot.empty) {
+                const userDoc = usersSnapshot.docs[0];
+                const userData = userDoc.data();
+                
+                // Update existing user's stats
+                const currentStats = userData.stats || {};
+                const updatedStats = {
+                    ...currentStats,
+                    totalScore: currentTotalScore
+                };
+                
+                await userDoc.ref.update({
+                    stats: updatedStats,
                     lastPlayed: admin.firestore.FieldValue.serverTimestamp()
                 });
+                
+                console.log(`✅ Player total score updated for user ${userDoc.id} (${playerId}): ${currentTotalScore}`);
             } else {
-                // Create new player if doesn't exist
-                await playerRef.set({
-                    nickname: normalizedPlayerId,
-                    playerName: normalizedPlayerId,
-                    totalScore: currentTotalScore,
-                    gamesPlayed: 0,
-                    bestScore: 0,
-                    firstPlayed: admin.firestore.FieldValue.serverTimestamp(),
-                    lastPlayed: admin.firestore.FieldValue.serverTimestamp()
-                });
+                console.log(`❌ User not found for coin save: ${playerId}`);
             }
         } catch (error) {
             console.error('Error saving player total score:', error);
@@ -285,30 +290,43 @@ class GameDataService {
                 return true; // Return success for mock mode
             }
             
-            // Normalize playerId to lowercase to avoid duplicate documents
-            const normalizedPlayerId = playerId.toLowerCase();
-            console.log(`🔧 updateBestScore: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
+            console.log(`🔧 updateBestScore: Looking for player with nickname: "${playerId}"`);
             
-            const playerRef = db.collection('users').doc(normalizedPlayerId);
-            const playerDoc = await playerRef.get();
+            // Find user by nickname in the users collection
+            const usersSnapshot = await db.collection('users')
+                .where('nickname', '==', playerId)
+                .limit(1)
+                .get();
             
-            if (playerDoc.exists) {
-                const currentStats = playerDoc.data();
+            if (!usersSnapshot.empty) {
+                const userDoc = usersSnapshot.docs[0];
+                const userId = userDoc.id;
+                const userData = userDoc.data();
+                
+                // Get current stats
+                const currentStats = userData.stats || {};
                 const currentBestScore = currentStats.bestScore || 0;
                 
                 if (newScore > currentBestScore) {
-                    await playerRef.update({
-                        bestScore: newScore,
+                    // Update best score in stats
+                    const updatedStats = {
+                        ...currentStats,
+                        bestScore: newScore
+                    };
+                    
+                    await userDoc.ref.update({
+                        stats: updatedStats,
                         lastPlayed: admin.firestore.FieldValue.serverTimestamp()
                     });
-                    console.log(`✅ Best score updated for ${normalizedPlayerId}: ${currentBestScore} -> ${newScore}`);
+                    
+                    console.log(`✅ Best score updated for user ${userId} (${playerId}): ${currentBestScore} -> ${newScore}`);
                     return true;
                 } else {
-                    console.log(`ℹ️ New score ${newScore} not higher than current best ${currentBestScore} for ${normalizedPlayerId}`);
+                    console.log(`ℹ️ New score ${newScore} not higher than current best ${currentBestScore} for user ${userId} (${playerId})`);
                     return false;
                 }
             } else {
-                console.log(`❌ Player not found for best score update: ${normalizedPlayerId}`);
+                console.log(`❌ User not found for best score update: ${playerId}`);
                 return false;
             }
         } catch (error) {
@@ -380,35 +398,35 @@ class GameDataService {
                 return true; // Return success for mock mode
             }
             
-            // Normalize playerId to lowercase to avoid duplicate documents
-            const normalizedPlayerId = playerId.toLowerCase();
-            console.log(`🔧 saveGameSession: Normalizing playerId: "${playerId}" -> "${normalizedPlayerId}"`);
+            console.log(`🔧 saveGameSession: Looking for player with nickname: "${playerId}"`);
             
-            const playerRef = db.collection('users').doc(normalizedPlayerId);
-            const playerDoc = await playerRef.get();
+            // Find user by nickname in the users collection
+            const usersSnapshot = await db.collection('users')
+                .where('nickname', '==', playerId)
+                .limit(1)
+                .get();
             
-            if (playerDoc.exists) {
-                const currentStats = playerDoc.data();
-                await playerRef.update({
+            if (!usersSnapshot.empty) {
+                const userDoc = usersSnapshot.docs[0];
+                const userData = userDoc.data();
+                const currentStats = userData.stats || {};
+                
+                // Update existing user's stats
+                const updatedStats = {
+                    ...currentStats,
                     gamesPlayed: (currentStats.gamesPlayed || 0) + 1,
                     bestScore: Math.max(currentStats.bestScore || 0, sessionData.score),
-                    totalScore: sessionData.score, // Update totalScore to current score (Score = Total Score)
-                    lastPlayed: admin.firestore.FieldValue.serverTimestamp(),
-                    // Ensure consistent field names
-                    nickname: sessionData.playerName || currentStats.nickname || normalizedPlayerId,
-                    playerName: sessionData.playerName || currentStats.nickname || normalizedPlayerId
-                });
-            } else {
-                await playerRef.set({
-                    nickname: sessionData.playerName || normalizedPlayerId,
-                    playerName: sessionData.playerName || normalizedPlayerId,
-                    walletAddress: sessionData.walletAddress || '',
-                    totalScore: sessionData.score, // Set totalScore to current score
-                    gamesPlayed: 1,
-                    bestScore: sessionData.score,
-                    firstPlayed: admin.firestore.FieldValue.serverTimestamp(),
+                    totalScore: sessionData.score
+                };
+                
+                await userDoc.ref.update({
+                    stats: updatedStats,
                     lastPlayed: admin.firestore.FieldValue.serverTimestamp()
                 });
+                
+                console.log(`✅ Game session saved for user ${userDoc.id} (${playerId}): score=${sessionData.score}`);
+            } else {
+                console.log(`❌ User not found for game session save: ${playerId}`);
             }
             
             return true;
