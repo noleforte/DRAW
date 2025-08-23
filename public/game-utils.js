@@ -74,8 +74,8 @@ const saveStats = (() => {
   return async function(stats) {
     queued = stats;
     
-    // Только проверка на дублирование запросов
-    if (inflight || now - last < 200) {
+    // Only check for duplicate requests
+    if (inflight) {
       return;
     }
     
