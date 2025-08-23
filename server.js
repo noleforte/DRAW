@@ -3,7 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
-const { GameDataService, updateUser, updateUserLastLogin } = require('./firebase-admin');
+const { GameDataService, updateUser, updateUserLastLogin, getAllUsers } = require('./firebase-admin');
 const bcrypt = require('bcrypt'); // For password hashing
 const crypto = require('crypto'); // For generating secure tokens
 const jwt = require('jsonwebtoken'); // For JWT tokens
@@ -120,8 +120,8 @@ app.get('/api/leaderboard', async (req, res) => {
 app.get('/api/players', async (req, res) => {
   try {
     console.log('🔄 API /api/players called');
-    const allPlayers = await GameDataService.getAllPlayers();
-    console.log(`🔄 Retrieved ${allPlayers.length} players from GameDataService:`, allPlayers);
+    const allPlayers = await getAllUsers();
+    console.log(`🔄 Retrieved ${allPlayers.length} players from getAllUsers:`, allPlayers);
     
     // Current online players for debugging
     const onlinePlayerIds = Array.from(gameState.players.values()).map(p => p.id || p.playerId || p.name);

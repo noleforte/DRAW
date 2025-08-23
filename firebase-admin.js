@@ -593,6 +593,57 @@ class GameDataService {
             throw error;
         }
     }
+
+    // Get all users from the users collection
+    async getAllUsers() {
+        try {
+            // Check if Firebase is available
+            if (!isFirebaseAvailable()) {
+                console.warn('⚠️ Firebase not available, returning mock users data');
+                const mockUsers = [
+                    {
+                        playerId: 'mock_1',
+                        nickname: 'TestPlayer1',
+                        playerName: 'TestPlayer1',
+                        totalScore: 1500,
+                        gamesPlayed: 5,
+                        wins: 2,
+                        email: 'test1@example.com',
+                        lastPlayed: new Date().toISOString()
+                    },
+                    {
+                        playerId: 'mock_2',
+                        nickname: 'TestPlayer2',
+                        playerName: 'TestPlayer2',
+                        totalScore: 1200,
+                        gamesPlayed: 3,
+                        wins: 1,
+                        email: 'test2@example.com',
+                        lastPlayed: new Date().toISOString()
+                    }
+                ];
+                return mockUsers;
+            }
+            
+            const snapshot = await db.collection('users').get();
+            return snapshot.docs.map(doc => {
+                const userData = doc.data();
+                return {
+                    playerId: doc.id,
+                    nickname: userData.nickname || userData.playerName || doc.id,
+                    playerName: userData.playerName || userData.nickname || doc.id,
+                    totalScore: userData.stats?.totalScore || userData.totalScore || 0,
+                    gamesPlayed: userData.stats?.gamesPlayed || userData.gamesPlayed || 0,
+                    wins: userData.stats?.wins || userData.wins || 0,
+                    email: userData.email || '',
+                    lastPlayed: userData.lastPlayed || userData.lastLogin || null
+                };
+            });
+        } catch (error) {
+            console.error('Error getting all users:', error);
+            return [];
+        }
+    }
 }
 
 // Create instance first
@@ -605,5 +656,6 @@ module.exports = {
     GameDataService: gameDataServiceInstance,
     findPlayerByPasswordHash: gameDataServiceInstance.findPlayerByPasswordHash.bind(gameDataServiceInstance),
     updateUser: gameDataServiceInstance.updateUser.bind(gameDataServiceInstance),
-    updateUserLastLogin: gameDataServiceInstance.updateUserLastLogin.bind(gameDataServiceInstance)
+    updateUserLastLogin: gameDataServiceInstance.updateUserLastLogin.bind(gameDataServiceInstance),
+    getAllUsers: gameDataServiceInstance.getAllUsers.bind(gameDataServiceInstance)
 }; 
