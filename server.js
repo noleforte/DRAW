@@ -2792,13 +2792,22 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
       updates.wallet = wallet.trim();
     }
     if (stats !== undefined) {
+      // First update totalScore for backward compatibility
+      if (stats.totalScore !== undefined) {
+        updates.totalScore = stats.totalScore;
+      }
+      
+      // Then update stats object (which includes bestScore)
       updates.stats = stats;
-      // Also update totalScore for backward compatibility
-      updates.totalScore = stats.totalScore || 0;
       
       // Handle lastSize if it's in stats
       if (stats.lastSize !== undefined) {
         updates.lastSize = stats.lastSize;
+      }
+      
+      // Handle lastPlayed if it's in stats
+      if (stats.lastPlayed !== undefined) {
+        updates.lastPlayed = stats.lastPlayed;
       }
     }
     

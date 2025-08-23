@@ -3399,6 +3399,11 @@ function gameLoop() {
                 }
             }
             
+            // Force stats update every 10 seconds for important data
+            if (now - lastStatsUpdate > 10000 && window.gameUtils?.forceStatsUpdate) {
+                window.gameUtils.forceStatsUpdate();
+            }
+            
             // Read from Firestore every second to get real-time updates
             nicknameAuth.syncUserStatsFromFirestore().then(freshUser => {
                 if (freshUser && localPlayer) {
@@ -3433,35 +3438,34 @@ function gameLoop() {
             lastFirestoreRefresh = now;
         }
         
-                // Save full player stats to Firebase every 30 seconds as backup
+                // Periodic stats update using new system every 30 seconds
         if (now - lastBestScoreSave > 30000 && localPlayer && localPlayer.score > 0) {
             const currentUser = nicknameAuth.getCurrentUserSync();
-            if (currentUser && window.authSystem?.currentUser) {
+            if (currentUser && window.gameUtils) {
                 const savedBestScore = currentUser.stats.bestScore || 0;
                 const savedTotalScore = currentUser.stats.totalScore || 0;
                 
                 // Only update if we have meaningful improvements
                 if (localPlayer.score > savedBestScore || localPlayer.score > savedTotalScore) {
-                    // Save full player stats (score, totalScore, gamesPlayed)
-                    fetch(`/api/player/${window.authSystem.currentUser.uid}/stats`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ 
-                            score: localPlayer.score,
-                            totalScore: Math.max(localPlayer.score, savedTotalScore), // Keep highest score
-                            gamesPlayed: Math.max((currentUser.stats.gamesPlayed || 0), 1) // At least 1 game if playing
-                        })
-                    }).then(response => {
-                        if (response.ok) {
-                            console.log(`📊 Periodic full stats backup saved: score=${localPlayer.score}, totalScore=${Math.max(localPlayer.score, savedTotalScore)}, gamesPlayed=${Math.max((currentUser.stats.gamesPlayed || 0), 1)}`);
-                            currentUser.stats.bestScore = Math.max(currentUser.stats.bestScore || 0, localPlayer.score);
-                            currentUser.stats.totalScore = Math.max(currentUser.stats.totalScore || 0, localPlayer.score);
-                            currentUser.stats.gamesPlayed = Math.max((currentUser.stats.gamesPlayed || 0), 1);
+                    // Update stats using new system
+                    const currentStats = window.gameUtils.getUserStats();
+                    const updatedStats = {
+                        ...currentStats,
+                        bestScore: Math.max(savedBestScore, localPlayer.score),
+                        totalScore: Math.max(savedTotalScore, localPlayer.score),
+                        gamesPlayed: Math.max((currentStats.gamesPlayed || 0), 1)
+                    };
+                    
+                    // Save using new system
+                    window.gameUtils.updateUserStats(updatedStats).then(() => {
+                        console.log(`📊 Periodic stats update completed: score=${localPlayer.score}, totalScore=${updatedStats.totalScore}, gamesPlayed=${updatedStats.gamesPlayed}`);
+                        
+                        // Update local user data
+                        if (window.serverAuth && window.serverAuth.currentUser) {
+                            window.serverAuth.currentUser.stats = updatedStats;
                         }
                     }).catch(error => {
-                        console.warn('⚠️ Failed to save periodic full stats:', error);
+                        console.warn('⚠️ Failed to save periodic stats:', error);
                     });
                 } else {
                     console.log(`📊 Skipping periodic update - no improvements: score=${localPlayer.score} (best: ${savedBestScore}, total: ${savedTotalScore})`);
@@ -3604,15 +3608,22 @@ window.addEventListener('beforeunload', async (event) => {
     const currentUser = nicknameAuth.getCurrentUserSync();
     if (currentUser && localPlayer) {
         try {
-            // Use sendBeacon for better reliability during page unload
-            const sessionData = {
-                playerName: currentUser.nickname,
-                score: localPlayer.score || 0,
-                walletAddress: currentUser.wallet || ''
-            };
-            
-            const blob = new Blob([JSON.stringify(sessionData)], { type: 'application/json' });
-            navigator.sendBeacon(`/api/player/${currentUser.nickname}/session`, blob);
+            // Save session data using new system
+            if (window.gameUtils) {
+                try {
+                    const currentStats = window.gameUtils.getUserStats();
+                    const updatedStats = {
+                        ...currentStats,
+                        lastPlayed: Date.now()
+                    };
+                    
+                    // Force immediate update before unload
+                    window.gameUtils.forceStatsUpdate();
+                    console.log(`💾 Session data queued for save: score=${localPlayer.score || 0} coins`);
+                } catch (error) {
+                    console.warn('⚠️ Failed to queue session data:', error);
+                }
+            }
             
             console.log(`💾 Saving match on page unload: ${localPlayer.score || 0} coins`);
             
@@ -3647,19 +3658,17 @@ document.addEventListener('visibilitychange', async () => {
         const currentUser = nicknameAuth.getCurrentUserSync();
         if (currentUser && localPlayer) {
             try {
-                const response = await fetch(`/api/player/${currentUser.nickname}/session`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        playerName: currentUser.nickname,
-                        score: localPlayer.score || 0,
-                        walletAddress: currentUser.wallet || ''
-                    })
-                });
-                if (response.ok) {
-                    console.log(`💾 Match saved on visibility change: ${localPlayer.score || 0} coins`);
+                // Save session data using new system
+                if (window.gameUtils) {
+                    const currentStats = window.gameUtils.getUserStats();
+                    const updatedStats = {
+                        ...currentStats,
+                        lastPlayed: Date.now()
+                    };
+                    
+                    // Update stats
+                    await window.gameUtils.updateUserStats(updatedStats);
+                    console.log(`💾 Session data saved on visibility change: score=${localPlayer.score || 0} coins`);
                 }
                 
                 // Save current player size using new server auth system
