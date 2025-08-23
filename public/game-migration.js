@@ -17,7 +17,9 @@ window.nicknameAuth = {
     logout: async () => window.gameUtils?.logoutUser(),
     login: async (nickname, password) => {
         try {
-            const result = await window.serverAuth?.login(nickname, password);
+            // serverAuth.login ожидает (email, nickname, password), но у нас нет email
+            // Передаем пустую строку для email, так как сервер его не использует для входа
+            const result = await window.serverAuth?.login('', nickname, password);
             return result?.user;
         } catch (error) {
             throw error;

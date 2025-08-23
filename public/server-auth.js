@@ -104,6 +104,11 @@ class ServerAuthSystem {
   }
 
   async login(email, nickname, password) {
+    // Проверяем, что переданы оба обязательных поля
+    if (!nickname || !password) {
+      throw new Error('MISSING_CREDENTIALS: nickname and password are required');
+    }
+
     try {
       const response = await fetch(`${this.serverUrl}/api/auth/login`, {
         method: 'POST',
