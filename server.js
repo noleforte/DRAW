@@ -2784,12 +2784,17 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 // Update user profile
 app.put('/api/auth/profile', authenticateToken, async (req, res) => {
   try {
-    const { wallet } = req.body;
+    const { wallet, stats } = req.body;
     const userId = req.user.userId;
     
     const updates = {};
     if (wallet !== undefined) {
       updates.wallet = wallet.trim();
+    }
+    if (stats !== undefined) {
+      updates.stats = stats;
+      // Also update totalScore for backward compatibility
+      updates.totalScore = stats.totalScore || 0;
     }
     
     if (Object.keys(updates).length === 0) {

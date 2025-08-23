@@ -102,12 +102,29 @@ async function sendCoinsToServer(coinsGained) {
     }
     
     try {
-        // In the new system, stats are managed by the server
-        // This is a placeholder for future server-side coin management
-        console.log(`💰 User ${user.nickname} gained ${coinsGained} coins`);
+        // Get current user stats
+        const currentStats = getUserStats();
+        const newTotalScore = (currentStats.totalScore || 0) + coinsGained;
+        const newBestScore = Math.max(currentStats.bestScore || 0, newTotalScore);
         
-        // The server will handle coin updates through game events
-        // For now, we just log the event
+        // Update stats with new coins
+        const updatedStats = {
+            ...currentStats,
+            totalScore: newTotalScore,
+            bestScore: newBestScore,
+            gamesPlayed: (currentStats.gamesPlayed || 0) + 1
+        };
+        
+        // Save updated stats to server
+        await updateUserStats(updatedStats);
+        
+        console.log(`💰 User ${user.nickname} gained ${coinsGained} coins. Total: ${newTotalScore}`);
+        
+        // Update local user data
+        if (window.serverAuth && window.serverAuth.currentUser) {
+            window.serverAuth.currentUser.stats = updatedStats;
+        }
+        
     } catch (error) {
         console.error('❌ Failed to send coins to server:', error);
     }
