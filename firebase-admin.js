@@ -543,15 +543,34 @@ class GameDataService {
                 return true;
             }
             
-            await db.collection('users').doc(userId).update({
+            console.log(`🔧 Attempting to update user ${userId} with:`, updates);
+            
+            // First check if document exists
+            const docRef = db.collection('users').doc(userId);
+            const doc = await docRef.get();
+            
+            if (!doc.exists) {
+                console.error(`❌ User document not found: ${userId}`);
+                throw new Error(`User document not found: ${userId}`);
+            }
+            
+            console.log(`✅ User document found, updating...`);
+            
+            await docRef.update({
                 ...updates,
                 lastUpdated: Date.now()
             });
             
-            console.log(`✅ User updated: ${userId}`);
+            console.log(`✅ User updated successfully: ${userId}`);
             return true;
         } catch (error) {
             console.error('❌ Failed to update user:', error);
+            console.error('❌ Error details:', {
+                userId,
+                errorCode: error.code,
+                errorMessage: error.message,
+                errorDetails: error.details
+            });
             throw error;
         }
     }
