@@ -1085,7 +1085,7 @@
     <!-- Name Input Modal -->
     <div id="nameModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">        
         <!-- Main Menu Modal (Center) -->
-        <div id="nameModalContent" class="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4 ml-80 max-h-screen overflow-y-auto z-50" style="padding: 28px;">
+        <div id="nameModalContent" class="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4 ml-50 max-h-screen overflow-y-auto z-50" style="padding: 28px;">
             <h2 class="text-2xl font-bold mb-3 text-center">Welcome to Royale Ball!</h2>
             <p class="text-gray-300 mb-4 text-center">Sign in to start playing</p>
             
@@ -1260,7 +1260,7 @@
                     id="backToLoginBtn" 
                     class="w-full bg-gray-600 hover:bg-gray-700 px-4 py-3 rounded-lg font-semibold transition-colors"
                 >
-                    Back to Login
+                    Back to Main Menu
                 </button>
             </form>
             
@@ -1599,13 +1599,17 @@
                 });
             }
             
-            // Back to login
+            // Back to main menu (not auth modal)
             if (backToLoginBtn) {
                 backToLoginBtn.addEventListener('click', function() {
                     registrationModal.classList.add('hidden');
-                    authModal.classList.remove('hidden');
-                    // Disable game controls when modal is open
-                    window.gameControlsDisabled = true;
+                    // Show main menu instead of auth modal
+                    const nameModal = document.getElementById('nameModal');
+                    if (nameModal) {
+                        nameModal.style.display = 'flex';
+                    }
+                    // Re-enable game controls when modal is closed
+                    window.gameControlsDisabled = false;
                 });
             }
             

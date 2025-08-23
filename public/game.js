@@ -2146,6 +2146,7 @@ function setupUIHandlers() {
     }
     
     if (closeRegistrationModalBtn) {
+        // Close button (✕) - closes registration modal and shows main menu
         closeRegistrationModalBtn.addEventListener('click', () => {
             document.getElementById('registrationModal').classList.add('hidden');
             document.getElementById('nameModal').style.display = 'flex';
@@ -2159,12 +2160,8 @@ function setupUIHandlers() {
         });
     }
     
-    if (backToLoginBtn) {
-        backToLoginBtn.addEventListener('click', () => {
-            document.getElementById('registrationModal').classList.add('hidden');
-            document.getElementById('nameModal').style.display = 'flex';
-        });
-    }
+    // Note: backToLoginBtn event handler is now in index.html to avoid conflicts
+    // It opens the main menu (nameModal) instead of auth modal
     
     if (googleSignInBtn) {
         googleSignInBtn.addEventListener('click', async () => {
