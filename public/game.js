@@ -60,6 +60,9 @@ const MOVEMENT_SEND_INTERVAL = 1000 / 30; // Send movement at 30fps max
 function init() {
     console.log('🎮 init() function called - starting game initialization');
     
+    // Initialize game controls disabled flag
+    window.gameControlsDisabled = false;
+    
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d');
     
@@ -1342,8 +1345,8 @@ function setupInputHandlers() {
             activeElement.contentEditable === 'true'
         );
         
-        // Don't process game keys if user is typing
-        if (!isTyping) {
+        // Don't process game keys if user is typing or if game controls are disabled
+        if (!isTyping && !window.gameControlsDisabled) {
             keys[e.code] = true;
             
             // Chat input focus handling
@@ -1381,8 +1384,8 @@ function setupInputHandlers() {
             activeElement.contentEditable === 'true'
         );
         
-        // Don't process game keys if user is typing
-        if (!isTyping) {
+        // Don't process game keys if user is typing or if game controls are disabled
+        if (!isTyping && !window.gameControlsDisabled) {
             keys[e.code] = false;
         }
     });

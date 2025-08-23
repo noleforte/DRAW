@@ -1064,12 +1064,14 @@
                     placeholder="Nickname" 
                     class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
                     maxlength="20"
+                    onkeydown="event.stopPropagation()"
                 >
                 <input 
                     type="password" 
                     id="authPasswordInput" 
                     placeholder="Password" 
                     class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+                    onkeydown="event.stopPropagation()"
                 >
                 <button 
                     id="signInBtn" 
@@ -1115,6 +1117,7 @@
                     id="regEmailInput" 
                     placeholder="Email Address" 
                     class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-5"
+                    onkeydown="event.stopPropagation()"
                 >
                 <input 
                     type="text" 
@@ -1122,6 +1125,7 @@
                     placeholder="Nickname" 
                     class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-5"
                     maxlength="20"
+                    onkeydown="event.stopPropagation()"
                 >
                 <input 
                     type="password" 
@@ -1129,6 +1133,7 @@
                     placeholder="Password (min 6 characters)"
                     style="margin-top: 10px;"
                     class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-5"
+                    onkeydown="event.stopPropagation()"
                 >
                 <input 
                     type="text" 
@@ -1137,6 +1142,7 @@
                     class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6"
                     maxlength="50"
                     required
+                    onkeydown="event.stopPropagation()"
                 >
                 <button 
                     id="createAccountBtn" 
@@ -1477,6 +1483,8 @@
                 showRegistrationBtn.addEventListener('click', function() {
                     authModal.classList.add('hidden');
                     registrationModal.classList.remove('hidden');
+                    // Disable game controls when modal is open
+                    window.gameControlsDisabled = true;
                 });
             }
             
@@ -1485,6 +1493,8 @@
                 backToLoginBtn.addEventListener('click', function() {
                     registrationModal.classList.add('hidden');
                     authModal.classList.remove('hidden');
+                    // Disable game controls when modal is open
+                    window.gameControlsDisabled = true;
                 });
             }
             
@@ -1492,6 +1502,8 @@
             if (closeAuthModalBtn) {
                 closeAuthModalBtn.addEventListener('click', function() {
                     authModal.classList.add('hidden');
+                    // Re-enable game controls when modal is closed
+                    window.gameControlsDisabled = false;
                 });
             }
             
@@ -1501,6 +1513,8 @@
                     modal.addEventListener('click', function(e) {
                         if (e.target === modal) {
                             modal.classList.add('hidden');
+                            // Re-enable game controls when modal is closed
+                            window.gameControlsDisabled = false;
                         }
                     });
                 }
@@ -1523,6 +1537,8 @@
                         
                         await window.serverAuth.login(nickname, password);
                         authModal.classList.add('hidden');
+                        // Re-enable game controls after successful login
+                        window.gameControlsDisabled = false;
                         
                         // Clear form
                         document.getElementById('authNicknameInput').value = '';
@@ -1561,6 +1577,8 @@
                         
                         await window.serverAuth.register(email, nickname, password, wallet);
                         registrationModal.classList.add('hidden');
+                        // Re-enable game controls after successful registration
+                        window.gameControlsDisabled = false;
                         
                         // Clear form
                         document.getElementById('regEmailInput').value = '';
