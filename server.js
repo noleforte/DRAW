@@ -75,7 +75,20 @@ function generateUserId() {
 
 // Health check endpoint for Render
 app.get('/health', (req, res) => {
+  // Set CORS headers for health check
+  res.header('Access-Control-Allow-Origin', 'https://caballcoin-eight.vercel.app');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Handle OPTIONS for health endpoint
+app.options('/health', (req, res) => {
+  res.header('Access-Control-Allow-Origin', 'https://caballcoin-eight.vercel.app');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.status(200).end();
 });
 
 // Game state - must be defined before API endpoints
