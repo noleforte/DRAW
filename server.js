@@ -3,7 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
-const { GameDataService, updateUser } = require('./firebase-admin');
+const { GameDataService, updateUser, updateUserLastLogin } = require('./firebase-admin');
 const bcrypt = require('bcrypt'); // For password hashing
 const crypto = require('crypto'); // For generating secure tokens
 const jwt = require('jsonwebtoken'); // For JWT tokens
@@ -867,12 +867,9 @@ function updateBots() {
       }
     }
 
-    // Apply speed multiplier if Player Eater is active
-    const botSpeedMultiplier = bot.playerEater ? 1.0 : 1;
-    
-    // Update position with speed multiplier
-    bot.x += bot.vx * botSpeedMultiplier;
-    bot.y += bot.vy * botSpeedMultiplier;
+    // Update position
+    bot.x += bot.vx;
+    bot.y += bot.vy;
 
     // Keep within world bounds
     bot.x = Math.max(-gameState.worldSize/2, Math.min(gameState.worldSize/2, bot.x));
@@ -960,10 +957,10 @@ function updateBots() {
           // Set bot to Level 5 stats (minimum size for effectiveness)
           bot.size = Math.max(50, bot.size); // At least Level 5 size, but can be bigger if bot already has more score
           
-          // Set fixed speed for Player Eater boost - exactly 1.0 (100)
-          bot.speed = 1.0;
+          // Set fixed speed for Player Eater boost - exactly 100 (0.5 multiplier of 200 base speed)
+          bot.speed = 0.5;
           
-          console.log(`👹 Bot ${bot.name} Player Eater speed: 1.0 (fixed at 100)`);
+          console.log(`👹 Bot ${bot.name} Player Eater speed: 0.5 (fixed at 100)`);
           
           // Send notification to all players
            io.emit('chatMessage', {
@@ -1114,9 +1111,13 @@ function updateBots() {
                     // Save immediately without setTimeout
                     (async () => {
                       try {
+                        // Calculate coins lost and update totalScore accordingly
+                        const coinsLost = Math.floor(oldScore * 0.1);
+                        const newTotalScore = Math.max(0, (oldScore || 0) - coinsLost);
+                        
                         // Use the new updateUser function to update totalScore
                         await updateUser(playerIdForFirebase, {
-                          'stats.totalScore': target.score,
+                          'stats.totalScore': newTotalScore,
                           'stats.lastPlayed': Date.now(),
                           'lastPlayed': Date.now()
                         });
@@ -1126,7 +1127,7 @@ function updateBots() {
                         io.emit('playerStatsUpdated', {
                           playerId: playerIdForFirebase,
                           nickname: target.name,
-                          totalScore: target.score,
+                          totalScore: newTotalScore,
                           type: 'scoreUpdate'
                         });
                         console.log(`📡 Notified all clients about ${target.name}'s totalScore update: ${target.score}`);
@@ -1143,9 +1144,13 @@ function updateBots() {
                         const playerData = await findPlayerByPasswordHash(target.passwordHash);
                         
                         if (playerData) {
-                          console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore to current score: ${target.score}`);
+                          console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore after losing coins`);
+                          // Calculate coins lost and update totalScore accordingly
+                          const coinsLost = Math.floor(oldScore * 0.1);
+                          const newTotalScore = Math.max(0, (oldScore || 0) - coinsLost);
+                          
                           await updateUser(playerData.id, {
-                            'stats.totalScore': target.score,
+                            'stats.totalScore': newTotalScore,
                             'stats.lastPlayed': Date.now(),
                             'lastPlayed': Date.now()
                           });
@@ -1154,10 +1159,10 @@ function updateBots() {
                           io.emit('playerStatsUpdated', {
                             playerId: playerData.id,
                             nickname: target.name,
-                            totalScore: target.score,
+                            totalScore: newTotalScore,
                             type: 'scoreUpdate'
                           });
-                          console.log(`📡 Notified all clients about ${target.name}'s totalScore update via passwordHash: ${target.score}`);
+                          console.log(`📡 Notified all clients about ${target.name}'s totalScore update via passwordHash: ${newTotalScore}`);
                         } else {
                           console.log(`⚠️ Could not find player ${target.name} by passwordHash - cannot save to database`);
                         }
@@ -1212,7 +1217,7 @@ function updateBots() {
     }
     
     // Check and expire Coin Booster for bots
-    if (bot.coinBoost && now > bot.coinBoostEndTime) {
+    if (bot.coinBoost && now > bot.playerEaterEndTime) {
       bot.coinBoost = false;
       bot.coinBoostEndTime = 0;
       console.log(`💰 Coin Multiplier expired for bot ${bot.name}`);
@@ -1253,12 +1258,9 @@ function updatePlayers(deltaTime) {
     player.vx += (player.targetVx - player.vx) * lerpFactor;
     player.vy += (player.targetVy - player.vy) * lerpFactor;
     
-    // Apply speed multiplier if Player Eater is active
-    const speedMultiplier = player.playerEater ? 1.0 : 1;
-    
-    // Update position based on velocity, deltaTime, and speed multiplier
-    player.x += player.vx * deltaTime * speedMultiplier;
-    player.y += player.vy * deltaTime * speedMultiplier;
+    // Update position based on velocity and deltaTime
+    player.x += player.vx * deltaTime;
+    player.y += player.vy * deltaTime;
     
     // Debug: Log position update
     console.log(`🎮 Player ${player.name} moved to (${Math.round(player.x)}, ${Math.round(player.y)})`);
@@ -1385,8 +1387,8 @@ function updatePlayers(deltaTime) {
                         // Set player to Level 5 stats (minimum size for effectiveness)
                         player.size = Math.max(50, player.size); // At least Level 5 size, but can be bigger if player already has more score
                         
-                        // Set fixed speed for Player Eater boost - exactly 100
-                        player.speed = 100;
+                        // Set fixed speed for Player Eater boost - exactly 100 (0.5 multiplier of 200 base speed)
+                        player.speed = 0.5;
                         
                         // Send notification to all players
                         io.emit('chatMessage', {
@@ -1615,7 +1617,7 @@ function updatePlayers(deltaTime) {
                     try {
                       // Use the new updateUser function to update totalScore
                       await updateUser(playerIdForFirebase, {
-                        'stats.totalScore': target.score,
+                        'stats.totalScore': newTotalScore,
                         'stats.lastPlayed': Date.now(),
                         'lastPlayed': Date.now()
                       });
@@ -1625,7 +1627,7 @@ function updatePlayers(deltaTime) {
                       io.emit('playerStatsUpdated', {
                         playerId: playerIdForFirebase,
                         nickname: target.name,
-                        totalScore: target.score,
+                        totalScore: newTotalScore,
                         type: 'scoreUpdate'
                       });
                       console.log(`📡 Notified all clients about ${target.name}'s totalScore update: ${target.score}`);
@@ -1642,9 +1644,13 @@ function updatePlayers(deltaTime) {
                       const playerData = await findPlayerByPasswordHash(target.passwordHash);
                       
                                               if (playerData) {
-                          console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore to current score: ${target.score}`);
+                          console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore after losing coins`);
+                          // Calculate coins lost and update totalScore accordingly
+                          const coinsLost = Math.floor(oldScore * 0.1);
+                          const newTotalScore = Math.max(0, (oldScore || 0) - coinsLost);
+                          
                           await updateUser(playerData.id, {
-                            'stats.totalScore': target.score,
+                            'stats.totalScore': newTotalScore,
                             'stats.lastPlayed': Date.now(),
                             'lastPlayed': Date.now()
                           });
@@ -1653,10 +1659,10 @@ function updatePlayers(deltaTime) {
                           io.emit('playerStatsUpdated', {
                             playerId: playerData.id,
                             nickname: target.name,
-                            totalScore: target.score,
+                            totalScore: newTotalScore,
                             type: 'scoreUpdate'
                           });
-                          console.log(`📡 Notified all clients about ${target.name}'s totalScore update via passwordHash: ${target.score}`);
+                          console.log(`📡 Notified all clients about ${target.name}'s totalScore update via passwordHash: ${newTotalScore}`);
                         } else {
                           console.log(`⚠️ Could not find player ${target.name} by passwordHash - cannot save to database`);
                         }
@@ -2687,28 +2693,39 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   try {
+    console.log('🔐 Login attempt:', req.body);
     const { nickname, password } = req.body;
     
     if (!nickname || !password) {
+      console.log('❌ Missing nickname or password');
       return res.status(400).json({ error: 'Nickname and password are required' });
     }
     
     const normalizedNickname = nickname.toLowerCase().trim();
+    console.log(`🔍 Looking for user: ${normalizedNickname}`);
     
     // Get user from Firestore
     const user = await GameDataService.getUserByNickname(normalizedNickname);
     if (!user) {
+      console.log(`❌ User not found: ${normalizedNickname}`);
       return res.status(401).json({ error: 'Invalid nickname or password' });
     }
+    
+    console.log(`✅ User found: ${user.nickname}, verifying password...`);
     
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);
     if (!isValidPassword) {
+      console.log(`❌ Invalid password for user: ${user.nickname}`);
       return res.status(401).json({ error: 'Invalid nickname or password' });
     }
     
+    console.log(`✅ Password verified for user: ${user.nickname}, updating last login...`);
+    
     // Update last login
     await updateUserLastLogin(user.id);
+    
+    console.log(`✅ Last login updated for user: ${user.nickname}, generating token...`);
     
     // Generate JWT token 
     const token = jwt.sign(
@@ -2717,7 +2734,7 @@ app.post('/api/auth/login', async (req, res) => {
       { expiresIn: '7d' }
     );
     
-    console.log(`✅ User logged in: ${user.nickname} (${user.email})`);
+    console.log(`✅ User logged in successfully: ${user.nickname} (${user.email})`);
     
     res.json({
       success: true,
@@ -2727,7 +2744,7 @@ app.post('/api/auth/login', async (req, res) => {
         email: user.email,
         nickname: user.nickname,
         wallet: user.wallet || '',
-        totalScore: user.totalScore || 0,
+        totalScore: user.stats?.totalScore || 0,
         stats: user.stats || {
           gamesPlayed: 0,
           totalScore: 0,
@@ -2740,6 +2757,7 @@ app.post('/api/auth/login', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Login error:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({ error: 'Internal server error during login' });
   }
 });

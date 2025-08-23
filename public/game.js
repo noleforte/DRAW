@@ -790,7 +790,7 @@ function setupSocketListeners() {
                 
                 const newStats = {
                     gamesPlayed: (currentUser.stats.gamesPlayed || 0) + 1,
-                    totalScore: currentGameScore, // Score = Total Score, so just update to current value
+                    totalScore: Math.max((currentUser.stats.totalScore || 0), currentGameScore), // Keep the higher value
                     bestScore: Math.max((currentUser.stats.bestScore || 0), currentGameScore),
                     wins: (currentUser.stats.wins || 0) + (finalResults.findIndex(p => p.id === localPlayer.id) === 0 ? 1 : 0)
                 };
@@ -3899,7 +3899,7 @@ async function updatePlayerInfoPanelStats(player) {
                         },
                         body: JSON.stringify({ 
                             score: currentGameScore,
-                            totalScore: currentGameScore, // Score = Total Score
+                            totalScore: Math.max((currentUser.stats.totalScore || 0), currentGameScore), // Keep the higher value
                             gamesPlayed: Math.max((currentUser.stats.gamesPlayed || 0), 1) // At least 1 game if playing
                         })
                     });

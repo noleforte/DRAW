@@ -149,6 +149,33 @@ async function sendCoinsToServer(coinsGained) {
     }
 }
 
+// Handle player losing coins (e.g., from Player Eater attack)
+async function sendCoinsLossToServer(coinsLost) {
+    const user = getCurrentUser();
+    if (!user || !isUserAuthenticated()) {
+        console.log('⚠️ No authenticated user, skipping coins loss update');
+        return;
+    }
+    
+    try {
+        const currentStats = getUserStats();
+        // Don't go below 0
+        const newTotalScore = Math.max(0, (currentStats.totalScore || 0) - coinsLost);
+        const updatedStats = {
+            ...currentStats,
+            totalScore: newTotalScore
+        };
+
+        saveStats(updatedStats); // Use instant save
+        if (window.serverAuth && window.serverAuth.currentUser) {
+            window.serverAuth.currentUser.stats = updatedStats;
+        }
+        console.log(`💸 User ${user.nickname} lost ${coinsLost} coins. Total: ${newTotalScore} (instant update)`);
+    } catch (error) {
+        console.error('❌ Failed to queue coins loss update:', error);
+    }
+}
+
 // Process batch stats updates
 async function processBatchStatsUpdate() {
     if (statsUpdateQueue.length === 0) {
@@ -231,6 +258,7 @@ window.gameUtils = {
     updateUserStats,
     refreshUserData,
     sendCoinsToServer,
+    sendCoinsLossToServer,
     forceStatsUpdate,
     logoutUser,
     syncUserStatsFromServer
