@@ -2795,6 +2795,11 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
       updates.stats = stats;
       // Also update totalScore for backward compatibility
       updates.totalScore = stats.totalScore || 0;
+      
+      // Handle lastSize if it's in stats
+      if (stats.lastSize !== undefined) {
+        updates.lastSize = stats.lastSize;
+      }
     }
     
     if (Object.keys(updates).length === 0) {

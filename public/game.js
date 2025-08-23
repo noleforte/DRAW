@@ -1761,20 +1761,11 @@ function setupUIHandlers() {
                         await window.nicknameAuth.syncUserStatsFromFirestore();
                         console.log('🔄 DEBUG: Forced stats sync after game start');
                     } else {
-                        console.log('🔍 DEBUG: No document found, attempting to create initial entry');
-                        await window.firebaseDb.collection('players').doc(playerId).set({
-                            playerName: playerName,
-                            totalScore: 0,
-                            gamesPlayed: 0,
-                            bestScore: 0,
-                            firstPlayed: window.firebase.firestore.FieldValue.serverTimestamp(),
-                            lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        console.log('🔍 DEBUG: Initial player entry created successfully');
+                        console.log('🔍 DEBUG: No document found, using new server auth system');
                         
-                        // Sync after creating
+                        // Use new server auth system instead of old Firestore
                         await window.nicknameAuth.syncUserStatsFromFirestore();
-                        console.log('🔄 DEBUG: Synced stats after creating new document');
+                        console.log('🔍 DEBUG: Synced stats with new system');
                     }
                     
                     // Force update Player Info panel
@@ -3625,17 +3616,19 @@ window.addEventListener('beforeunload', async (event) => {
             
             console.log(`💾 Saving match on page unload: ${localPlayer.score || 0} coins`);
             
-            // Also save current player size to Firestore
-            if (window.firebaseDb && localPlayer.size) {
+            // Save current player size using new server auth system
+            if (localPlayer.size && window.gameUtils) {
                 try {
-                    const playerRef = window.firebaseDb.collection('players').doc(currentUser.nickname);
-                    await playerRef.update({
-                        lastSize: localPlayer.size,
-                        lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    console.log(`📏 Saved player size ${localPlayer.size} to Firestore on page unload`);
+                    // Update local stats with current size
+                    const currentStats = window.gameUtils.getUserStats();
+                    const updatedStats = {
+                        ...currentStats,
+                        lastSize: localPlayer.size
+                    };
+                    await window.gameUtils.updateUserStats(updatedStats);
+                    console.log(`📏 Saved player size ${localPlayer.size} using new system`);
                 } catch (error) {
-                    console.warn('⚠️ Failed to save player size on page unload:', error);
+                    console.warn('⚠️ Failed to save player size using new system:', error);
                 }
             }
             
@@ -3669,17 +3662,19 @@ document.addEventListener('visibilitychange', async () => {
                     console.log(`💾 Match saved on visibility change: ${localPlayer.score || 0} coins`);
                 }
                 
-                // Also save current player size to Firestore
-                if (window.firebaseDb && localPlayer.size) {
+                // Save current player size using new server auth system
+                if (localPlayer.size && window.gameUtils) {
                     try {
-                        const playerRef = window.firebaseDb.collection('players').doc(currentUser.nickname);
-                        await playerRef.update({
-                            lastSize: localPlayer.size,
-                            lastPlayed: window.firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        console.log(`📏 Saved player size ${localPlayer.size} to Firestore on visibility change`);
+                        // Update local stats with current size
+                        const currentStats = window.gameUtils.getUserStats();
+                        const updatedStats = {
+                            ...currentStats,
+                            lastSize: localPlayer.size
+                        };
+                        await window.gameUtils.updateUserStats(updatedStats);
+                        console.log(`📏 Saved player size ${localPlayer.size} using new system`);
                     } catch (error) {
-                        console.warn('⚠️ Failed to save player size on visibility change:', error);
+                        console.warn('⚠️ Failed to save player size using new system:', error);
                     }
                 }
                 
