@@ -93,7 +93,10 @@ const saveStats = (() => {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
           },
           body: JSON.stringify({ stats: payload })
         });
@@ -104,6 +107,11 @@ const saveStats = (() => {
       } else {
         const response = await window.apiFetch('/api/auth/profile', {
           method: 'PUT',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
           body: JSON.stringify({ stats: payload })
         });
         
@@ -112,7 +120,14 @@ const saveStats = (() => {
         }
       }
       
-      console.log('✅ Stats saved instantly');
+      console.log('✅ Stats saved instantly with cache refresh');
+      
+      // Принудительно обновляем локальное состояние
+      if (window.serverAuth && window.serverAuth.currentUser) {
+        window.serverAuth.currentUser.stats = payload;
+        console.log('🔄 Local user stats updated immediately');
+      }
+      
     } catch (error) {
       console.error('❌ Failed to save stats:', error);
     } finally {
