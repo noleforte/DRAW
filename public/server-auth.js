@@ -1,407 +1,203 @@
 // Server-based authentication system for Royale Ball
 class ServerAuthSystem {
-    constructor() {
-        this.currentUser = null;
-        this.token = localStorage.getItem('authToken');
-        // Use Render server URL for production, localhost for development
-        this.serverUrl = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3001' 
-            : 'https://draw-e67b.onrender.com';
-        this.init();
-    }
+  constructor() {
+    this.currentUser = null;
+    this.accessToken = localStorage.getItem('authToken');
+    // Use Render server URL for production, localhost for development
+    this.serverUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:3001' 
+      : 'https://draw-e67b.onrender.com';
+    
+    // Добавляем защиту от спама
+    this.validateInFlight = null;
+    this.lastValidateAt = 0;
+    this.failCount = 0;
+    
+    this.init();
+  }
 
-    init() {
-        // Check if we have a valid token on startup
-        if (this.token) {
-            this.validateToken();
+  // Единый валидатор с защитой от спама
+  async validateToken() {
+    if (!this.accessToken) {
+      throw new Error('NO_TOKEN');
+    }
+    
+    const now = Date.now();
+    // Не чаще раза в 10 секунд
+    if (now - this.lastValidateAt < 10000 && this.validateInFlight) {
+      return this.validateInFlight;
+    }
+    
+    this.validateInFlight = (async () => {
+      try {
+        const response = await fetch(`${this.serverUrl}/api/auth/me`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.status === 401 || response.status === 403) {
+          // Это действительно проблема токена → выходим из аккаунта
+          console.log('❌ Token invalid, logging out');
+          this.logout();
+          throw new Error('AUTH_DENIED');
         }
         
-        // Setup event listeners
-        this.setupEventListeners();
-    }
-
-    // Validate stored token
-    async validateToken() {
-        try {
-            // Check if server is accessible first
-            const corsCheck = await this.checkCORSStatus();
-            if (!corsCheck) {
-                console.warn('⚠️ CORS check failed, server may not be ready yet');
-                return false;
-            }
-
-            const response = await fetch(`${this.serverUrl}/api/auth/me`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${this.token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const userData = await response.json();
-                this.currentUser = userData;
-                this.showAuthenticatedUI();
-                console.log('✅ Token validated, user authenticated:', userData.nickname);
-                return true;
-            } else {
-                // Token is invalid, clear it
-                this.logout();
-                return false;
-            }
-        } catch (error) {
-            console.error('❌ Token validation failed:', error);
-            this.logout();
-            return false;
-        }
-    }
-
-    // Check CORS status
-    async checkCORSStatus() {
-        try {
-            const response = await fetch(`${this.serverUrl}/health`, {
-                method: 'GET',
-                mode: 'cors'
-            });
-            return response.ok;
-        } catch (error) {
-            console.warn('⚠️ CORS check failed:', error.message);
-            // Show user-friendly message
-            this.showError('Server Status', 'Authentication server is currently unavailable. Please try again later.');
-            return false;
-        }
-    }
-
-    // Register new user
-    async register(email, nickname, password, wallet) {
-        try {
-            // Check CORS status first
-            const corsCheck = await this.checkCORSStatus();
-            if (!corsCheck) {
-                throw new Error('Server is not accessible. Please try again later or contact support.');
-            }
-
-            const response = await fetch(`${this.serverUrl}/api/auth/register`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email: email.trim(),
-                    nickname: nickname.trim(),
-                    password: password,
-                    wallet: wallet.trim()
-                })
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                // Store token and user data
-                this.token = data.token;
-                this.currentUser = data.user;
-                localStorage.setItem('authToken', this.token);
-                
-                this.showAuthenticatedUI();
-                console.log('✅ User registered successfully:', data.user.nickname);
-                
-                return {
-                    success: true,
-                    user: data.user
-                };
-            } else {
-                throw new Error(data.error || 'Registration failed');
-            }
-        } catch (error) {
-            console.error('❌ Registration error:', error);
-            throw error;
-        }
-    }
-
-    // Login user
-    async login(nickname, password) {
-        try {
-            const response = await fetch(`${this.serverUrl}/api/auth/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }, 
-                body: JSON.stringify({
-                    nickname: nickname.trim(),
-                    password: password
-                })
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                // Store token and user data
-                this.token = data.token;
-                this.currentUser = data.user;
-                localStorage.setItem('authToken', this.token);
-                
-                this.showAuthenticatedUI();
-                console.log('✅ User logged in successfully:', data.user.nickname);
-                
-                return {
-                    success: true,
-                    user: data.user
-                };
-            } else {
-                throw new Error(data.error || 'Login failed');
-            }
-        } catch (error) {
-            console.error('❌ Login error:', error);
-            throw error;
-        }
-    }
-
-    // Logout user
-    async logout() {
-        try {
-            if (this.token) {
-                await fetch(`${this.serverUrl}/api/auth/logout`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${this.token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-            }
-        } catch (error) {
-            console.warn('⚠️ Logout request failed:', error);
-        } finally {
-            // Clear local data regardless of server response
-            this.token = null;
-            this.currentUser = null;
-            localStorage.removeItem('authToken');
-            
-            this.showGuestUI();
-            console.log('✅ User logged out');
-        }
-    }
-
-    // Get current user info
-    async getCurrentUser() {
-        if (this.currentUser) {
-            return this.currentUser;
+        if (!response.ok) {
+          throw new Error(`HTTP_${response.status}`);
         }
         
-        if (this.token) {
-            await this.validateToken();
-            return this.currentUser;
+        const data = await response.json();
+        this.lastValidateAt = Date.now();
+        this.failCount = 0;
+        
+        if (data.success) {
+          this.currentUser = data.user;
+          console.log('✅ Token validated, user authenticated:', data.user.nickname);
+          return true;
         }
         
-        return null;
-    }
-
-    // Get current user info synchronously
-    getCurrentUserSync() {
-        return this.currentUser;
-    }
-
-    // Update user profile
-    async updateProfile(updates) {
-        try {
-            const response = await fetch(`${this.serverUrl}/api/auth/profile`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${this.token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(updates)
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                this.currentUser = data.user;
-                this.showAuthenticatedUI();
-                console.log('✅ Profile updated successfully');
-                return data.user;
-            } else {
-                throw new Error(data.error || 'Profile update failed');
-            }
-        } catch (error) {
-            console.error('❌ Profile update error:', error);
-            throw error;
-        }
-    }
-
-    // Check if user is authenticated
-    isAuthenticated() {
-        return !!this.currentUser && !!this.token;
-    }
-
-    // Get user ID for game operations
-    getUserId() {
-        return this.currentUser?.id;
-    }
-
-    // Get user nickname for game operations
-    getNickname() {
-        return this.currentUser?.nickname;
-    }
-
-    // Get user wallet
-    getWallet() {
-        return this.currentUser?.wallet || '';
-    }
-
-    // Get user stats
-    getStats() {
-        return this.currentUser?.stats || {
-            gamesPlayed: 0,
-            totalScore: 0,
-            bestScore: 0,
-            wins: 0
-        };
-    }
-
-    // Show authenticated user UI
-    showAuthenticatedUI() {
-        const authStatusText = document.getElementById('authStatusText');
-        const signInBtn = document.getElementById('signInBtn');
-        const signOutBtn = document.getElementById('signOutBtn');
-        const playerNameInput = document.getElementById('playerNameInput');
-        const playerWalletInput = document.getElementById('playerWalletInput');
-        
-        if (authStatusText) {
-            authStatusText.innerHTML = `✅ Signed in as ${this.currentUser.nickname}`;
+        return false;
+      } catch (error) {
+        // На сетевые ошибки НЕ делаем logout, просто откладываем повтор
+        if (error.message === 'AUTH_DENIED') {
+          throw error;
         }
         
-        if (signInBtn) signInBtn.classList.add('hidden');
-        if (signOutBtn) signOutBtn.classList.remove('hidden');
+        this.failCount++;
+        const backoff = Math.min(16000, 1000 * Math.pow(2, this.failCount - 1));
+        console.log(`⚠️ Validation failed, retrying in ${backoff}ms (attempt ${this.failCount})`);
         
-        // Auto-fill player information
-        if (playerNameInput && this.currentUser.nickname) {
-            playerNameInput.value = this.currentUser.nickname;
-        }
-        
-        if (playerWalletInput && this.currentUser.wallet) {
-            playerWalletInput.value = this.currentUser.wallet;
-        }
-        
-        // Update player info panel
-        this.updatePlayerInfoPanel();
-    }
+        // Просто пауза между повторами
+        setTimeout(() => {}, backoff);
+        throw error;
+      } finally {
+        this.validateInFlight = null;
+      }
+    })();
+    
+    return this.validateInFlight;
+  }
 
-    // Show guest user UI
-    showGuestUI() {
-        const authStatusText = document.getElementById('authStatusText');
-        const signInBtn = document.getElementById('signInBtn');
-        const signOutBtn = document.getElementById('signOutBtn');
-        
-        if (authStatusText) {
-            authStatusText.innerHTML = '👤 Not signed in';
-        }
-        
-        if (signInBtn) signInBtn.classList.remove('hidden');
-        if (signOutBtn) signOutBtn.classList.add('hidden');
-        
-        // Update player info panel for guest
-        this.updatePlayerInfoPanel();
+  async checkCORSStatus() {
+    try {
+      const response = await fetch(`${this.serverUrl}/health`);
+      return response.ok;
+    } catch (error) {
+      console.warn('⚠️ CORS check failed:', error.message);
+      return false;
     }
+  }
 
-    // Update player info panel
-    updatePlayerInfoPanel() {
-        const playerInfoName = document.getElementById('playerInfoName');
-        const playerInfoStatus = document.getElementById('playerInfoStatus');
-        const totalCoins = document.getElementById('totalCoins');
-        const matchesPlayed = document.getElementById('matchesPlayed');
-        const bestScore = document.getElementById('bestScore');
+  async init() {
+    if (this.accessToken) {
+      try {
+        await this.validateToken();
+      } catch (error) {
+        console.warn('⚠️ CORS check failed, server may not be ready yet');
+        this.logout();
+      }
+    }
+  }
+
+  async login(email, nickname, password) {
+    try {
+      const response = await fetch(`${this.serverUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, nickname, password })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
         
-        if (this.currentUser) {
-            // Update with authenticated user data
-            if (playerInfoName) {
-                playerInfoName.textContent = this.currentUser.nickname;
-            }
-            
-            if (playerInfoStatus) {
-                playerInfoStatus.textContent = 'Signed in';
-            }
-            
-            const stats = this.currentUser.stats || {};
-            if (totalCoins) totalCoins.textContent = stats.totalScore || 0;
-            if (matchesPlayed) matchesPlayed.textContent = stats.gamesPlayed || 0;
-            if (bestScore) bestScore.textContent = stats.bestScore || 0;
+        if (data.success) {
+          this.accessToken = data.token;
+          this.currentUser = data.user;
+          localStorage.setItem('authToken', data.token);
+          
+          console.log('✅ Login successful:', data.user.nickname);
+          return { success: true, user: data.user };
         } else {
-            // Show guest info
-            if (playerInfoName) playerInfoName.textContent = 'Guest';
-            if (playerInfoStatus) playerInfoStatus.textContent = 'Not signed in';
-            if (totalCoins) totalCoins.textContent = '0';
-            if (matchesPlayed) matchesPlayed.textContent = '0';
-            if (bestScore) bestScore.textContent = '0';
+          throw new Error(data.error || 'Login failed');
         }
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Login failed');
+      }
+    } catch (error) {
+      console.error('❌ Login error:', error);
+      throw error;
+    }
+  }
+
+  async register(email, nickname, password, wallet) {
+    try {
+      const response = await fetch(`${this.serverUrl}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, nickname, password, wallet })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
         
-        // Ensure panel is always visible
-        const playerInfoPanel = document.getElementById('playerInfoPanel');
-        if (playerInfoPanel) {
-            playerInfoPanel.style.display = 'block';
-            playerInfoPanel.style.visibility = 'visible';
+        if (data.success) {
+          this.accessToken = data.token;
+          this.currentUser = data.user;
+          localStorage.setItem('authToken', data.token);
+          
+          console.log('✅ Registration successful:', data.user.nickname);
+          return { success: true, user: data.user };
+        } else {
+          throw new Error(data.error || 'Registration failed');
         }
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Registration failed');
+      }
+    } catch (error) {
+      console.error('❌ Registration error:', error);
+      throw error;
     }
+  }
 
-    // Setup event listeners
-    setupEventListeners() {
-        // Sign out button
-        const signOutBtn = document.getElementById('signOutBtn');
-        if (signOutBtn) {
-            signOutBtn.addEventListener('click', () => this.logout());
-        }
-        
-        // Logout button in player info panel
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => this.logout());
-        }
+  async logout() {
+    try {
+      if (this.accessToken) {
+        await fetch(`${this.serverUrl}/api/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+    } catch (error) {
+      console.warn('⚠️ Logout request failed:', error);
+    } finally {
+      this.currentUser = null;
+      this.accessToken = null;
+      localStorage.removeItem('authToken');
+      console.log('✅ User logged out');
     }
+  }
 
-    // Show authentication modal
-    showAuthModal() {
-        const authModal = document.getElementById('authModal');
-        if (authModal) {
-            authModal.classList.remove('hidden');
-        }
-    }
+  getCurrentUser() {
+    return this.currentUser;
+  }
 
-    // Hide authentication modal
-    hideAuthModal() {
-        const authModal = document.getElementById('authModal');
-        if (authModal) {
-            authModal.classList.add('hidden');
-        }
-    }
-
-    // Show error message
-    showError(title, message) {
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'fixed top-4 right-4 bg-red-600 text-white p-4 rounded-lg shadow-lg z-50 max-w-sm';
-        errorDiv.innerHTML = `
-            <div class="flex justify-between items-start">
-                <div>
-                    <h4 class="font-bold">${title}</h4>
-                    <p class="text-sm mt-1">${message}</p>
-                </div>
-                <button class="ml-2 text-white hover:text-gray-200" onclick="this.parentElement.parentElement.remove()">✕</button>
-            </div>
-        `;
-        document.body.appendChild(errorDiv);
-        
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-            if (errorDiv.parentElement) {
-                errorDiv.remove();
-            }
-        }, 5000);
-    }
+  isAuthenticated() {
+    return !!this.currentUser && !!this.accessToken;
+  }
 }
 
-// Initialize server auth system
 const serverAuth = new ServerAuthSystem();
-window.serverAuth = serverAuth;
-
-// Export for use in other files
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = ServerAuthSystem;
-} 
+window.serverAuth = serverAuth; 

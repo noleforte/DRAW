@@ -42,36 +42,9 @@ function isUserAuthenticated() {
 
 // Update user stats on server (replaces nicknameAuth.updateUserStats())
 async function updateUserStats(stats) {
-    const user = getCurrentUser();
-    if (!user) {
-        console.warn('⚠️ Cannot update stats - no authenticated user');
-        return;
-    }
-    
     try {
-        // Update stats via API call to server
-        const serverUrl = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3001' 
-            : 'https://draw-e67b.onrender.com';
-        const response = await fetch(`${serverUrl}/api/auth/profile`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${window.serverAuth.token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ stats })
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            // Update local user data
-            if (window.serverAuth) {
-                window.serverAuth.currentUser = data.user;
-            }
-            console.log('✅ User stats updated on server');
-        } else {
-            console.error('❌ Failed to update user stats on server');
-        }
+        // Используем троттлинг для сохранения
+        saveStats(stats);
     } catch (error) {
         console.error('❌ Error updating user stats:', error);
     }
@@ -98,50 +71,72 @@ let statsUpdateQueue = [];
 let statsUpdateTimeout = null;
 const STATS_UPDATE_DELAY = 1000; // 1 second delay for batching
 
+// Троттлинг обновления статистики
+const saveStats = (() => {
+  let last = 0;
+  let inflight = false;
+  let queued = null;
+  
+  return async function(stats) {
+    queued = stats;
+    const now = Date.now();
+    
+    // Не чаще 1 раза в 5 секунд
+    if (inflight || now - last < 5000) {
+      return;
+    }
+    
+    inflight = true;
+    
+    try {
+      const payload = queued;
+      queued = null;
+      
+      const response = await window.apiFetch('/api/auth/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ stats: payload })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`PUT profile ${response.status}`);
+      }
+      
+      last = Date.now();
+      console.log('✅ Stats saved successfully');
+    } catch (error) {
+      console.error('❌ Failed to save stats:', error);
+    } finally {
+      inflight = false;
+    }
+  };
+})();
+
 // Send coins to server with batch optimization
 async function sendCoinsToServer(coinsGained) {
     const user = getCurrentUser();
     if (!user || !isUserAuthenticated()) {
-        console.log('⚠️ Cannot save coins - no authenticated user');
+        console.log('⚠️ No authenticated user, skipping coins update');
         return;
     }
     
     try {
-        // Get current user stats
         const currentStats = getUserStats();
         const newTotalScore = (currentStats.totalScore || 0) + coinsGained;
-        
-        // Update stats with new coins - totalScore first, then bestScore
         const updatedStats = {
             ...currentStats,
             totalScore: newTotalScore,
             gamesPlayed: (currentStats.gamesPlayed || 0) + 1
         };
-        
-        // Update bestScore only after totalScore is set
-        const newBestScore = Math.max(currentStats.bestScore || 0, newTotalScore);
-        updatedStats.bestScore = newBestScore;
-        
-        // Add to batch queue instead of immediate update
-        statsUpdateQueue.push({
-            stats: updatedStats,
-            timestamp: Date.now()
-        });
-        
-        // Schedule batch update
+        updatedStats.bestScore = Math.max(currentStats.bestScore || 0, newTotalScore); // Update bestScore after totalScore
+
+        statsUpdateQueue.push({ stats: updatedStats, timestamp: Date.now() });
         if (!statsUpdateTimeout) {
-            statsUpdateTimeout = setTimeout(() => {
-                processBatchStatsUpdate();
-            }, STATS_UPDATE_DELAY);
+            statsUpdateTimeout = setTimeout(() => { processBatchStatsUpdate(); }, STATS_UPDATE_DELAY);
         }
-        
-        // Update local user data immediately for UI responsiveness
         if (window.serverAuth && window.serverAuth.currentUser) {
             window.serverAuth.currentUser.stats = updatedStats;
         }
-        
         console.log(`💰 User ${user.nickname} gained ${coinsGained} coins. Total: ${newTotalScore} (queued for batch update)`);
-        
     } catch (error) {
         console.error('❌ Failed to queue coins update:', error);
     }

@@ -28,51 +28,22 @@ const io = socketIo(server, {
   } 
 });
 
-// CORS configuration
-const allowedOrigins = ['https://caballcoin-eight.vercel.app', 'http://localhost:3000', 'http://localhost:3001'];
-
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  
-  // Set CORS headers for allowed origins
-  if (allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-  }
-  
-  // Essential CORS headers
-  res.header('Vary', 'Origin');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
-  }
-  
-  next();
-});
-app.use(express.json());
-app.use(express.raw({ type: 'application/json' })); // For sendBeacon support
-app.use(express.static(path.join(__dirname, 'public')));
-
-// JWT Secret (in production use environment variable)
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
-
-// Authentication middleware
+// Улучшенный middleware аутентификации
 function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  
   if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
+    return res.status(401).json({ error: 'No token provided' });
   }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  
+  jwt.verify(token, JWT_SECRET, (err, payload) => {
     if (err) {
-      return res.status(403).json({ error: 'Invalid or expired token' });
+      console.log('❌ JWT verification failed:', err.message);
+      return res.status(401).json({ error: 'Invalid token' });
     }
-    req.user = user;
+    
+    req.user = payload; // { userId, email, nickname }
     next();
   });
 }
@@ -86,10 +57,35 @@ function generateUserId() {
   }
 }
 
-// Health check endpoint for Render
+// Лёгкий /health endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.status(200).json({ 
+    ok: true, 
+    timestamp: Date.now(),
+    uptime: process.uptime()
+  });
 });
+
+// Упрощённый CORS
+app.use(cors({
+  origin: [
+    'https://caballcoin-eight.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+}));
+
+app.options('*', cors());
+
+app.use(express.json());
+app.use(express.raw({ type: 'application/json' })); // For sendBeacon support
+app.use(express.static(path.join(__dirname, 'public')));
+
+// JWT Secret (in production use environment variable)
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
 // Game state - must be defined before API endpoints
 const gameState = {

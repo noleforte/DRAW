@@ -1773,8 +1773,8 @@ function setupUIHandlers() {
                     console.log('🔍 DEBUG: Syncing stats with new server auth system');
                     
                     // Force update local stats with server data
-                    await window.nicknameAuth.syncUserStatsFromFirestore();
-                    console.log('🔄 DEBUG: Forced stats sync after game start');
+                        await window.nicknameAuth.syncUserStatsFromFirestore();
+                        console.log('🔄 DEBUG: Forced stats sync after game start');
                     
                     // Force update Player Info panel
                     if (window.panelManager) {
