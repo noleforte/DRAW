@@ -81,8 +81,8 @@ const saveStats = (() => {
     queued = stats;
     const now = Date.now();
     
-    // Не чаще 1 раза в 5 секунд
-    if (inflight || now - last < 5000) {
+    // Не чаще 1 раза в 500ms (мгновенно)
+    if (inflight || now - last < 500) {
       return;
     }
     
