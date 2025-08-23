@@ -110,7 +110,7 @@ class ServerAuthSystem {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email, nickname, password })
+        body: JSON.stringify({ nickname, password }) // Убираем email - сервер его не ожидает
       });
 
       if (response.ok) {
@@ -143,7 +143,7 @@ class ServerAuthSystem {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email, nickname, password, wallet })
+        body: JSON.stringify({ email, nickname, password, wallet }) // Возвращаем email - сервер его ожидает
       });
 
       if (response.ok) {
@@ -191,6 +191,11 @@ class ServerAuthSystem {
   }
 
   getCurrentUser() {
+    return this.currentUser;
+  }
+
+  // Добавляем недостающий метод для совместимости
+  getCurrentUserSync() {
     return this.currentUser;
   }
 
