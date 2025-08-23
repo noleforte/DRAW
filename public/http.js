@@ -1,5 +1,5 @@
 // Единый HTTP клиент для API
-export async function apiFetch(path, opts = {}) {
+async function apiFetch(path, opts = {}) {
   const token = localStorage.getItem('authToken');
   
   const response = await fetch(`https://draw-e67b.onrender.com${path}`, {

@@ -1607,7 +1607,7 @@ function setupUIHandlers() {
         // Try to authenticate the user
         try {
             console.log('🔐 Attempting login for nickname:', nickname);
-            const user = await nicknameAuth.login(nickname, password);
+            let user = await nicknameAuth.login(nickname, password); // Изменил const на let
             console.log('✅ Login successful for user:', user.nickname);
             
             // Update player info panel with authenticated user
