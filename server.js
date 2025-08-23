@@ -2787,6 +2787,15 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
     const { wallet, stats } = req.body;
     const userId = req.user.userId;
     
+    console.log(`🔧 Profile update request for user ${userId}:`, { wallet, stats });
+    
+    // First check if user exists
+    const existingUser = await GameDataService.getUserById(userId);
+    if (!existingUser) {
+      console.error(`❌ User not found for profile update: ${userId}`);
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
     const updates = {};
     if (wallet !== undefined) {
       updates.wallet = wallet.trim();
@@ -2815,9 +2824,15 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'No valid fields to update' });
     }
     
+    console.log(`🔧 Updating user ${userId} with:`, updates);
+    
+    // Update user
     await GameDataService.updateUser(userId, updates);
     
+    // Get updated user data
     const updatedUser = await GameDataService.getUserById(userId);
+    
+    console.log(`✅ Profile updated successfully for user ${userId}`);
     
     res.json({
       success: true,
@@ -2839,6 +2854,14 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Profile update error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    
+    // Return more specific error messages
+    if (error.message && error.message.includes('not found')) {
+      return res.status(404).json({ error: 'User not found' });
+    } else if (error.message && error.message.includes('permission')) {
+      return res.status(403).json({ error: 'Permission denied' });
+    } else {
+      return res.status(500).json({ error: 'Internal server error during profile update' });
+    }
   }
 });
