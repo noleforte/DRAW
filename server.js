@@ -8,6 +8,9 @@ const bcrypt = require('bcrypt'); // For password hashing
 const crypto = require('crypto'); // For generating secure tokens
 const jwt = require('jsonwebtoken'); // For JWT tokens
 
+// JWT Secret (in production use environment variable) - ПЕРЕМЕЩАЕМ ВВЕРХ!
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+
 // Helper function to get time until end of GMT day
 function getTimeUntilEndOfGMTDay() {
   const now = new Date();
@@ -83,9 +86,6 @@ app.options('*', cors());
 app.use(express.json());
 app.use(express.raw({ type: 'application/json' })); // For sendBeacon support
 app.use(express.static(path.join(__dirname, 'public')));
-
-// JWT Secret (in production use environment variable)
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
 // Game state - must be defined before API endpoints
 const gameState = {
