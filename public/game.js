@@ -667,8 +667,8 @@ function setupSocketListeners() {
                 timestamp: Date.now()
             });
             
-            // Show eating notification
-            showServerMessage(`👹 You were eaten by ${data.eatenBy}! 💰 Lost ${data.coinsLost} coins, remaining: ${data.remainingScore}`, 'warning');
+            // Show eating notification under match timer
+            showPlayerEaterNotification(`👹 You were eaten by ${data.eatenBy}! 💰 Lost ${data.coinsLost} coins, remaining: ${data.remainingScore}`);
             
             // Update local player score
             if (localPlayer) {
@@ -3269,6 +3269,53 @@ function showServerMessage(message, type = 'info') {
             }, 300);
         }
     }, 10000);
+}
+
+// Special function to show Player Eater notifications under match timer
+function showPlayerEaterNotification(message) {
+    showNotificationUnderTimer(message, 'warning');
+}
+
+// General function to show notifications under match timer
+function showNotificationUnderTimer(message, type = 'info') {
+    const container = document.getElementById('serverMessagesContainer');
+    if (!container) return;
+    
+    // Color scheme based on type
+    const colors = {
+        warning: { bg: '#f59e0b', border: '#d97706' },
+        error: { bg: '#ef4444', border: '#dc2626' },
+        success: { bg: '#10b981', border: '#059669' },
+        info: { bg: '#3b82f6', border: '#2563eb' }
+    };
+    
+    const color = colors[type] || colors.info;
+    
+    const messageEl = document.createElement('div');
+    messageEl.style.cssText = `
+        background: ${color.bg}; color: white; padding: 12px 20px;
+        border-radius: 8px; font-weight: bold; margin-bottom: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        text-align: center; font-size: 14px;
+        animation: slideDown 0.3s ease-out;
+        border: 2px solid ${color.border};
+        position: relative;
+        z-index: 25;
+    `;
+    messageEl.textContent = message;
+    container.appendChild(messageEl);
+    
+    // Remove message after 8 seconds
+    setTimeout(() => {
+        if (messageEl.parentNode) {
+            messageEl.style.animation = 'slideUp 0.3s ease-in';
+            setTimeout(() => {
+                if (messageEl.parentNode) {
+                    messageEl.parentNode.removeChild(messageEl);
+                }
+            }, 300);
+        }
+    }, 8000);
 }
 
 function showConnectionError(message) {

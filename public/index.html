@@ -184,6 +184,24 @@
             scrollbar-color: #4B5563 transparent;
         }
         
+        /* Chat panel specific styles */
+        #chatPanelNew .panel-body {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        #chatPanelNew #chatMessages {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+        }
+        
+        #chatPanelNew #chatInput {
+            flex-shrink: 0;
+            margin-top: auto;
+        }
+        
         #chatMessages::-webkit-scrollbar {
             width: 6px;
         }
@@ -345,6 +363,14 @@
             #timerDisplay{
                 font-size: 1rem !important;
             }
+            
+            #serverMessagesContainer {
+                top: 8rem !important;
+                max-width: 90% !important;
+                font-size: 12px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+            }
                          #chatPanelNew{
                  width: 320px !important;
                  height: 400px !important;
@@ -353,6 +379,25 @@
                  left: 50% !important;
                  transform: translate(-50%, -50%) !important;
                  margin: 0 !important;
+             }
+             
+             #chatPanelNew .panel-body {
+                 display: flex !important;
+                 flex-direction: column !important;
+                 height: calc(100% - 40px) !important;
+             }
+             
+             #chatPanelNew #chatMessages {
+                 flex: 1 !important;
+                 min-height: 0 !important;
+                 overflow-y: auto !important;
+                 margin-bottom: 8px !important;
+             }
+             
+             #chatPanelNew #chatInput {
+                 flex-shrink: 0 !important;
+                 margin-top: auto !important;
+                 height: 32px !important;
              }
             #controlsToggle{
                 display: none !important;
@@ -457,6 +502,30 @@
                 height: 280px !important;
             }
             
+            #chatPanelNew .panel-body {
+                display: flex !important;
+                flex-direction: column !important;
+                height: calc(100% - 40px) !important;
+            }
+            
+            #chatPanelNew #chatMessages {
+                flex: 1 !important;
+                min-height: 0 !important;
+                overflow-y: auto !important;
+                margin-bottom: 8px !important;
+            }
+            
+            #chatPanelNew #chatInput {
+                flex-shrink: 0 !important;
+                margin-top: auto !important;
+                height: 32px !important;
+            }
+            
+            #serverMessagesContainer {
+                top: 7rem !important;
+                max-width: 85% !important;
+            }
+            
             /* Controls Panel - much larger to fit all content */
             #controlsPanel {
                 width: 280px !important;
@@ -506,6 +575,31 @@
             #mobileJoystick {
                 display: none !important;
             }
+            
+            /* Chat panel styles for large screens */
+            #chatPanelNew .panel-body {
+                display: flex !important;
+                flex-direction: column !important;
+                height: calc(100% - 40px) !important;
+            }
+            
+            #chatPanelNew #chatMessages {
+                flex: 1 !important;
+                min-height: 0 !important;
+                overflow-y: auto !important;
+                margin-bottom: 8px !important;
+            }
+            
+            #chatPanelNew #chatInput {
+                flex-shrink: 0 !important;
+                margin-top: auto !important;
+                height: 32px !important;
+            }
+            
+            #serverMessagesContainer {
+                top: 6rem !important;
+                max-width: 500px !important;
+            }
          }
         .text-lg { font-size: 1.125rem; }
         .text-xl { font-size: 1.25rem; }
@@ -539,11 +633,13 @@
         .mb-4 { margin-bottom: 1rem; }
         .mb-6 { margin-bottom: 1.5rem; }
         .mr-2 { margin-right: 0.5rem; }
+        .mt-auto { margin-top: auto; }
         .items-center { align-items: center; }
         .justify-center { justify-content: center; }
         .justify-between { justify-content: space-between; }
         .flex-col { flex-direction: column; }
         .flex-1 { flex: 1 1 0%; }
+        .flex-shrink-0 { flex-shrink: 0; }
         .flex-wrap { flex-wrap: wrap; }
         .gap-2 { gap: 0.5rem; }
         .space-y-1 > * + * { margin-top: 0.25rem; }
@@ -598,6 +694,7 @@
         .z-30 { z-index: 30; }
         .z-50 { z-index: 50; }
         .min-w-48 { min-width: 12rem; }
+        .min-h-0 { min-height: 0; }
         .w-8 { width: 2rem; }
         .h-8 { height: 2rem; }
         .h-64 { height: 16rem; }
@@ -1308,10 +1405,10 @@
                         <button class="panel-close" id="chatClose">×</button>
                     </div>
                     <div class="panel-body flex flex-col h-full">
-                        <div id="chatMessages" class="flex-1 overflow-y-auto space-y-2 text-sm bg-gray-800 rounded p-2 mb-2">
+                        <div id="chatMessages" class="flex-1 overflow-y-auto space-y-2 text-sm bg-gray-800 rounded p-2 mb-2 min-h-0">
                             <!-- Chat messages will be populated here -->
                         </div>
-                        <div class="flex">
+                        <div class="flex flex-shrink-0 mt-auto">
                             <input 
                                 type="text" 
                                 id="chatInput" 
@@ -1424,6 +1521,11 @@
             <div id="matchTimerText" class="text-white font-bold text-lg">⏰ Time Until GMT Day End</div>
             <div id="timerDisplay" class="text-white font-mono text-2xl">--:--:--</div>
             <div id="gmtDisplay" class="text-gray-300 font-mono text-xs mt-1">GMT: --:--:--</div>
+        </div>
+        
+        <!-- Server Messages Container (under match timer) -->
+        <div id="serverMessagesContainer" class="absolute top-24 left-1/2 transform -translate-x-1/2 z-20 max-w-md">
+            <!-- Server messages will be displayed here -->
         </div>
         
         <!-- Active Boosters -->
