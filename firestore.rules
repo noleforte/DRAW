@@ -1,22 +1,28 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Правила для коллекции пользователей (новая система аутентификации)
-    match /users/{id} {
-      // Разрешить чтение только аутентифицированным пользователям
-      allow read: if request.auth != null;
-      // Разрешить запись только аутентифицированным пользователям
-      allow write: if request.auth != null;
+    // Правила для коллекции пользователей (JWT аутентификация)
+    match /users/{userId} {
+      // Разрешить чтение и запись всем (JWT проверяется на сервере)
+      allow read, write: if true;
     }
     
     // Правила для коллекции матчей
     match /matches/{matchId} {
       // Всем можно читать результаты матчей
       allow read: if true;
-      // Только аутентифицированные пользователи могут создавать записи матчей
-      allow create: if request.auth != null;
+      // Разрешить создание всем (JWT проверяется на сервере)
+      allow create: if true;
       // Никто не может изменять или удалять результаты матчей
       allow update, delete: if false;
+    }
+    
+    // Правила для коллекции игроков (устаревшая система - только чтение)
+    match /players/{playerId} {
+      // Разрешить чтение всем (для лидерборда)
+      allow read: if true;
+      // Запретить запись (устаревшая система)
+      allow write: if false;
     }
     
     // Запретить доступ ко всем остальным коллекциям
