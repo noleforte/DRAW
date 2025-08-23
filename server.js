@@ -2712,7 +2712,7 @@ app.post('/api/auth/login', async (req, res) => {
     // Update last login
     await GameDataService.updateUserLastLogin(user.id);
     
-    // Generate JWT token
+    // Generate JWT token 
     const token = jwt.sign(
       { userId: user.id, email: user.email, nickname: user.nickname },
       JWT_SECRET,
