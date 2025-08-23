@@ -92,13 +92,31 @@ const saveStats = (() => {
       const payload = queued;
       queued = null;
       
-      const response = await window.apiFetch('/api/auth/profile', {
-        method: 'PUT',
-        body: JSON.stringify({ stats: payload })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`PUT profile ${response.status}`);
+      // Проверяем, доступен ли apiFetch
+      if (!window.apiFetch) {
+        console.warn('⚠️ apiFetch not available, using fallback fetch');
+        const response = await fetch('https://draw-e67b.onrender.com/api/auth/profile', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          },
+          body: JSON.stringify({ stats: payload })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`PUT profile ${response.status}`);
+        }
+      } else {
+        const response = await window.apiFetch('/api/auth/profile', {
+          method: 'PUT',
+          body: JSON.stringify({ stats: payload })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`PUT profile ${response.status}`);
+        }
       }
       
       last = Date.now();
