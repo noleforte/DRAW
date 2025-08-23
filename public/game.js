@@ -29,7 +29,7 @@ let chatCollapsed = false;
 let matchTimeLeft = null; // Will be calculated based on GMT day end
 let matchDuration = 86400; // Total match duration in seconds (24 hours)
 let gameEnded = false;
-let gameLoopRunning = false;
+
 let matchStartTime = null;
 let clientTimerInterval = null;
 let timeOffset = 0; // Offset between client and server time
@@ -112,7 +112,6 @@ function init() {
     
     // Start game loop
     gameLoop();
-    gameLoopRunning = true;
     
     // Initialize rank display after panelManager is ready
     const initRankDisplay = () => {
@@ -269,8 +268,8 @@ function showWelcomeBackModal(user) {
             // Hide the modal
             nameModal.style.display = 'none';
             
-            // Start game directly since user is already authenticated
-            startGameFromAutoLogin();
+            // Pre-fill form with saved credentials and start game
+            startGameWithSavedCredentials();
         });
     }
     
@@ -314,15 +313,15 @@ function showOriginalLoginModal() {
     console.log('🔄 Restored original login modal');
 }
 
-// Function to start game directly after auto-login (no form needed)
-async function startGameFromAutoLogin() {
+// Function to start game with saved credentials by pre-filling the form
+function startGameWithSavedCredentials() {
     try {
-        console.log('🎮 Starting game from auto-login...');
+        console.log('🎮 Starting game with saved credentials...');
         
         // Get saved user credentials from localStorage
         const savedUserData = localStorage.getItem('currentUser');
         if (!savedUserData) {
-            console.error('❌ No saved user data found for auto-login game start');
+            console.error('❌ No saved user data found');
             alert('Error: No saved user data found. Please sign in again.');
             return;
         }
@@ -337,107 +336,33 @@ async function startGameFromAutoLogin() {
         
         console.log('🔍 Found saved credentials for:', userCredentials.nickname);
         
-        // Get current authenticated user from auth system
-        const currentUser = nicknameAuth.getCurrentUserSync();
-        if (!currentUser) {
-            console.error('❌ No authenticated user found in auth system');
-            alert('Error: No authenticated user found. Please sign in again.');
-            return;
+        // Pre-fill the login form with saved credentials
+        const nicknameInput = document.getElementById('mainNicknameInput');
+        const passwordInput = document.getElementById('mainPasswordInput');
+        
+        if (nicknameInput && passwordInput) {
+            nicknameInput.value = userCredentials.nickname;
+            passwordInput.value = userCredentials.password;
+            console.log('✅ Form pre-filled with saved credentials');
+            
+            // Now call the standard startGame function
+            // Create a synthetic event to pass to startGame
+            const syntheticEvent = { preventDefault: () => {} };
+            startGame(syntheticEvent);
+        } else {
+            console.error('❌ Login form inputs not found');
+            alert('Error: Login form not found. Please try again.');
         }
-        
-        console.log('✅ Starting game for authenticated user:', currentUser.nickname);
-        
-        // Hide the modal
-        const nameModal = document.getElementById('nameModal');
-        if (nameModal) {
-            nameModal.style.display = 'none';
-        }
-        
-        // Start the game directly using saved credentials
-        await startGameDirectly(currentUser, userCredentials);
         
     } catch (error) {
-        console.error('❌ Error starting game from auto-login:', error);
+        console.error('❌ Error starting game with saved credentials:', error);
         alert('Error starting game. Please try again.');
     }
 }
 
-// Function to start game directly with user data
-async function startGameDirectly(user, userCredentials = null) {
-    try {
-        console.log('🎮 Starting game directly for user:', user.nickname);
-        
-        // If we have saved credentials, use them to ensure proper authentication
-        if (userCredentials && userCredentials.nickname && userCredentials.password) {
-            console.log('🔐 Using saved credentials for authentication verification');
-            
-            // Verify authentication with saved credentials
-            try {
-                const verifiedUser = await nicknameAuth.login(userCredentials.nickname, userCredentials.password);
-                if (verifiedUser) {
-                    console.log('✅ Authentication verification successful with saved credentials');
-                    user = verifiedUser; // Use verified user data
-                }
-            } catch (authError) {
-                console.warn('⚠️ Authentication verification failed with saved credentials:', authError);
-                // Continue with current user if verification fails
-            }
-        }
-        
-        // Update player info panel with authenticated user
-        updatePlayerInfoPanelWithStats(user);
-        updateMainPlayerInfoPanel(user);
-        
-        // Force refresh current user cache
-        nicknameAuth.refreshCurrentUser();
-        
-        // Connect to game server if not already connected
-        if (socket && !socket.connected) {
-            console.log('🔌 Connecting to game server...');
-            socket.connect();
-        }
-        
-        // Start the actual game
-        startActualGame();
-        
-    } catch (error) {
-        console.error('❌ Error in startGameDirectly:', error);
-        throw error;
-    }
-}
 
-// Function to start the actual game mechanics
-function startActualGame() {
-    console.log('🎮 Starting actual game mechanics...');
-    
-    // Verify user is still authenticated
-    const currentUser = nicknameAuth.getCurrentUserSync();
-    if (!currentUser) {
-        console.error('❌ User authentication lost during game start');
-        alert('Error: User authentication lost. Please sign in again.');
-        return;
-    }
-    
-    console.log('✅ User authentication verified:', currentUser.nickname);
-    
-    // Hide modal and show game canvas
-    const nameModal = document.getElementById('nameModal');
-    const gameCanvas = document.getElementById('gameCanvas');
-    
-    if (nameModal) nameModal.style.display = 'none';
-    if (gameCanvas) gameCanvas.style.display = 'block';
-    
-    // Reset game state
-    gameEnded = false;
-    
-    // Start game loop if not already running
-    if (!gameLoopRunning) {
-        gameLoopRunning = true;
-        gameLoop();
-    }
-    
-    console.log('✅ Game started successfully');
-}
+
+
 
 function loadBackgroundImage() {
     backgroundImage = new Image();
