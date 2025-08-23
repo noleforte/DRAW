@@ -29,6 +29,7 @@ let chatCollapsed = false;
 let matchTimeLeft = null; // Will be calculated based on GMT day end
 let matchDuration = 86400; // Total match duration in seconds (24 hours)
 let gameEnded = false;
+let gameLoopRunning = false;
 let matchStartTime = null;
 let clientTimerInterval = null;
 let timeOffset = 0; // Offset between client and server time
@@ -111,6 +112,7 @@ function init() {
     
     // Start game loop
     gameLoop();
+    gameLoopRunning = true;
     
     // Initialize rank display after panelManager is ready
     const initRankDisplay = () => {
@@ -252,12 +254,28 @@ function showWelcomeBackModal(user) {
     };
     nameModalContent.appendChild(differentUserBtn);
     
-    // Auto-hide modal after 5 seconds (increased time for logout button)
-    setTimeout(() => {
-        if (nameModal.style.display === 'flex') {
+    // Add click handler for Start Game button in welcome modal
+    const startGameBtn = document.getElementById('startGameBtn');
+    if (startGameBtn) {
+        // Remove existing event listeners to avoid conflicts
+        const newStartGameBtn = startGameBtn.cloneNode(true);
+        startGameBtn.parentNode.replaceChild(newStartGameBtn, startGameBtn);
+        
+        // Add new click handler that hides modal and starts game
+        newStartGameBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('🎮 Start Game clicked from welcome modal');
+            
+            // Hide the modal
             nameModal.style.display = 'none';
-        }
-    }, 5000);
+            
+            // Start game directly since user is already authenticated
+            startGameFromAutoLogin();
+        });
+    }
+    
+    // Don't auto-hide modal - let user choose action
+    // Modal will stay open until user clicks a button
 }
 
 // Function to restore original login modal
@@ -294,6 +312,80 @@ function showOriginalLoginModal() {
     window.autoLoginAttempted = false;
     
     console.log('🔄 Restored original login modal');
+}
+
+// Function to start game directly after auto-login (no form needed)
+async function startGameFromAutoLogin() {
+    try {
+        console.log('🎮 Starting game from auto-login...');
+        
+        // Get current authenticated user
+        const currentUser = nicknameAuth.getCurrentUserSync();
+        if (!currentUser) {
+            console.error('❌ No authenticated user found for auto-login game start');
+            alert('Error: No authenticated user found. Please sign in again.');
+            return;
+        }
+        
+        console.log('✅ Starting game for authenticated user:', currentUser.nickname);
+        
+        // Hide the modal
+        const nameModal = document.getElementById('nameModal');
+        if (nameModal) {
+            nameModal.style.display = 'none';
+        }
+        
+        // Start the game directly
+        await startGameDirectly(currentUser);
+        
+    } catch (error) {
+        console.error('❌ Error starting game from auto-login:', error);
+        alert('Error starting game. Please try again.');
+    }
+}
+
+// Function to start game directly with user data
+async function startGameDirectly(user) {
+    try {
+        console.log('🎮 Starting game directly for user:', user.nickname);
+        
+        // Update player info panel with authenticated user
+        updatePlayerInfoPanelWithStats(user);
+        updateMainPlayerInfoPanel(user);
+        
+        // Force refresh current user cache
+        nicknameAuth.refreshCurrentUser();
+        
+        // Start the actual game
+        startActualGame();
+        
+    } catch (error) {
+        console.error('❌ Error in startGameDirectly:', error);
+        throw error;
+    }
+}
+
+// Function to start the actual game mechanics
+function startActualGame() {
+    console.log('🎮 Starting actual game mechanics...');
+    
+    // Hide modal and show game canvas
+    const nameModal = document.getElementById('nameModal');
+    const gameCanvas = document.getElementById('gameCanvas');
+    
+    if (nameModal) nameModal.style.display = 'none';
+    if (gameCanvas) gameCanvas.style.display = 'block';
+    
+    // Reset game state
+    gameEnded = false;
+    
+    // Start game loop if not already running
+    if (!gameLoopRunning) {
+        gameLoopRunning = true;
+        gameLoop();
+    }
+    
+    console.log('✅ Game started successfully');
 }
 
 function loadBackgroundImage() {
