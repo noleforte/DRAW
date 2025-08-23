@@ -74,12 +74,12 @@ function init() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
     
-    // Check for saved user and auto-login if available
-    checkForSavedUserAndAutoLogin();
+    // Check for saved user and show welcome modal if available
+    checkForSavedUserAndShowWelcome();
     
-    // Show player info panel with animation (only if no auto-login)
+    // Show player info panel with animation (only if no saved user)
     setTimeout(() => {
-        if (!window.autoLoginAttempted) {
+        if (!window.savedUserFound) {
             const nameModal = document.getElementById('nameModal');
             if (nameModal) {
                 nameModal.classList.add('show');
@@ -144,8 +144,8 @@ function init() {
     console.log('🎮 init() function completed successfully');
 }
 
-// Check for saved user and attempt auto-login
-async function checkForSavedUserAndAutoLogin() {
+// Check for saved user and show welcome modal if available
+async function checkForSavedUserAndShowWelcome() {
     try {
         console.log('🔍 Checking for saved user data...');
         
@@ -153,6 +153,7 @@ async function checkForSavedUserAndAutoLogin() {
         const savedUser = localStorage.getItem('currentUser');
         if (!savedUser) {
             console.log('❌ No saved user found, will show login modal');
+            window.savedUserFound = false;
             return;
         }
         
@@ -160,46 +161,32 @@ async function checkForSavedUserAndAutoLogin() {
         if (!userData || !userData.nickname || !userData.password) {
             console.log('❌ Invalid saved user data, will show login modal');
             localStorage.removeItem('currentUser'); // Clean up invalid data
+            window.savedUserFound = false;
             return;
         }
         
         console.log('✅ Found saved user:', userData.nickname);
         
-        // Attempt auto-login
-        try {
-            console.log('🔐 Attempting auto-login for:', userData.nickname);
+        // Check if user is already authenticated
+        const currentUser = nicknameAuth.getCurrentUserSync();
+        if (currentUser && currentUser.nickname === userData.nickname) {
+            console.log('✅ User already authenticated, showing welcome modal');
             
-            // Try to authenticate with saved credentials
-            let user = await nicknameAuth.login(userData.nickname, userData.password);
+            // Show welcome back message instead of login modal
+            showWelcomeBackModal(currentUser);
             
-            if (user) {
-                console.log('✅ Auto-login successful for:', user.nickname);
-                
-                // Update player info panel with authenticated user
-                updatePlayerInfoPanelWithStats(user);
-                updateMainPlayerInfoPanel(user);
-                
-                // Force refresh current user cache
-                nicknameAuth.refreshCurrentUser();
-                
-                // Show welcome back message instead of login modal
-                showWelcomeBackModal(user);
-                
-                // Mark that we attempted auto-login
-                window.autoLoginAttempted = true;
-                
-                return;
-            }
-        } catch (error) {
-            console.warn('⚠️ Auto-login failed:', error);
-            // Remove invalid saved data
-            localStorage.removeItem('currentUser');
+            // Mark that we found a saved user
+            window.savedUserFound = true;
+            
+            return;
+        } else {
+            console.log('⚠️ User not authenticated, will show login modal');
+            window.savedUserFound = false;
         }
         
-        console.log('❌ Auto-login failed, will show login modal');
-        
     } catch (error) {
-        console.error('❌ Error during auto-login check:', error);
+        console.error('❌ Error during saved user check:', error);
+        window.savedUserFound = false;
     }
 }
 
@@ -307,8 +294,8 @@ function showOriginalLoginModal() {
         title.className = 'text-2xl font-bold mb-3 text-center';
     }
     
-    // Clear auto-login flag
-    window.autoLoginAttempted = false;
+    // Clear saved user flag
+    window.savedUserFound = false;
     
     console.log('🔄 Restored original login modal');
 }
@@ -3283,7 +3270,7 @@ function performLogout() {
         window.nicknameAuth.logout();
     }
     
-    // 1.5. Clear saved user credentials for auto-login
+    // 1.5. Clear saved user credentials for next visit
     try {
         localStorage.removeItem('currentUser');
         console.log('🗑️ Cleared saved user credentials');
