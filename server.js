@@ -401,16 +401,16 @@ const botHuntingMessages = [
 
 // Generate random position within world bounds
 function getRandomPosition() {
-  // Ensure coins spawn across the entire game field for better distribution
-  const margin = 100; // Increased margin to avoid very edges
+  // Ensure coins spawn within the visible game field (not at the very edges)
+  const margin = 50; // Reduced margin for better distribution
   const minX = -gameState.worldSize/2 + margin;
   const maxX = gameState.worldSize/2 - margin;
   const minY = -gameState.worldSize/2 + margin;
   const maxY = gameState.worldSize/2 - margin;
   
-  // Use full random distribution across the entire available area
-  const x = minX + (maxX - minX) * Math.random(); // Full range distribution
-  const y = minY + (maxY - minY) * Math.random(); // Full range distribution
+  // Use better random distribution (avoid clustering at edges)
+  const x = minX + (maxX - minX) * (0.1 + 0.8 * Math.random()); // 10% margin from edges
+  const y = minY + (maxY - minY) * (0.1 + 0.8 * Math.random()); // 10% margin from edges
   
   return { x, y };
 }
@@ -475,13 +475,13 @@ function getRandomPositionWithMinDistance(minDistance = 800, maxAttempts = 100) 
 
 // Generate coins with better distribution
 function generateCoins(count = 300) {
-  const margin = 100; // Increased margin to avoid very edges
+  const margin = 50;
   const minX = -gameState.worldSize/2 + margin;
   const maxX = gameState.worldSize/2 - margin;
   const minY = -gameState.worldSize/2 + margin;
   const maxY = gameState.worldSize/2 - margin;
   
-  // Create a grid-based distribution for more even spacing across the entire map
+  // Create a grid-based distribution for more even spacing
   const gridSize = Math.ceil(Math.sqrt(count));
   const cellWidth = (maxX - minX) / gridSize;
   const cellHeight = (maxY - minY) / gridSize;
@@ -493,38 +493,38 @@ function generateCoins(count = 300) {
     const gridX = i % gridSize;
     const gridY = Math.floor(i / gridSize);
     
-    // Add randomness within each grid cell for natural distribution
-    const randomOffsetX = (Math.random() - 0.5) * cellWidth * 0.8; // Increased randomness
-    const randomOffsetY = (Math.random() - 0.5) * cellHeight * 0.8; // Increased randomness
-    
-    const coin = {
-      id: gameState.nextCoinId++,
-      x: minX + gridX * cellWidth + randomOffsetX,
-      y: minY + gridY * cellHeight + randomOffsetY,
-      value: 1
-    };
-    
-    // Ensure minimum distance from other coins
-    let attempts = 0;
-    const maxAttempts = 5;
-    while (attempts < maxAttempts) {
-      let tooClose = false;
-      gameState.coins.forEach(existingCoin => {
-        const distance = Math.sqrt((existingCoin.x - coin.x) ** 2 + (existingCoin.y - coin.y) ** 2);
-        if (distance < 30) { // Minimum distance between coins
-          tooClose = true;
+            // Add some randomness within each grid cell (but not too much)
+        const randomOffsetX = (Math.random() - 0.5) * cellWidth * 0.6;
+        const randomOffsetY = (Math.random() - 0.5) * cellHeight * 0.6;
+        
+        const coin = {
+          id: gameState.nextCoinId++,
+          x: minX + gridX * cellWidth + randomOffsetX,
+          y: minY + gridY * cellHeight + randomOffsetY,
+          value: 1
+        };
+        
+        // Ensure minimum distance from other coins
+        let attempts = 0;
+        const maxAttempts = 5;
+        while (attempts < maxAttempts) {
+          let tooClose = false;
+          gameState.coins.forEach(existingCoin => {
+            const distance = Math.sqrt((existingCoin.x - coin.x) ** 2 + (existingCoin.y - coin.y) ** 2);
+            if (distance < 30) { // Minimum distance between coins
+              tooClose = true;
+            }
+          });
+          
+          if (!tooClose) break;
+          
+          // Try new position within the same grid cell
+          const newRandomOffsetX = (Math.random() - 0.5) * cellWidth * 0.4;
+          const newRandomOffsetY = (Math.random() - 0.5) * cellHeight * 0.4;
+          coin.x = minX + gridX * cellWidth + newRandomOffsetX;
+          coin.y = minY + gridY * cellHeight + newRandomOffsetY;
+          attempts++;
         }
-      });
-      
-      if (!tooClose) break;
-      
-      // Try new position within the same grid cell with more randomness
-      const newRandomOffsetX = (Math.random() - 0.5) * cellWidth * 0.6;
-      const newRandomOffsetY = (Math.random() - 0.5) * cellHeight * 0.6;
-      coin.x = minX + gridX * cellWidth + newRandomOffsetX;
-      coin.y = minY + gridY * cellHeight + newRandomOffsetY;
-      attempts++;
-    }
     
     // Ensure coin is within bounds
     coin.x = Math.max(minX, Math.min(maxX, coin.x));
@@ -533,7 +533,7 @@ function generateCoins(count = 300) {
     gameState.coins.set(coin.id, coin);
   }
   
-  console.log(`✅ Generated ${gameState.coins.size} coins with even distribution across the entire map`);
+  console.log(`✅ Generated ${gameState.coins.size} coins with even distribution`);
 }
 
 // Function to redistribute coins if they get too clustered
@@ -588,19 +588,8 @@ function generateBoosters(count = 2) { // Player Eater + Coin Boosters
   };
   gameState.boosters.set(playerEaterBooster.id, playerEaterBooster);
   
-  // Check current number of Coin Multiplier boosters
-  let existingCoinBoosters = 0;
-  for (const booster of gameState.boosters.values()) {
-    if (booster.type === 'coins') {
-      existingCoinBoosters++;
-    }
-  }
-  
-  // Calculate how many Coin Boosters to generate (max 4 total)
-  const coinBoostersToGenerate = Math.max(0, 4 - existingCoinBoosters);
-  
-  // Generate Coin Boosters with minimum distance between them
-  for (let i = 0; i < coinBoostersToGenerate; i++) {
+  // Generate exactly 5 Coin Boosters with minimum distance between them
+  for (let i = 0; i < 5; i++) {
     const coinBooster = {
       id: `booster_${gameState.nextBoosterId++}`,
       ...getRandomPositionWithMinDistance(800), // Minimum 800px distance from other boosters
@@ -619,7 +608,7 @@ function generateBoosters(count = 2) { // Player Eater + Coin Boosters
     }, 120000); // 2 minutes = 120000ms
   }
   
-  console.log(`🎯 Generated boosters: 1 Player Eater + ${coinBoostersToGenerate} Coin Boosters (${existingCoinBoosters + coinBoostersToGenerate} total) with minimum 800px spacing`);
+  console.log(`🎯 Generated boosters: 1 Player Eater + 5 Coin Boosters with minimum 800px spacing`);
 }
 
 // Create AI bot
@@ -649,20 +638,6 @@ function respawnCoinBooster(boosterId) {
   // Remove old booster
   gameState.boosters.delete(boosterId);
   
-  // Check current number of Coin Multiplier boosters
-  let coinBoosterCount = 0;
-  for (const booster of gameState.boosters.values()) {
-    if (booster.type === 'coins') {
-      coinBoosterCount++;
-    }
-  }
-  
-  // Only respawn if we have less than 4 Coin Multiplier boosters
-  if (coinBoosterCount >= 4) {
-    console.log(`⚠️ Maximum Coin Multiplier limit reached (4), skipping respawn`);
-    return;
-  }
-  
   // Create new coin booster in random location with minimum distance from other boosters
   const newCoinBooster = {
     id: `booster_${gameState.nextBoosterId++}`,
@@ -682,7 +657,7 @@ function respawnCoinBooster(boosterId) {
   
   gameState.boosters.set(newCoinBooster.id, newCoinBooster);
   
-  console.log(`🔄 Coin booster respawned at new location: ${Math.round(newCoinBooster.x)}, ${Math.round(newCoinBooster.y)} (Total Coin Multipliers: ${coinBoosterCount + 1})`);
+  console.log(`🔄 Coin booster respawned at new location: ${Math.round(newCoinBooster.x)}, ${Math.round(newCoinBooster.y)}`);
 }
 
 // Calculate safe flee target that avoids world boundaries
@@ -1103,7 +1078,7 @@ function updateBots() {
           // Remove booster
           gameState.boosters.delete(booster.id);
           
-          // Respawn Coin Booster in new random location after 2 minutes delay
+          // Respawn Coin Booster in new random location after 2 minutes
           setTimeout(() => {
             const newCoinBooster = {
               id: `booster_${gameState.nextBoosterId++}`,
@@ -1322,7 +1297,7 @@ function updateBots() {
     }
     
     // Check and expire Coin Booster for bots
-    if (bot.coinBoost && now > bot.coinBoostEndTime) {
+    if (bot.coinBoost && now > bot.playerEaterEndTime) {
       bot.coinBoost = false;
       bot.coinBoostEndTime = 0;
       console.log(`💰 Coin Multiplier expired for bot ${bot.name}`);
@@ -1643,6 +1618,8 @@ function updatePlayers(deltaTime) {
     //       });
     //     }
     //   }
+    // });
+    
     // Note: Eating mechanics are disabled, so no entity removal needed
     
     // Check Player Eater mechanics - can eat other players regardless of size
@@ -1718,10 +1695,6 @@ function updatePlayers(deltaTime) {
                   // Save immediately without setTimeout
                   (async () => {
                     try {
-                      // Calculate coins lost and update totalScore accordingly
-                      const coinsLost = Math.floor(oldScore * 0.1);
-                      const newTotalScore = Math.max(0, (oldScore || 0) - coinsLost);
-                      
                       // Use the new updateUser function to update totalScore
                       await updateUser(playerIdForFirebase, {
                         'stats.totalScore': newTotalScore,
@@ -1750,7 +1723,7 @@ function updatePlayers(deltaTime) {
                       const { findPlayerByPasswordHash } = require('./firebase-admin');
                       const playerData = await findPlayerByPasswordHash(target.passwordHash);
                       
-                      if (playerData) {
+                                              if (playerData) {
                           console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore after losing coins`);
                           // Calculate coins lost and update totalScore accordingly
                           const coinsLost = Math.floor(oldScore * 0.1);
@@ -1771,20 +1744,1220 @@ function updatePlayers(deltaTime) {
                           });
                           console.log(`📡 Notified all clients about ${target.name}'s totalScore update via passwordHash: ${newTotalScore}`);
                         } else {
-                          console.log(`⚠️ Target ${target.name} has no Firebase ID or passwordHash - cannot save to database`);
+                          console.log(`⚠️ Could not find player ${target.name} by passwordHash - cannot save to database`);
                         }
-                      } catch (error) {
-                        console.error(`❌ Error finding player by passwordHash for ${target.name}:`, error);
-                      }
-                    })();
-                  }
+                    } catch (error) {
+                      console.error(`❌ Error finding player by passwordHash for ${target.name}:`, error);
+                    }
+                  })();
+                } else {
+                  console.log(`⚠️ Target ${target.name} has no Firebase ID or passwordHash - cannot save to database`);
                 }
               }
+              
+              // Set cooldown to prevent spam eating
+              player.lastEatTime = now;
+              // Only eat one player per cooldown period
             }
           }
-        );
+        });
       }
+      
+      // No need to remove entities - they just lose coins and stay in the game
+    }
+  });
+}
+
+// Initialize game
+// Bot simulation system
+function startBotSimulation() {
+  // Make existing bots also leave randomly (after 1-5 minutes)
+  function scheduleExistingBotLeave() {
+    const existingBots = Array.from(gameState.bots.values());
+    existingBots.forEach(bot => {
+      const leaveDelay = 60000 + Math.random() * 240000; // 1-5 minutes
+      setTimeout(() => {
+        // Check if bot still exists and there are enough bots
+        if (gameState.bots.has(bot.id) && gameState.bots.size > 5) {
+          gameState.bots.delete(bot.id);
+          
+          // Notify players about leaving "player"
+          if (gameState.players.size > 0) {
+            const leaveMessages = [
+              `${bot.name} left the game`,
+              `${bot.name} disconnected`,
+              `Goodbye ${bot.name}!`,
+              `${bot.name} went offline`,
+              `See you later, ${bot.name}!`
+            ];
+            const message = leaveMessages[Math.floor(Math.random() * leaveMessages.length)];
+            io.emit('chatMessage', {
+              playerId: 'system',
+              playerName: 'System',
+              message: message,
+              timestamp: Date.now(),
+              isSystem: true
+            });
+          }
+        }
+      }, leaveDelay);
+    });
+  }
+  
+  function scheduleNextBotEvent() {
+    // Random delay between 20 seconds and 3 minutes
+    const delay = 20000 + Math.random() * 160000;
+    
+    setTimeout(() => {
+      const currentBotCount = gameState.bots.size;
+      const maxBots = 15;
+      const minBots = 5;
+      
+      // Random chance to add or remove a bot
+      const action = Math.random();
+      
+      if (action <= 0.5 && currentBotCount < maxBots) {
+        // 50% chance to add a bot (player joins)
+        const newBot = createBot(gameState.nextBotId++);
+        gameState.bots.set(newBot.id, newBot);
+        
+        // Notify players about new "player"
+        if (gameState.players.size > 0) {
+          const joinMessages = [
+            `${newBot.name} joined the game!`,
+            `Welcome ${newBot.name}!`,
+            `${newBot.name} entered the battlefield!`,
+            `${newBot.name} is ready to play!`,
+            `A new player ${newBot.name} appeared!`
+          ];
+          const message = joinMessages[Math.floor(Math.random() * joinMessages.length)];
+          io.emit('chatMessage', {
+            playerId: 'system',
+            playerName: 'System',
+            message: message,
+            timestamp: Date.now(),
+            isSystem: true
+          });
+        }
+        
+      } else if (action > 0.5 && currentBotCount > minBots) {
+        // 50% chance to remove a bot (player leaves)
+        const botIds = Array.from(gameState.bots.keys());
+        const randomBotId = botIds[Math.floor(Math.random() * botIds.length)];
+        const leavingBot = gameState.bots.get(randomBotId);
+        
+        if (leavingBot) {
+          gameState.bots.delete(randomBotId);
+          
+          // Notify players about leaving "player"
+          if (gameState.players.size > 0) {
+            const leaveMessages = [
+              `${leavingBot.name} left the game`,
+              `${leavingBot.name} disconnected`,
+              `Goodbye ${leavingBot.name}!`,
+              `${leavingBot.name} went offline`,
+              `See you later, ${leavingBot.name}!`
+            ];
+            const message = leaveMessages[Math.floor(Math.random() * leaveMessages.length)];
+            io.emit('chatMessage', {
+              playerId: 'system',
+              playerName: 'System',
+              message: message,
+              timestamp: Date.now(),
+              isSystem: true
+            });
+          }
+                  }
+        } else {
+        }
+        
+        // Schedule next event
+        scheduleNextBotEvent();
+    }, delay);
+  }
+  
+  // Schedule existing bots to leave randomly
+  scheduleExistingBotLeave();
+  
+  // Start the simulation with a quick first event (5-30 seconds)
+  const firstEventDelay = 5000 + Math.random() * 25000;
+  
+  setTimeout(() => {
+    scheduleNextBotEvent();
+  }, firstEventDelay);
+  
+  // Fallback: force bot action after 2 minutes if nothing happened
+  setTimeout(() => {
+    if (gameState.bots.size < 15) {
+      const newBot = createBot(gameState.nextBotId++);
+      gameState.bots.set(newBot.id, newBot);
+    }
+  }, 120000); // 2 minutes
+}
+
+function initializeGame() {
+  generateCoins(300);
+  
+  // Generate initial boosters
+  generateBoosters(3);
+  
+  // Create initial AI bots (start with fewer)
+  for (let i = 0; i < 8; i++) {
+    const bot = createBot(gameState.nextBotId++);
+    gameState.bots.set(bot.id, bot);
+  }
+  
+  // Start bot simulation (players joining/leaving)
+  startBotSimulation();
+}
+
+// Start new match
+function startNewMatch() {
+  // Calculate time until end of current GMT day
+  const now = new Date();
+  const endOfDay = new Date(now);
+  endOfDay.setUTCHours(23, 59, 59, 999); // End at 23:59:59.999 GMT
+  
+  const timeUntilEndOfDay = Math.floor((endOfDay.getTime() - now.getTime()) / 1000);
+  
+  gameState.matchTimeLeft = timeUntilEndOfDay;
+  gameState.matchDuration = timeUntilEndOfDay;
+  gameState.matchStartTime = Date.now(); // Record exact start time
+  gameState.gameStarted = true;
+  gameState.gameEnded = false;
+  
+  // Reset all player scores
+  gameState.players.forEach(player => {
+    player.score = 0;
+  });
+  
+  // Reset all bot scores
+  gameState.bots.forEach(bot => {
+    bot.score = 0;
+  });
+  
+  // Regenerate coins
+  gameState.coins.clear();
+  gameState.nextCoinId = 0;
+  generateCoins(300);
+  
+  // Regenerate boosters
+  gameState.boosters.clear();
+  gameState.nextBoosterId = 0;
+  generateBoosters(3);
+  
+  // Notify all clients
+  const matchStartNow = new Date();
+  const matchEndOfDay = new Date(matchStartNow);
+  matchEndOfDay.setUTCHours(23, 59, 59, 999);
+  
+  io.emit('matchStarted', {
+    timeLeft: gameState.matchTimeLeft,
+    endOfDayGMT: matchEndOfDay.getTime()
+  });
+}
+
+// End current match
+async function endMatch() {
+  gameState.gameEnded = true;
+  gameState.gameStarted = false;
+  
+  // Get final results
+  const allPlayers = [...gameState.players.values(), ...gameState.bots.values()];
+  const finalResults = allPlayers.map(player => ({
+    id: player.id,
+    name: player.name,
+    score: player.score,
+    isBot: player.isBot || false
+  }));
+  
+  // Save player statistics to Firebase
+  for (const player of gameState.players.values()) {
+    try {
+      // Use user ID if available, otherwise fallback to firebaseId or socket ID
+      const playerId = player.id || player.firebaseId || player.socketId;
+      if (playerId) {
+        await updateUser(playerId, {
+          'stats.totalScore': player.score,
+          'stats.lastPlayed': Date.now(),
+          'lastPlayed': Date.now()
+        });
+      }
+    } catch (error) {
+      console.error('Error saving player stats:', error);
+    }
+  }
+  
+  // Save match result to Firebase
+  try {
+    await GameDataService.saveMatchResult({
+      players: finalResults.filter(p => !p.isBot),
+      winner: finalResults[0],
+      playersCount: gameState.players.size,
+      botsCount: gameState.bots.size,
+              matchDuration: 86400 - gameState.matchTimeLeft
+    });
+  } catch (error) {
+    console.error('Error saving match result:', error);
+  }
+  
+  // Notify all clients
+  io.emit('gameEnded', finalResults);
+  
+  // Start new match at the beginning of next day (GMT)
+  const now = new Date();
+  const nextDay = new Date(now);
+  nextDay.setUTCDate(now.getUTCDate() + 1);
+  nextDay.setUTCHours(0, 0, 0, 0); // Start at 00:00:00 GMT
+  
+  const timeUntilNextDay = nextDay.getTime() - now.getTime();
+  
+  setTimeout(() => {
+    if (gameState.players.size > 0 || gameState.bots.size > 0) {
+      startNewMatch();
+    }
+  }, timeUntilNextDay);
+}
+
+// Match timer countdown
+let timerSyncCounter = 0;
+function updateMatchTimer() {
+  if (!gameState.gameStarted || gameState.gameEnded) return;
+  
+  // Calculate time remaining until end of current GMT day
+  const now = new Date();
+  const endOfDay = new Date(now);
+  endOfDay.setUTCHours(23, 59, 59, 999); // End at 23:59:59.999 GMT
+  
+  gameState.matchTimeLeft = Math.max(0, Math.floor((endOfDay.getTime() - now.getTime()) / 1000));
+  
+  timerSyncCounter++;
+  
+  // Broadcast timer sync every 5 seconds to keep clients in sync
+  if (timerSyncCounter >= 5) {
+    io.emit('matchTimer', {
+      timeLeft: gameState.matchTimeLeft,
+      serverTime: Date.now(),
+      endOfDayGMT: endOfDay.getTime()
+    });
+    timerSyncCounter = 0;
+  }
+  
+  if (gameState.matchTimeLeft <= 0) {
+    endMatch();
+  }
+}
+
+// Player reconnection storage
+const disconnectedPlayers = new Map();
+
+// Socket.io connections
+io.on('connection', (socket) => {
+  // Heartbeat to detect connection issues
+  socket.isAlive = true;
+  socket.on('pong', () => {
+    socket.isAlive = true;
+  });
+  
+  socket.on('ping', () => {
+    socket.isAlive = true;
+    socket.emit('pong');
+  });
+
+  socket.on('joinGame', (playerData) => {
+    const name = typeof playerData === 'string' ? playerData : playerData.name;
+    const wallet = typeof playerData === 'string' ? '' : playerData.wallet;
+    
+    // Check if player is already in the game
+    const existingPlayer = Array.from(gameState.players.values()).find(p => p.name === name);
+    
+    if (existingPlayer) {
+      // Player reconnecting - preserve their current game state
+      console.log(`🔄 Player ${name} reconnecting - Current score: ${existingPlayer.score}, size: ${existingPlayer.size}`);
+      
+      // Remove old player entry and create new one with new socket.id
+      const oldSocketId = Array.from(gameState.players.entries()).find(([id, p]) => p.name === name)?.[0];
+      if (oldSocketId) {
+        gameState.players.delete(oldSocketId);
+        console.log(`🗑️ Removed old player entry with socketId: ${oldSocketId}`);
+      }
+      
+      // Create new player entry with new socket.id
+      const reconnectedPlayer = {
+        ...existingPlayer,
+        socketId: socket.id,
+        lastSeen: Date.now(),
+        lastActivity: Date.now(),
+        firebaseId: existingPlayer.id, // Keep firebaseId for backwards compatibility
+        id: existingPlayer.id, // Primary user ID
+        passwordHash: playerData.passwordHash || existingPlayer.passwordHash, // Preserve passwordHash
+        color: playerData.color !== undefined ? playerData.color : existingPlayer.color // Preserve or update color
+      };
+      
+      // Add to gameState.players with new socket.id
+      gameState.players.set(socket.id, reconnectedPlayer);
+      console.log(`✅ Added reconnected player with new socketId: ${socket.id}`);
+      
+              // Load fresh data from Firestore for reconnected player (but preserve current game score)
+        if (reconnectedPlayer.id) {
+          console.log(`🔍 Loading data for reconnected player: ${reconnectedPlayer.id} (current score: ${reconnectedPlayer.score})`);
+          // Load data asynchronously but update player immediately
+          GameDataService.getPlayerStats(reconnectedPlayer.id)
+            .then(playerStats => {
+              console.log(`📊 Received playerStats for reconnected ${reconnectedPlayer.id}:`, playerStats);
+              if (playerStats) {
+                // Update size if newer data exists (but preserve current game score)
+                if (playerStats.lastSize && playerStats.lastSize > reconnectedPlayer.size) {
+                  reconnectedPlayer.size = playerStats.lastSize;
+                  console.log(`🎯 Reconnected player ${reconnectedPlayer.id} - Updated size to ${playerStats.lastSize} (current game score preserved: ${reconnectedPlayer.score})`);
+                }
+                
+                // Don't update score from Total Coins - this would cause score doubling
+                // reconnectedPlayer.score should remain as current game score
+                // Only update size based on totalScore if it's higher (represents player's progress)
+                if (playerStats.totalScore) {
+                  const calculatedSize = calculatePlayerSize(playerStats.totalScore);
+                  if (calculatedSize > reconnectedPlayer.size) {
+                    reconnectedPlayer.size = calculatedSize;
+                    console.log(`💰 Reconnected player ${reconnectedPlayer.id} - Updated size to ${calculatedSize} based on totalScore ${playerStats.totalScore} (current game score remains ${reconnectedPlayer.score})`);
+                  }
+                }
+                
+                // Log final state for debugging
+                console.log(`✅ Reconnected player ${reconnectedPlayer.id} final state - Score: ${reconnectedPlayer.score}, Size: ${reconnectedPlayer.size}`);
+    } else {
+                console.log(`❌ No playerStats found for reconnected ${reconnectedPlayer.id}`);
+              }
+            })
+            .catch(error => {
+              console.error('Error loading reconnected player data from Firestore:', error);
+            });
+        } else {
+          console.log(`⚠️ No ID for reconnected player ${name}`);
+        }
+      
+      // Send game state to reconnected player
+      const gameStateForClient = {
+        players: Array.from(gameState.players.values()),
+        bots: Array.from(gameState.bots.values()),
+        coins: Array.from(gameState.coins.values()),
+        boosters: Array.from(gameState.boosters.values()),
+        worldSize: gameState.worldSize,
+        playerId: socket.id,
+        matchTimeLeft: gameState.matchTimeLeft,
+        gameStarted: gameState.gameStarted,
+        gameEnded: gameState.gameEnded
+      };
+      
+      socket.emit('gameState', gameStateForClient);
+      console.log(`🔄 Player ${name} reconnected with preserved score: ${reconnectedPlayer.score}`);
+    } else {
+      // New player joining - create player object
+      const playerId = wallet || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Create player with default values first
+      const player = {
+        id: playerId,
+        name: name,
+        ...getRandomPositionWithMinDistance(200), // Minimum 200px distance from other entities for new players
+        vx: 0,
+        vy: 0,
+        targetVx: 0,
+        targetVy: 0,
+        score: 0,
+        size: 20,
+        socketId: socket.id,
+        lastSeen: Date.now(),
+        wallet: wallet,
+        firebaseId: playerId, // Keep firebaseId for backwards compatibility
+        id: playerId, // Primary user ID
+        passwordHash: playerData.passwordHash || null, // Add passwordHash for database operations
+        color: playerData.color || Math.floor(Math.random() * 360),
+        isBot: false,
+        lastActivity: Date.now(),
+        lastPosition: { x: 0, y: 0 }
+      };
+      
+      // Initialize last position
+      player.lastPosition = { x: player.x, y: player.y };
+      
+      // Load saved player data from Firestore if player exists (but don't set score)
+      if (playerId) {
+        console.log(`🔍 Loading data for playerId: ${playerId} (new game, score starts at 0)`);
+        // Load data synchronously to avoid race conditions
+        GameDataService.getPlayerStats(playerId)
+          .then(playerStats => {
+            console.log(`📊 Received playerStats for ${playerId}:`, playerStats);
+            if (playerStats) {
+              // Load saved size (but preserve current game score at 0)
+              if (playerStats.lastSize) {
+                player.size = playerStats.lastSize;
+                console.log(`🎯 Loaded saved size ${playerStats.lastSize} for player ${playerId} (current game score remains 0)`);
+              }
+              
+              // Load size based on Total Coins (but don't set current game score)
+              if (playerStats.totalScore) {
+                // Don't set current game score to totalScore - keep it at 0 for new game
+                // player.score = playerStats.totalScore; // REMOVED - this was causing score doubling
+                // Update size based on loaded totalScore (this represents player's progress)
+                player.size = calculatePlayerSize(playerStats.totalScore);
+                console.log(`💰 Loaded totalScore ${playerStats.totalScore} from Firestore for player ${playerId}, calculated size: ${player.size} (current game score remains 0)`);
+              }
+              
+              // Log final state for debugging
+              console.log(`✅ New player ${playerId} final state - Score: ${player.score}, Size: ${player.size}`);
+              
+              // Update the player in gameState with loaded data (but don't change score)
+              const playerInGame = gameState.players.get(socket.id);
+              if (playerInGame) {
+                // Only update size, not score (score should remain 0 for new game)
+                playerInGame.size = player.size;
+                console.log(`✅ Updated player ${playerId} in gameState with loaded data: size=${player.size} (score remains 0 for new game)`);
+              }
+            } else {
+              console.log(`❌ No playerStats found for ${playerId}`);
+            }
+          })
+          .catch(error => {
+            console.error('Error loading player data from Firestore:', error);
+          });
+      } else {
+        console.log(`⚠️ No playerId provided for ${name}`);
+      }
+      
+      // Add player to game state using socket.id as key (for compatibility with existing code)
+    gameState.players.set(socket.id, player);
+    
+      // Start match if this is the first player and game hasn't started
+      if (gameState.players.size === 1 && !gameState.gameStarted && !gameState.gameEnded) {
+        console.log(`🎮 First player joined, starting new match`);
+        startNewMatch();
+      }
+      
+      // Send game state to new player
+      const gameStateForClient = {
+      players: Array.from(gameState.players.values()),
+      bots: Array.from(gameState.bots.values()),
+      coins: Array.from(gameState.coins.values()),
+        boosters: Array.from(gameState.boosters.values()),
+      worldSize: gameState.worldSize,
+        playerId: socket.id,
+        matchTimeLeft: gameState.matchTimeLeft,
+        gameStarted: gameState.gameStarted,
+        gameEnded: gameState.gameEnded
+      };
+      
+      socket.emit('gameState', gameStateForClient);
+      
+      // Broadcast new player to all other players
+      socket.broadcast.emit('playerJoined', player);
+      
+      // Notify all clients about new player for real-time leaderboard updates
+      io.emit('playerStatsUpdated', {
+        playerId: playerId,
+        nickname: name,
+        totalScore: player.score,
+        type: 'newPlayer'
+      });
+      console.log(`📡 Notified all clients about new player ${name}`);
+      
+      console.log(`🎮 New player ${name} joined with ID: ${playerId}, initial score: ${player.score}, initial size: ${player.size} (score starts at 0 for new game)`);
     }
   });
 
+  socket.on('playerMove', (movement) => {
+    const player = gameState.players.get(socket.id);
+    if (player && !gameState.gameEnded) {
+      // Debug: Log received movement
+      console.log(`🎮 Received movement for ${player.name}: (${movement.x}, ${movement.y})`);
+      
+      // Update activity when player sends movement input
+      if (movement.x !== 0 || movement.y !== 0) {
+        player.lastActivity = Date.now();
+      }
+      
+      // Calculate speed based on player size (bigger = slower)
+      const baseSpeed = 200; // base pixels per second
+      const sizeSpeedMultiplier = calculateSpeedMultiplier(player.score);
+      let speed = baseSpeed * sizeSpeedMultiplier;
+      
+      // Apply Player Eater speed limit if active
+      if (player.playerEater) {
+        speed = Math.min(100, speed); // Limit speed to 100 when Player Eater is active
+      }
+      
+      // Apply speed booster if active
+      if (player.speedBoost) {
+        speed *= 2; // Double speed
+      }
+      
+      // Set target velocity instead of instant position update
+      player.targetVx = movement.x * speed;
+      player.targetVy = movement.y * speed;
+      
+      // Debug: Log calculated target velocity
+      console.log(`🎮 Player ${player.name} target velocity: (${Math.round(player.targetVx * 10) / 10}, ${Math.round(player.targetVy * 10) / 10})`);
+    } else {
+      // Enhanced debugging for playerMove issues
+      console.log(`⚠️ playerMove ignored - Socket ID: ${socket.id}`);
+      console.log(`⚠️ Player found: ${!!player}`);
+      console.log(`⚠️ GameStarted: ${gameState.gameStarted}`);
+      console.log(`⚠️ GameEnded: ${gameState.gameEnded}`);
+      console.log(`⚠️ Total players in game: ${gameState.players.size}`);
+      console.log(`⚠️ Available player names: ${Array.from(gameState.players.values()).map(p => p.name).join(', ')}`);
+      console.log(`⚠️ Available socket IDs: ${Array.from(gameState.players.keys()).join(', ')}`);
+    }
+  });
+
+  socket.on('chatMessage', (data) => {
+    const player = gameState.players.get(socket.id);
+    if (player && data.message && data.message.trim().length > 0) {
+      // Update activity when player sends chat message
+      player.lastActivity = Date.now();
+      
+      io.emit('chatMessage', {
+        playerId: socket.id,
+        playerName: player.name,
+        message: data.message.trim(),
+        timestamp: Date.now()
+      });
+    }
+  });
+
+  socket.on('requestNewGame', () => {
+    // Start new match immediately when requested
+    if (!gameState.gameStarted || gameState.gameEnded) {
+      startNewMatch();
+    }
+  });
+
+  socket.on('updatePlayerScore', (data) => {
+          // Update player score when client requests it (for initialization from Total Coins)
+      const player = gameState.players.get(socket.id);
+      if (player && data.playerId === player.id && typeof data.score === 'number' && data.score >= 0) {
+        console.log(`💰 Updating player ${player.name} score from ${player.score} to ${data.score}`);
+        player.score = data.score;
+        
+        // Broadcast updated game state to all clients
+        io.emit('gameUpdate', {
+          players: Array.from(gameState.players.values()).map(p => ({
+            id: p.id,
+            x: Math.round(p.x),
+            y: Math.round(p.y),
+            vx: Math.round(p.vx * 10) / 10,
+            vy: Math.round(p.vy * 10) / 10,
+            score: p.score,
+            size: p.size,
+            name: p.name,
+            color: p.color,
+            playerEater: p.playerEater || false
+          })),
+          bots: Array.from(gameState.bots.values()).map(b => ({
+            id: b.id,
+            x: Math.round(b.x),
+            y: Math.round(b.y),
+            score: b.score,
+            size: b.size,
+            name: b.name,
+            color: b.color,
+            playerEater: b.playerEater || false
+          })),
+        coins: Array.from(gameState.coins.values()).map(c => ({
+          id: c.id,
+          x: Math.round(c.x),
+          y: Math.round(c.y),
+          value: c.value
+        })),
+        boosters: Array.from(gameState.boosters.values()).map(b => ({
+          id: b.id,
+          x: Math.round(b.x),
+          y: Math.round(b.y),
+          type: b.type,
+          name: b.name,
+          color: b.color,
+          effect: b.effect
+        }))
+      });
+    }
+  });
+
+  socket.on('updatePlayerSize', (data) => {
+            // Update player size when client requests it (for initialization from saved size)
+        const player = gameState.players.get(socket.id);
+        if (player && data.playerId === player.id && typeof data.size === 'number' && data.size >= 20) {
+          console.log(`📏 Updating player ${player.name} size from ${player.size} to ${data.size}`);
+          player.size = data.size;
+          
+          // Broadcast updated game state to all clients
+          io.emit('gameUpdate', {
+            players: Array.from(gameState.players.values()).map(p => ({
+              id: p.id,
+              x: Math.round(p.x),
+              y: Math.round(p.y),
+              vx: Math.round(p.vx * 10) / 10,
+              vy: Math.round(p.vy * 10) / 10,
+              score: p.score,
+              size: p.size,
+              name: p.name,
+              color: p.color,
+              playerEater: p.playerEater || false
+            })),
+            bots: Array.from(gameState.bots.values()).map(b => ({
+              id: b.id,
+              x: Math.round(b.x),
+              y: Math.round(b.y),
+              score: b.score,
+              size: b.size,
+              name: b.name,
+              color: b.color,
+              playerEater: b.playerEater || false
+            })),
+        coins: Array.from(gameState.coins.values()).map(c => ({
+          id: c.id,
+          x: Math.round(c.x),
+          y: Math.round(c.y),
+          value: c.value
+        })),
+        boosters: Array.from(gameState.boosters.values()).map(b => ({
+          id: b.id,
+          x: Math.round(b.x),
+          y: Math.round(b.y),
+          type: b.type,
+          name: b.name,
+          color: b.color,
+          effect: b.effect
+        }))
+      });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`🔌 Socket ${socket.id} disconnected`);
+    
+    // Save player state for potential reconnection (5 minutes)
+    const player = gameState.players.get(socket.id);
+    if (player && (player.id || player.firebaseId)) {
+      console.log(`💾 Saving state for disconnected player: ${player.name} (${player.score} coins, size: ${player.size})`);
+      
+      // Save game session when player disconnects (regardless of score)
+              GameDataService.saveGameSession(player.id || player.firebaseId, {
+        playerName: player.name,
+        score: player.score,
+        walletAddress: player.wallet || ''
+      }).then(() => {
+        console.log(`✅ Game session saved for ${player.name}`);
+      }).catch(error => {
+        console.error(`❌ Failed to save game session for ${player.name}:`, error);
+      });
+      
+      // Save player size when player disconnects
+      if (player.id || player.firebaseId || player.playerId) {
+        const playerIdForSize = player.id || player.firebaseId || player.playerId;
+        setTimeout(async () => {
+          try {
+            await GameDataService.savePlayerSize(playerIdForSize, player.size);
+            console.log(`✅ Player size saved for ${player.name}: ${player.size}`);
+          } catch (error) {
+            console.error('Error saving player size on disconnect:', error);
+          }
+        }, 0);
+      }
+      
+      disconnectedPlayers.set(player.id || player.firebaseId, player);
+      setTimeout(() => {
+        if (disconnectedPlayers.has(player.id || player.firebaseId)) {
+          disconnectedPlayers.delete(player.id || player.firebaseId);
+          console.log(`🗑️ Cleaned up disconnected player data for: ${player.name}`);
+        }
+      }, 5 * 60 * 1000); // 5 minutes
+    } else {
+      console.log(`⚠️ No player found for disconnected socket: ${socket.id}`);
+    }
+    
+    // Remove player from game state
+    const removed = gameState.players.delete(socket.id);
+    console.log(`🗑️ Player removed from game state: ${removed ? 'Yes' : 'No'} (socket: ${socket.id})`);
+  });
+});
+
+// Game loop variables
+let lastUpdate = Date.now();
+let updateCounter = 0;
+let lastAFKCheck = Date.now();
+
+// Game loop (optimized)
+setInterval(() => {
+  const now = Date.now();
+  const deltaTime = (now - lastUpdate) / 1000;
+  lastUpdate = now;
+  
+  // Debug: Log game state
+  console.log(`🔄 Game loop - Players: ${gameState.players.size}, Bots: ${gameState.bots.size}, Coins: ${gameState.coins.size}`);
+  
+  // Log coin distribution every 30 seconds
+  if (now % 30000 < 16) {
+    const coins = Array.from(gameState.coins.values());
+    if (coins.length > 0) {
+      const minX = Math.min(...coins.map(c => c.x));
+      const maxX = Math.max(...coins.map(c => c.x));
+      const minY = Math.min(...coins.map(c => c.y));
+      const maxY = Math.max(...coins.map(c => c.y));
+      console.log(`💰 Coin distribution - X: ${minX.toFixed(0)} to ${maxX.toFixed(0)}, Y: ${minY.toFixed(0)} to ${maxY.toFixed(0)}`);
+    }
+  }
+  
+  // Update game logic with deltaTime for smooth 60fps movement
+  updatePlayers(deltaTime);
+  updateBots();
+  
+  // Check for AFK players every 30 seconds (reduce server load)
+  if (now - lastAFKCheck > 30000) {
+    checkAFKPlayers();
+    lastAFKCheck = now;
+  }
+  
+  // Check and redistribute coins if needed (every 10 seconds)
+  if (now % 10000 < 16) { // Every ~10 seconds (16ms is roughly one frame at 60fps)
+    redistributeCoinsIfNeeded();
+  }
+  
+  // Update rainbow colors for Player Eater boosters and players
+  gameState.boosters.forEach(booster => {
+    if (booster.type === 'playerEater') {
+      booster.rainbowHue = (booster.rainbowHue + 2) % 360; // Rotate rainbow colors
+    }
+  });
+  
+  // Update rainbow colors for players with Player Eater boost
+  gameState.players.forEach(player => {
+    if (player.playerEater) {
+      player.rainbowHue = ((player.rainbowHue || 0) + 2) % 360; // Rotate rainbow colors
+    }
+  });
+  
+  // Update rainbow colors for bots with Player Eater boost
+  gameState.bots.forEach(bot => {
+    if (bot.playerEater) {
+      bot.rainbowHue = ((bot.rainbowHue || 0) + 2) % 360; // Rotate rainbow colors
+    }
+  });
+  
+  // Only broadcast every 3rd frame (20 FPS instead of 60)
+  updateCounter++;
+  if (updateCounter >= 3) {
+    updateCounter = 0;
+    
+    // Debug: Log movement data
+    if (gameState.players.size > 0) {
+      const firstPlayer = Array.from(gameState.players.values())[0];
+      console.log(`🎮 Player ${firstPlayer.name} - Pos: (${Math.round(firstPlayer.x)}, ${Math.round(firstPlayer.y)}), Vel: (${Math.round(firstPlayer.vx * 10) / 10}, ${Math.round(firstPlayer.vy * 10) / 10})`);
+    }
+    
+    // Only send essential data, not full objects
+    const gameUpdate = {
+      players: Array.from(gameState.players.values()).map(p => ({
+        id: p.id,
+        x: Math.round(p.x),
+        y: Math.round(p.y),
+        vx: Math.round(p.vx * 10) / 10, // Send velocity for client-side interpolation
+        vy: Math.round(p.vy * 10) / 10,
+        score: p.score,
+        size: p.size,
+        name: p.name,
+                color: p.playerEater ? `hsl(${p.rainbowHue || 0}, 70%, 50%)` : p.color,
+                playerEater: p.playerEater || false,
+                playerEaterEndTime: p.playerEaterEndTime || 0,
+                coinBoost: p.coinBoost || false,
+                coinBoostEndTime: p.coinBoostEndTime || 0
+      })),
+      bots: Array.from(gameState.bots.values()).map(b => ({
+        id: b.id,
+        x: Math.round(b.x),
+        y: Math.round(b.y),
+        score: b.score,
+        size: b.size,
+        name: b.name,
+                color: b.playerEater ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
+                playerEater: b.playerEater || false,
+                playerEaterEndTime: b.playerEaterEndTime || 0,
+                coinBoost: b.coinBoost || false,
+                coinBoostEndTime: b.coinBoostEndTime || 0
+      })),
+      coins: Array.from(gameState.coins.values()).map(c => ({
+        id: c.id,
+        x: Math.round(c.x),
+        y: Math.round(c.y)
+            })),
+            boosters: Array.from(gameState.boosters.values()).map(b => ({
+                id: b.id,
+                x: Math.round(b.x),
+                y: Math.round(b.y),
+                type: b.type,
+                name: b.name,
+                color: b.type === 'playerEater' ? `hsl(${b.rainbowHue || 0}, 70%, 50%)` : b.color,
+                effect: b.effect,
+                rainbowHue: b.rainbowHue || 0
+      }))
+    };
+    
+    io.emit('gameUpdate', gameUpdate);
+  }
+}, 1000 / 60); // 60 FPS logic, 20 FPS network
+
+// Timer loop (every second)
+setInterval(() => {
+  updateMatchTimer();
+}, 1000);
+
+// Heartbeat check every 30 seconds
+setInterval(() => {
+  io.sockets.sockets.forEach((socket) => {
+    if (socket.isAlive === false) {
+      socket.disconnect();
+      return;
+    }
+    
+    socket.isAlive = false;
+    socket.emit('ping'); // Use Socket.IO ping instead
+  });
+}, 30000);
+
+// Initialize and start server
+initializeGame();
+
+// Keep Render server awake (ping every 14 minutes)
+if (process.env.NODE_ENV === 'production') {
+  setInterval(() => {
+    // Silent ping to keep server awake
+  }, 14 * 60 * 1000); // 14 minutes
 }
+
+// Debug bot status every 30 seconds
+setInterval(() => {
+  // Silent monitoring - no logs
+}, 30000);
+
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+  console.log(`🚀 Server started on port ${PORT}`);
+  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  console.log(`📊 API endpoints:`);
+  console.log(`   - GET /api/players - All players with online status`);
+  console.log(`   - GET /api/leaderboard - Global leaderboard`);
+  console.log(`   - GET /api/player/:id - Player stats`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  
+  // Notify all clients about server shutdown
+  io.emit('serverShutdown', { message: 'Server is restarting, please wait...' });
+  
+  server.close(() => {
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  server.close(() => {
+    process.exit(0);
+  });
+}); 
+
+// API endpoint for cleaning up duplicate players
+app.post('/api/cleanup-duplicates', async (req, res) => {
+  try {
+    console.log('🧹 API /api/cleanup-duplicates called');
+    await GameDataService.cleanupDuplicatePlayerDocuments();
+    res.json({ message: 'Duplicate cleanup completed successfully' });
+  } catch (error) {
+    console.error('❌ Error cleaning up duplicates:', error);
+    res.status(500).json({ error: 'Failed to cleanup duplicates' });
+  }
+}); 
+
+// API endpoint for cleaning up duplicate players by wallet
+app.post('/api/cleanup-duplicates-wallet', async (req, res) => {
+  try {
+    console.log('🧹 API /api/cleanup-duplicates-wallet called');
+    await GameDataService.cleanupDuplicatePlayerDocumentsByWallet();
+    res.json({ message: 'Wallet duplicate cleanup completed successfully' });
+  } catch (error) {
+    console.error('❌ Error cleaning up wallet duplicates:', error);
+    res.status(500).json({ error: 'Failed to cleanup wallet duplicates' });
+  }
+}); 
+
+// Authentication API endpoints
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, nickname, password, wallet } = req.body;
+    
+    // Validation
+    if (!email || !nickname || !password || !wallet) {
+      return res.status(400).json({ error: 'Email, nickname, password, and wallet address are required' });
+    }
+    
+    if (nickname.length < 3) {
+      return res.status(400).json({ error: 'Nickname must be at least 3 characters' });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    
+    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedNickname = nickname.toLowerCase().trim();
+    
+    // Check if user already exists in Firestore
+    const existingUsers = await GameDataService.getUserByEmailOrNickname(normalizedEmail, normalizedNickname);
+    if (existingUsers.length > 0) {
+      return res.status(409).json({ error: 'Email or nickname already exists' });
+    }
+    
+    // Hash password
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+    
+    // Create user
+    const userId = generateUserId();
+    const newUser = {
+      id: userId,
+      email: normalizedEmail,
+      nickname: nickname.trim(),
+      passwordHash: passwordHash,
+      wallet: wallet.trim(),
+      createdAt: Date.now(),
+      lastLogin: Date.now(),
+      totalScore: 0,
+      stats: {
+        gamesPlayed: 0,
+        totalScore: 0,
+        bestScore: 0,
+        wins: 0
+      }
+    };
+    
+    // Save to Firestore
+    await GameDataService.createUser(userId, newUser);
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: userId, email: normalizedEmail, nickname: nickname.trim() },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    console.log(`✅ User registered: ${nickname} (${normalizedEmail})`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      user: {
+        id: userId,
+        email: normalizedEmail,
+        nickname: nickname.trim(),
+        wallet: wallet.trim(),
+        totalScore: 0,
+        stats: newUser.stats
+      },
+      token: token
+    });
+    
+  } catch (error) {
+    console.error('❌ Registration error:', error);
+    res.status(500).json({ error: 'Internal server error during registration' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    console.log('🔐 Login attempt:', req.body);
+    const { nickname, password } = req.body;
+    
+    if (!nickname || !password) {
+      console.log('❌ Missing nickname or password');
+      return res.status(400).json({ error: 'Nickname and password are required' });
+    }
+    
+    const normalizedNickname = nickname.toLowerCase().trim();
+    console.log(`🔍 Looking for user: ${normalizedNickname}`);
+    
+    // Get user from Firestore
+    const user = await GameDataService.getUserByNickname(normalizedNickname);
+    if (!user) {
+      console.log(`❌ User not found: ${normalizedNickname}`);
+      return res.status(401).json({ error: 'Invalid nickname or password' });
+    }
+    
+    console.log(`✅ User found: ${user.nickname}, verifying password...`);
+    
+    // Verify password
+    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+    if (!isValidPassword) {
+      console.log(`❌ Invalid password for user: ${user.nickname}`);
+      return res.status(401).json({ error: 'Invalid nickname or password' });
+    }
+    
+    console.log(`✅ Password verified for user: ${user.nickname}, updating last login...`);
+    
+    // Update last login
+    await updateUserLastLogin(user.id);
+    
+    console.log(`✅ Last login updated for user: ${user.nickname}, generating token...`);
+    
+    // Generate JWT token 
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, nickname: user.nickname },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    console.log(`✅ User logged in successfully: ${user.nickname} (${user.email})`);
+    
+    res.json({
+      success: true,
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        email: user.email,
+        nickname: user.nickname,
+        wallet: user.wallet || '',
+        totalScore: user.stats?.totalScore || 0,
+        stats: user.stats || {
+          gamesPlayed: 0,
+          totalScore: 0,
+          bestScore: 0,
+          wins: 0
+        }
+      },
+      token: token
+    });
+    
+  } catch (error) {
+    console.error('❌ Login error:', error);
+    console.error('❌ Error stack:', error.stack);
+    res.status(500).json({ error: 'Internal server error during login' });
+  }
+});
+
+app.post('/api/auth/logout', authenticateToken, (req, res) => {
+  // In a more sophisticated setup, you'd invalidate the token on the server side
+  // For now, the client will just remove the token
+  console.log(`✅ User logged out: ${req.user.nickname}`);
+  res.json({ success: true, message: 'Logout successful' });
+});
+
+// Get current user info
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await GameDataService.getUserById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({
+      id: user.id,
+      email: user.email,
+      nickname: user.nickname,
+      wallet: user.wallet || '',
+      totalScore: user.totalScore || 0,
+      stats: user.stats || {
+        gamesPlayed: 0,
+        totalScore: 0,
+        bestScore: 0,
+        wins: 0
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Get user info error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update user profile
+app.put('/api/auth/profile', authenticateToken, async (req, res) => {
+  try {
+    const { wallet, stats } = req.body;
+    const userId = req.user.userId;
+    
+    console.log(`🔧 Profile update request for user ${userId}:`, { wallet, stats });
+    
+    // First check if user exists
+    const existingUser = await GameDataService.getUserById(userId);
+    if (!existingUser) {
+      console.error(`❌ User not found for profile update: ${userId}`);
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const updates = {};
+    if (wallet !== undefined) {
+      updates.wallet = wallet.trim();
+    }
+    if (stats !== undefined) {
+      // First update totalScore for backward compatibility
+      if (stats.totalScore !== undefined) {
+        updates.totalScore = stats.totalScore;
+      }
+      
+      // Then update stats object (which includes bestScore)
+      updates.stats = stats;
+      
+      // Handle lastSize if it's in stats
+      if (stats.lastSize !== undefined) {
+        updates.lastSize = stats.lastSize;
+      }
+      
+      // Handle lastPlayed if it's in stats
+      if (stats.lastPlayed !== undefined) {
+        updates.lastPlayed = stats.lastPlayed;
+      }
+    }
+    
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+    
+    console.log(`🔧 Updating user ${userId} with:`, updates);
+    
+    // Update user
+    await updateUser(userId, updates);
+    
+    // Get updated user data
+    const updatedUser = await GameDataService.getUserById(userId);
+    
+    console.log(`✅ Profile updated successfully for user ${userId}`);
+    
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nickname: updatedUser.nickname,
+        wallet: updatedUser.wallet || '',
+        totalScore: updatedUser.totalScore || 0,
+        stats: updatedUser.stats || {
+          gamesPlayed: 0,
+          totalScore: 0,
+          bestScore: 0,
+          wins: 0
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Profile update error:', error);
+    
+    // Return more specific error messages
+    if (error.message && error.message.includes('not found')) {
+      return res.status(404).json({ error: 'User not found' });
+    } else if (error.message && error.message.includes('permission')) {
+      return res.status(403).json({ error: 'Permission denied' });
+    } else {
+      return res.status(500).json({ error: 'Internal server error during profile update' });
+    }
+  }
+});
