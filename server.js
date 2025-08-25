@@ -1322,7 +1322,7 @@ function updateBots() {
     }
     
     // Check and expire Coin Booster for bots
-    if (bot.coinBoost && now > bot.playerEaterEndTime) {
+    if (bot.coinBoost && now > bot.coinBoostEndTime) {
       bot.coinBoost = false;
       bot.coinBoostEndTime = 0;
       console.log(`💰 Coin Multiplier expired for bot ${bot.name}`);
@@ -1643,8 +1643,6 @@ function updatePlayers(deltaTime) {
     //       });
     //     }
     //   }
-    // });
-    
     // Note: Eating mechanics are disabled, so no entity removal needed
     
     // Check Player Eater mechanics - can eat other players regardless of size
@@ -1720,6 +1718,10 @@ function updatePlayers(deltaTime) {
                   // Save immediately without setTimeout
                   (async () => {
                     try {
+                      // Calculate coins lost and update totalScore accordingly
+                      const coinsLost = Math.floor(oldScore * 0.1);
+                      const newTotalScore = Math.max(0, (oldScore || 0) - coinsLost);
+                      
                       // Use the new updateUser function to update totalScore
                       await updateUser(playerIdForFirebase, {
                         'stats.totalScore': newTotalScore,
@@ -1748,7 +1750,7 @@ function updatePlayers(deltaTime) {
                       const { findPlayerByPasswordHash } = require('./firebase-admin');
                       const playerData = await findPlayerByPasswordHash(target.passwordHash);
                       
-                                              if (playerData) {
+                      if (playerData) {
                           console.log(`✅ Found player ${target.name} by passwordHash, updating totalScore after losing coins`);
                           // Calculate coins lost and update totalScore accordingly
                           const coinsLost = Math.floor(oldScore * 0.1);
@@ -1780,69 +1782,59 @@ function updatePlayers(deltaTime) {
               }
             }
           }
-        });
-      
-      // No need to remove entities - they just lose coins and stay in the game
-    }
-  }
-    
-    // Check and expire Player Eater for bots
-    if (bot.playerEater && now > bot.playerEaterEndTime) {
-      bot.playerEater = false;
-      bot.playerEaterEndTime = 0;
-      // Restore original size and speed
-      if (bot.playerEaterOriginalSize) {
-        bot.size = bot.playerEaterOriginalSize;
-        bot.playerEaterOriginalSize = undefined;
+        );
       }
-      if (bot.playerEaterOriginalSpeed) {
-        bot.speed = bot.playerEaterOriginalSpeed;
-        bot.playerEaterOriginalSpeed = undefined;
-      }
-      console.log(`👹 Player Eater expired for bot ${bot.name} - restored original size and speed`);
-      
-      // Respawn Player Eater booster on the map immediately after effect expires
-      const newBooster = {
-        id: `booster_${gameState.nextBoosterId++}`,
-        ...getRandomPositionWithMinDistance(800), // Minimum 800px distance from other boosters
-        type: 'playerEater',
-        name: 'Player Eater',
-        color: 'rainbow',
-        effect: 'Player Eater',
-        isBooster: true,
-        rainbowHue: 0
-      };
-      gameState.boosters.set(newBooster.id, newBooster);
-      console.log(`👹 Player Eater booster respawned immediately after player ${bot.name} effect expired`);
-    }
-    
-    // Check and expire Coin Booster for bots
-    if (bot.coinBoost && now > bot.playerEaterEndTime) {
-      bot.coinBoost = false;
-      bot.coinBoostEndTime = 0;
-      console.log(`💰 Coin Multiplier expired for bot ${bot.name}`);
-      
-      // Respawn Coin Booster on the map after 2 minutes delay
-      setTimeout(() => {
-        const newCoinBooster = {
-          id: `booster_${gameState.nextBoosterId++}`,
-          ...getRandomPositionWithMinDistance(800), // Minimum 800px distance from other boosters
-          type: 'coins',
-          name: 'Coin Multiplier',
-          color: '#FFD700',
-          effect: 'Coin Multiplier',
-          isBooster: true,
-          spawnTime: Date.now() // Reset spawn time
-        };
-        
-        // Set new respawn timer for this booster
-        setTimeout(() => {
-          respawnCoinBooster(newCoinBooster.id);
-        }, 120000); // 2 minutes
-        
-        gameState.boosters.set(newCoinBooster.id, newCoinBooster);
-        console.log(`🔄 Coin booster respawned on map after bot ${bot.name} expired (2 minutes delay)`);
-      }, 120000); // 2 minutes delay before respawn
     }
   });
+
 }
+
+// Game loop
+function gameLoop() {
+  if (!gameState.gameStarted || gameState.gameEnded) return;
+  
+  const now = Date.now();
+  const deltaTime = 16.67; // 60 FPS
+  
+  // Update game state
+  updateBots();
+  updatePlayers(deltaTime);
+  
+  // Check for AFK players every 30 seconds
+  if (now % 30000 < deltaTime) {
+    checkAFKPlayers();
+  }
+  
+  // Schedule next frame
+  setTimeout(gameLoop, deltaTime);
+}
+
+// Start the game loop when game starts
+function startGameLoop() {
+  if (!gameState.gameLoopRunning) {
+    gameState.gameLoopRunning = true;
+    gameLoop();
+  }
+}
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log(`🔌 New connection: ${socket.id}`);
+  
+  // Handle player join
+  socket.on('joinGame', (playerData) => {
+    // Game join logic here
+    console.log(`🎮 Player ${playerData.name} joined the game`);
+  });
+  
+  // Handle player disconnect
+  socket.on('disconnect', () => {
+    console.log(`🔌 Player disconnected: ${socket.id}`);
+  });
+});
+
+// Start server
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
